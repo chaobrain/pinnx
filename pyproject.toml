@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+
+[tool.setuptools.packages.find]
+exclude = [
+    "docs*", "tests*", "examples*", "experiments*", "build*", "dist*",
+    "pinnx.egg-info*", "pinnx/__pycache__*",
+]
+
+
+[tool.distutils.bdist_wheel]
+universal = true
+
+
+[project]
+name = "pinnx"
+description = "Physics-informed."
+readme = 'README.md'
+license = { text = 'Apache-2.0 license' }
+requires-python = '>=3.9'
+authors = [{ name = 'PINNx Developers', email = 'chao.brain@qq.com' }]
+classifiers = [
+    'Natural Language :: English',
+    'Operating System :: OS Independent',
+    'Development Status :: 4 - Beta',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Science/Research',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'License :: OSI Approved :: Apache Software License',
+    'Programming Language :: Python',
+    'Topic :: Scientific/Engineering :: Bio-Informatics',
+    'Topic :: Scientific/Engineering :: Mathematics',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+    'Topic :: Software Development :: Libraries',
+]
+
+
+keywords = [
+    'computational neuroscience',
+    'brain-inspired computation',
+    'brain dynamics programming',
+]
+
+dependencies = [
+    'jax',
+    'jaxlib',
+    'numpy',
+    'brainunit>=0.0.2',
+]
+
+dynamic = ['version']
+
+[tool.flit.module]
+name = "pinnx"
+
+[project.urls]
+homepage = 'http://github.com/chaobrain/pinnx'
+repository = 'http://github.com/chaobrain/pinnx'
+
+[project.optional-dependencies]
+testing = [
+    'pytest',
+]

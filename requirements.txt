@@ -1,0 +1,7 @@
+matplotlib
+numpy
+scikit-learn
+scipy
+brainstate
+brainunit
+braintools
