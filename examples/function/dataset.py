@@ -1,10 +1,13 @@
 """Backend supported: tensorflow.compat.v1, tensorflow, pytorch, jax, paddle"""
+import os
+
 import brainstate as bst
 
 import pinnx
 
-fname_train = "../dataset/dataset.train"
-fname_test = "../dataset/dataset.test"
+PATH = os.path.abspath(os.path.dirname(__file__))
+fname_train = os.path.join(PATH, '..', 'dataset', 'dataset.train')
+fname_test = os.path.join(PATH, '..', 'dataset', 'dataset.test')
 
 data = pinnx.data.DataSet(
     fname_train=fname_train,

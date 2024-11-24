@@ -5,3 +5,4 @@ scipy
 brainstate
 brainunit
 braintools
+scikit-optimize

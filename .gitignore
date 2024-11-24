@@ -23,3 +23,6 @@ pinnx/_version.py
 
 # PyCharm
 .idea/
+
+# .dat files in the docs folder and it's subfolders
+docs/**/*.dat
