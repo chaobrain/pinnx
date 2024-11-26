@@ -1,0 +1,118 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+from __future__ import annotations
+
+from typing import Dict, Sequence
+
+import brainstate as bst
+
+from .convert import DictToArray, ArrayToDict
+from .grad import jacobian, hessian
+
+__all__ = [
+    'Model',
+]
+
+
+class Model(bst.nn.Module):
+    """
+    A neural network approximator.
+
+    Args:
+        input: The input check.
+        approx: The neural network model.
+        output: The output unit.
+
+    """
+
+    def __init__(
+        self,
+        input: DictToArray,
+        approx: bst.nn.Module,
+        output: ArrayToDict,
+    ):
+        super().__init__()
+
+        assert isinstance(input, DictToArray), "input must be an instance of DictToArray."
+        self.input = input
+
+        assert isinstance(approx, bst.nn.Module), "approx must be an instance of nn.Module."
+        self.approx = approx
+
+        assert isinstance(output, ArrayToDict), "output must be an instance of Output."
+        self.output = output
+
+    def update(self, x):
+        return self.output(self.approx(self.input(x)))
+
+    def jacobian(
+        self,
+        inputs: Dict[str, bst.typing.ArrayLike],
+        y: str | Sequence[str] | None = None,
+        x: str | Sequence[str] | None = None,
+    ):
+        """
+        Compute the Jacobian of the approximation neural networks.
+
+        Args:
+            inputs: The input data.
+            y: The output variables.
+            x: The input variables.
+
+        Returns:
+            The Jacobian of the approximation neural networks.
+        """
+        return jacobian(self, inputs, y=y, x=x)
+
+    def hessian(
+        self,
+        inputs: Dict[str, bst.typing.ArrayLike],
+        y: str | Sequence[str] | None = None,
+        xi: str | Sequence[str] | None = None,
+        xj: str | Sequence[str] | None = None,
+    ):
+        """
+        Compute the Hessian of the approximator.
+
+        Compute: `H[y][xi][xj] = d^2y / dxi dxj = d^2y / dxj dxi`
+
+        Args:
+            inputs: The input data.
+            y: The output variables.
+            xi: The first input variables.
+            xj: The second input variables.
+
+        Returns:
+            The Hessian of the approximator.
+        """
+        return hessian(self, inputs, y=y, xi=xi, xj=xj)
+
+    def gradient(
+        self,
+        inputs: Dict[str, bst.typing.ArrayLike],
+        order: int
+    ):
+        """
+        Compute the gradient of the approximator.
+
+        Args:
+            inputs: The input data.
+            order: The order of the gradient.
+
+        Returns:
+            The gradient of the approximator.
+        """
+        assert isinstance(order, int) and order >= 1, "order must be an integer greater than or equal to 1."

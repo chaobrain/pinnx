@@ -5,8 +5,8 @@ import pinnx
 
 
 def pde(neu, x):
-    x = pinnx.array_to_dict(x, "x", "y")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "u")
+    x = pinnx.array_to_dict(x, ["x", "y"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["u"])
     hessian = pinnx.grad.hessian(approx, x)
     dy_xx = hessian["u"]["x"]["x"]
     dy_yy = hessian["u"]["y"]["y"]
@@ -22,7 +22,7 @@ bc = pinnx.icbc.DirichletBC(geom, lambda x: 0, boundary)
 
 data = pinnx.data.PDE(geom, pde, bc, num_domain=1200, num_boundary=120, num_test=1500)
 net = pinnx.nn.FNN([2] + [50] * 4 + [1], "tanh")
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(
     bst.optim.Adam(1e-3),

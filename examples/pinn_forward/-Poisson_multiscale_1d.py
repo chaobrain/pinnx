@@ -15,8 +15,8 @@ B = 50
 
 
 def pde(neu, x):
-    x = pinnx.array_to_dict(x, "x")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["y"])
     hessian = pinnx.grad.hessian(approx, x)
     x = x["x"]
     dy_xx = hessian["y"]["x"]["x"]
@@ -49,7 +49,7 @@ activation = "tanh"
 initializer = "Glorot uniform"
 net = pinnx.nn.MsFFN(layer_size, activation, initializer, sigmas=[1, 10])
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(1e-3),
     metrics=["l2 relative error"],

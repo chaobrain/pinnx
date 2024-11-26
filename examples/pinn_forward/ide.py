@@ -33,7 +33,7 @@ data = pinnx.data.IDE(geom, ide, ic, quad_deg, num_domain=16, num_boundary=2)
 
 net = pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001))
 model.train(iterations=10000)
 

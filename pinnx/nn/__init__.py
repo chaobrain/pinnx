@@ -11,12 +11,16 @@ cannot import name 'XXX' from 'pinnx.nn.XXX'`` error, that means the network is 
 available to the current backend. If you wish a module to appear in DeepXDE, please
 create an issue. If you want to contribute a NN module, please create a pull request.
 """
+
 __all__ = [
+    "DictToArray",
+    "ArrayToDict",
+    "Model",
+    "NN",
+    "FNN",
     "DeepONet",
     "DeepONetCartesianProd",
-    "FNN",
     "MIONetCartesianProd",
-    "NN",
     "PFNN",
     "PODDeepONet",
     "PODMIONet",
@@ -25,4 +29,6 @@ __all__ = [
 from .base import NN
 from .deeponet import DeepONet, DeepONetCartesianProd, PODDeepONet
 from .fnn import FNN, PFNN
+from .convert import DictToArray, ArrayToDict
 from .mionet import MIONetCartesianProd, PODMIONet
+from .model import Model

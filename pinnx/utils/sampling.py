@@ -1,4 +1,18 @@
-__all__ = ["sample"]
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 
 import numbers
 import warnings
@@ -19,6 +33,8 @@ from .transformers import (
     Pipeline,
     StringEncoder,
 )
+
+__all__ = ["sample"]
 
 
 def sample(n_samples, dimension, sampler="pseudo"):
@@ -237,7 +253,7 @@ def _check_dimension_old(dimension, transform=None):
     # A `Dimension` described by a single value is assumed to be
     # a `Categorical` dimension. This can be used in `BayesSearchCV`
     # to define subspaces that fix one value, e.g. to choose the
-    # model type, see "sklearn-gridsearchcv-replacement.py"
+    # trainer type, see "sklearn-gridsearchcv-replacement.py"
     # for examples.
     if len(dimension) == 1:
         return Categorical(dimension, transform=transform)
@@ -1096,7 +1112,7 @@ class Space:
         """Draw random samples.
 
         The samples are in the original space. They need to be transformed
-        before being passed to a model or minimizer by `space.transform()`.
+        before being passed to a trainer or minimizer by `space.transform()`.
 
         Parameters
         ----------

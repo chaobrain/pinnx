@@ -1,8 +1,11 @@
+from typing import Callable
+
+from pinnx.geometry.base import AbstractGeometry
 from pinnx.utils import run_if_any_none
-from .data import Data
+from .base import Problem
 
 
-class Function(Data):
+class Function(Problem):
     """Approximate a function via a network.
 
     Args:
@@ -20,12 +23,12 @@ class Function(Data):
 
     def __init__(
         self,
-        geometry,
-        function,
-        num_train,
-        num_test,
-        train_distribution="uniform",
-        online=False,
+        geometry: AbstractGeometry,
+        function: Callable,
+        num_train: int,
+        num_test: int,
+        train_distribution: str = "uniform",
+        online: bool = False,
     ):
         self.geom = geometry
         self.func = function
@@ -49,9 +52,7 @@ class Function(Data):
             if self.dist_train == "uniform":
                 self.train_x = self.geom.uniform_points(self.num_train, boundary=True)
             else:
-                self.train_x = self.geom.random_points(
-                    self.num_train, random=self.dist_train
-                )
+                self.train_x = self.geom.random_points(self.num_train, random=self.dist_train)
             self.train_y = self.func(self.train_x)
         return self.train_x, self.train_y
 

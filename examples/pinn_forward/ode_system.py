@@ -9,8 +9,8 @@ def ode_system(neu, x):
     dy1/dx = y2
     dy2/dx = -y1
     """
-    x = pinnx.array_to_dict(x, "x")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "y1", "y2")
+    x = pinnx.array_to_dict(x, ["x"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["y1", "y2"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
 
     y1, y2 = y['y1'], y['y2']
@@ -34,7 +34,7 @@ data = pinnx.data.PDE(geom, ode_system, [ic1, ic2], 35, 2, solution=func, num_te
 
 net = pinnx.nn.FNN([1] + [50] * 3 + [2], "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=20000)
 

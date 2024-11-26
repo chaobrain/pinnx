@@ -6,8 +6,8 @@ import pinnx
 
 
 def pde(net, x):
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
-    x = pinnx.array_to_dict(x, "x", "t")
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
+    x = pinnx.array_to_dict(x, ["x", "t"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
 
@@ -46,7 +46,7 @@ data = pinnx.data.TimePDE(
 layer_size = [2] + [32] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, 'tanh', bst.init.KaimingUniform())
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)

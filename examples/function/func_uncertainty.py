@@ -13,14 +13,14 @@ def func(x):
 
 
 geom = pinnx.geometry.Interval(-1, 1)
-num_train = 10
+num_train = 100
 num_test = 1000
 data = pinnx.data.Function(geom, func, num_train, num_test)
 
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh", bst.init.KaimingUniform())
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 uncertainty = pinnx.callbacks.DropoutUncertainty(period=1000)
 losshistory, train_state = model.train(iterations=30000, callbacks=uncertainty)

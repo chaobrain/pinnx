@@ -12,7 +12,7 @@ class Callback:
     Callback base class.
 
     Attributes:
-        model: instance of ``Model``. Reference of the model being trained.
+        model: instance of ``Trainer``. Reference of the trainer being trained.
     """
 
     def __init__(self):
@@ -24,7 +24,7 @@ class Callback:
             self.init()
 
     def init(self):
-        """Init after setting a model."""
+        """Init after setting a trainer."""
 
     def on_epoch_begin(self):
         """Called at the beginning of every epoch."""
@@ -39,10 +39,10 @@ class Callback:
         """Called at the end of every batch."""
 
     def on_train_begin(self):
-        """Called at the beginning of model training."""
+        """Called at the beginning of trainer training."""
 
     def on_train_end(self):
-        """Called at the end of model training."""
+        """Called at the end of trainer training."""
 
     def on_predict_begin(self):
         """Called at the beginning of prediction."""
@@ -107,14 +107,14 @@ class CallbackList(Callback):
 
 
 class ModelCheckpoint(Callback):
-    """Save the model after every epoch.
+    """Save the trainer after every epoch.
 
     Args:
-        filepath (string): Prefix of filenames to save the model file.
+        filepath (string): Prefix of filenames to save the trainer file.
         verbose: Verbosity mode, 0 or 1.
-        save_better_only: If True, only save a better model according to the quantity
-            monitored. Model is only checked at validation step according to
-            ``display_every`` in ``Model.train``.
+        save_better_only: If True, only save a better trainer according to the quantity
+            monitored. Trainer is only checked at validation step according to
+            ``display_every`` in ``Trainer.train``.
         period: Interval (number of epochs) between checkpoints.
         monitor: The loss function that is monitored. Either 'train loss' or 'test loss'.
     """
@@ -149,7 +149,7 @@ class ModelCheckpoint(Callback):
                 save_path = self.model.save(self.filepath, verbose=0)
                 if self.verbose > 0:
                     print(
-                        "Epoch {}: {} improved from {:.2e} to {:.2e}, saving model to {} ...\n".format(
+                        "Epoch {}: {} improved from {:.2e} to {:.2e}, saving trainer to {} ...\n".format(
                             self.model.train_state.epoch,
                             self.monitor,
                             self.best,
@@ -174,7 +174,7 @@ class ModelCheckpoint(Callback):
 
 class EarlyStopping(Callback):
     """Stop training when a monitored quantity (training or testing loss) has stopped improving.
-    Only checked at validation step according to ``display_every`` in ``Model.train``.
+    Only checked at validation step according to ``display_every`` in ``Trainer.train``.
 
     Args:
         min_delta: Minimum change in the monitored quantity
@@ -184,7 +184,7 @@ class EarlyStopping(Callback):
         patience: Number of epochs with no improvement
             after which training will be stopped.
         baseline: Baseline value for the monitored quantity to reach.
-            Training will stop if the model doesn't show improvement
+            Training will stop if the trainer doesn't show improvement
             over the baseline.
         monitor: The loss function that is monitored. Either 'loss_train' or 'loss_test'
         start_from_epoch: Number of epochs to wait before starting
@@ -283,7 +283,7 @@ class DropoutUncertainty(Callback):
 
     References:
         `Y. Gal, & Z. Ghahramani. Dropout as a Bayesian approximation: Representing
-        model uncertainty in deep learning. International Conference on Machine
+        trainer uncertainty in deep learning. International Conference on Machine
         Learning, 2016 <https://arxiv.org/abs/1506.02142>`_.
 
     Warning:
@@ -302,7 +302,7 @@ class DropoutUncertainty(Callback):
             self.epochs_since_last = 0
             y_preds = []
             for _ in range(1000):
-                y_pred_test_one = self.model._outputs(
+                y_pred_test_one = self.model._compute_outputs(
                     True, self.model.train_state.X_test
                 )
                 y_preds.append(y_pred_test_one)
@@ -455,7 +455,7 @@ class MovieDumper(Callback):
         self.epochs_since_last_save = 0
 
     def on_train_begin(self):
-        self.y.append(self.model._outputs(False, self.x)[:, self.component])
+        self.y.append(self.model._compute_outputs(False, self.x)[:, self.component])
         if self.save_spectrum:
             A = np.fft.rfft(self.y[-1])
             self.spectrum.append(np.abs(A))
@@ -525,18 +525,18 @@ class PDEPointResampler(Callback):
         self.epochs_since_last_resample = 0
 
     def on_train_begin(self):
-        self.num_bcs_initial = self.model.data.num_bcs
+        self.num_bcs_initial = self.model.problem.num_bcs
 
     def on_epoch_end(self):
         self.epochs_since_last_resample += 1
         if self.epochs_since_last_resample < self.period:
             return
         self.epochs_since_last_resample = 0
-        self.model.data.resample_train_points(self.pde_points, self.bc_points)
+        self.model.problem.resample_train_points(self.pde_points, self.bc_points)
 
-        if not np.array_equal(self.num_bcs_initial, self.model.data.num_bcs):
+        if not np.array_equal(self.num_bcs_initial, self.model.problem.num_bcs):
             print("Initial value of self.num_bcs:", self.num_bcs_initial)
-            print("self.model.data.num_bcs:", self.model.data.num_bcs)
+            print("self.trainer.problem.num_bcs:", self.model.problem.num_bcs)
             raise ValueError(
-                "`num_bcs` changed! Please update the loss function by `model.compile`."
+                "`num_bcs` changed! Please update the loss function by `trainer.compile`."
             )

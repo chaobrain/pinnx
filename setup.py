@@ -57,7 +57,17 @@ setup(
     author_email='chao.brain@qq.com',
     packages=packages,
     python_requires='>=3.9',
-    install_requires=['numpy>=1.15', 'jax', 'tqdm', 'brainunit>=0.0.2'],
+    install_requires=[
+        'numpy',
+        'jax',
+        'brainunit>=0.0.2',
+        'matplotlib',
+        'scipy',
+        'scikit-learn',
+        'brainstate',
+        'braintools',
+        'optax',
+    ],
     url='https://github.com/chaobrain/pinnx',
     project_urls={
         "Bug Tracker": "https://github.com/chaobrain/pinnx/issues",

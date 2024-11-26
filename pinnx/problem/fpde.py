@@ -136,10 +136,10 @@ class FPDE(PDE):
     def train_next_batch(self, batch_size=None):
         # do not cache train data when alpha is a learnable parameter
         if self.disc.meshtype == "static":
-            if self.geom.idstr != "Interval":
+            if self.geometry.idstr != "Interval":
                 raise ValueError("Only Interval supports static mesh.")
 
-            self.frac_train = Fractional(self.alpha, self.geom, self.disc, None)
+            self.frac_train = Fractional(self.alpha, self.geometry, self.disc, None)
             X = self.frac_train.get_x()
             # FPDE is only applied to the domain points.
             # Boundary points are auxiliary points, and appended in the end.
@@ -152,8 +152,8 @@ class FPDE(PDE):
             self.train_x_all = self.train_points()
             x_bc = self.bc_points()
             # FPDE is only applied to the domain points.
-            x_f = self.train_x_all[~self.geom.on_boundary(self.train_x_all)]
-            self.frac_train = Fractional(self.alpha, self.geom, self.disc, x_f)
+            x_f = self.train_x_all[~self.geometry.on_boundary(self.train_x_all)]
+            self.frac_train = Fractional(self.alpha, self.geometry, self.disc, x_f)
             X = self.frac_train.get_x()
 
         self.train_x = np.vstack((x_bc, X))
@@ -170,14 +170,14 @@ class FPDE(PDE):
             self.frac_test = self.frac_train
         else:
             self.test_x = self.test_points()
-            x_f = self.test_x[~self.geom.on_boundary(self.test_x)]
-            self.frac_test = Fractional(self.alpha, self.geom, self.disc, x_f)
+            x_f = self.test_x[~self.geometry.on_boundary(self.test_x)]
+            self.frac_test = Fractional(self.alpha, self.geometry, self.disc, x_f)
             self.test_x = self.frac_test.get_x()
         self.test_y = self.solution(self.test_x) if self.solution else None
         return self.test_x, self.test_y
 
     def test_points(self):
-        return self.geom.uniform_points(self.num_test, True)
+        return self.geometry.uniform_points(self.num_test, True)
 
     def get_int_matrix(self, training):
         if training:
@@ -254,18 +254,18 @@ class TimeFPDE(FPDE):
 
     @run_if_all_none("train_x", "train_y")
     def train_next_batch(self, batch_size=None):
-        self.geom: GeometryXTime
+        self.geometry: GeometryXTime
 
         if self.disc.meshtype == "static":
-            if self.geom.geometry.idstr != "Interval":
+            if self.geometry.geometry.idstr != "Interval":
                 raise ValueError("Only Interval supports static mesh.")
 
             nt = int(round(self.num_domain / (self.disc.resolution[0] - 2))) + 1
             self.frac_train = FractionalTime(
                 self.alpha,
-                self.geom.geometry,
-                self.geom.timedomain.t0,
-                self.geom.timedomain.t1,
+                self.geometry.geometry,
+                self.geometry.timedomain.t0,
+                self.geometry.timedomain.t1,
                 self.disc,
                 nt,
                 None,
@@ -282,12 +282,12 @@ class TimeFPDE(FPDE):
             self.train_x_all = self.train_points()
             x_bc = self.bc_points()
             # FPDE is only applied to the non-boundary points.
-            x_f = self.train_x_all[~self.geom.on_boundary(self.train_x_all)]
+            x_f = self.train_x_all[~self.geometry.on_boundary(self.train_x_all)]
             self.frac_train = FractionalTime(
                 self.alpha,
-                self.geom.geometry,
-                self.geom.timedomain.t0,
-                self.geom.timedomain.t1,
+                self.geometry.geometry,
+                self.geometry.timedomain.t0,
+                self.geometry.timedomain.t1,
                 self.disc,
                 None,
                 x_f,
@@ -308,12 +308,12 @@ class TimeFPDE(FPDE):
             self.frac_test = self.frac_train
         else:
             self.test_x = self.test_points()
-            x_f = self.test_x[~self.geom.on_boundary(self.test_x)]
+            x_f = self.test_x[~self.geometry.on_boundary(self.test_x)]
             self.frac_test = FractionalTime(
                 self.alpha,
-                self.geom.geometry,
-                self.geom.timedomain.t0,
-                self.geom.timedomain.t1,
+                self.geometry.geometry,
+                self.geometry.timedomain.t0,
+                self.geometry.timedomain.t1,
                 self.disc,
                 None,
                 x_f,
@@ -326,9 +326,9 @@ class TimeFPDE(FPDE):
         X = super().train_points()
         if self.num_initial > 0:
             if self.train_distribution == "uniform":
-                tmp = self.geom.uniform_initial_points(self.num_initial)
+                tmp = self.geometry.uniform_initial_points(self.num_initial)
             else:
-                tmp = self.geom.random_initial_points(
+                tmp = self.geometry.random_initial_points(
                     self.num_initial, random=self.train_distribution
                 )
             X = np.vstack((tmp, X))

@@ -17,8 +17,8 @@ learning_rate, num_dense_layers, num_dense_nodes, activation = parameters
 
 
 def pde(net, x):
-    x = pinnx.array_to_dict(x, "x", "y")
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x", "y"])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
 
     dy_xx = hessian["y"]["x"]["x"]
@@ -29,12 +29,12 @@ def pde(net, x):
 
 
 def func(x):
-    x = pinnx.array_to_dict(x, "x", "y")
+    x = pinnx.array_to_dict(x, ["x", "y"])
     return np.sin(k0 * x['x']) * np.sin(k0 * x['y'])
 
 
 def transform(x, y):
-    x = pinnx.array_to_dict(x, "x", "y")
+    x = pinnx.array_to_dict(x, ["x", "y"])
     res = x['x'] * (1 - x['x']) * x['y'] * (1 - x['y'])
     return res * y
 
@@ -75,7 +75,7 @@ net = pinnx.nn.FNN([2] + [num_dense_nodes] * num_dense_layers + [1],
 if hard_constraint:
     net.apply_output_transform(transform)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 if hard_constraint:
     model.compile(bst.optim.Adam(learning_rate), metrics=["l2 relative error"])

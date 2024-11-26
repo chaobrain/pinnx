@@ -6,7 +6,7 @@ import pinnx
 
 
 def gen_traindata():
-    data = np.load("../dataset/Lorenz.npz")
+    data = np.load("../../docs/dataset/Lorenz.npz")
     return data["t"], data["y"]
 
 
@@ -23,7 +23,7 @@ def Lorenz_system(neu, x):
     dy2/dx = y1 * (15 - y3) - y2
     dy3/dx = y1 * y2 - 8/3 * y3
     """
-    approx = lambda x: pinnx.array_to_dict(neu(x), "y1", 'y2', 'y3')
+    approx = lambda x: pinnx.array_to_dict(neu(x), ["y1", 'y2', 'y3'])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     y1, y2, y3 = y['y1'], y['y2'], y['y3']
     dy1_x = jacobian['y1']
@@ -63,7 +63,7 @@ data = pinnx.data.PDE(
 )
 
 net = pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh")
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 external_trainable_variables = [C1, C2, C3]
 variable = pinnx.callbacks.VariableValue(

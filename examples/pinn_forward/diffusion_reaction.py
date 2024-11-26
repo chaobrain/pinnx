@@ -6,8 +6,8 @@ import pinnx
 
 
 def pde(net, x):
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
-    x = pinnx.array_to_dict(x, 'x', 't')
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
+    x = pinnx.array_to_dict(x, ['x', 't'])
     jacobian = pinnx.grad.jacobian(approx, x)
     hessian = pinnx.grad.hessian(approx, x)
     dy_t = jacobian['y']['t']
@@ -27,7 +27,7 @@ def pde(net, x):
 
 
 def func(x):
-    x = pinnx.array_to_dict(x, 'x', 't')
+    x = pinnx.array_to_dict(x, ['x', 't'])
     return np.exp(-x['t']) * (
         np.sin(x['x'])
         + np.sin(2 * x['x']) / 2
@@ -38,7 +38,7 @@ def func(x):
 
 
 def output_transform(x, y):
-    x = pinnx.array_to_dict(x, 'x', 't')
+    x = pinnx.array_to_dict(x, ['x', 't'])
     return (
         x['t'] * (np.pi ** 2 - x['x'] ** 2) * y
         + u.math.sin(x['x'])
@@ -63,7 +63,7 @@ net = pinnx.nn.FNN(
     output_transform=output_transform
 )
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=20000)
 

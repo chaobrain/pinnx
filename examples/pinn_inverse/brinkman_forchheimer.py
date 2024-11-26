@@ -60,7 +60,7 @@ data = pinnx.data.PDE(
 net = pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh")
 net.apply_output_transform(output_transform)
 
-model = pinnx.Model(data, net, external_trainable_variables=[v_e, K])
+model = pinnx.Trainer(data, net, external_trainable_variables=[v_e, K])
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 
 variable = pinnx.callbacks.VariableValue([v_e, K], period=200, filename="variables1.dat")

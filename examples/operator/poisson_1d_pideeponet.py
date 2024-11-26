@@ -1,17 +1,17 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import pinnx as dde
+import pinnx
 
 
 # Poisson equation: -u_xx = f
 def equation(x, y, f):
-    dy_xx = dde.grad.hessian(y, x)
+    dy_xx = pinnx.grad.hessian(y, x)
     return -dy_xx - f
 
 
 # Domain is interval [0, 1]
-geom = dde.geometry.Interval(0, 1)
+geom = pinnx.geometry.Interval(0, 1)
 
 
 # Zero Dirichlet BC
@@ -23,21 +23,21 @@ def boundary(_, on_boundary):
     return on_boundary
 
 
-bc = dde.icbc.DirichletBC(geom, u_boundary, boundary)
+bc = pinnx.icbc.DirichletBC(geom, u_boundary, boundary)
 
 # Define PDE
-pde = dde.data.PDE(geom, equation, bc, num_domain=100, num_boundary=2)
+pde = pinnx.data.PDE(geom, equation, bc, num_domain=100, num_boundary=2)
 
 # Function space for f(x) are polynomials
 degree = 3
-space = dde.data.PowerSeries(N=degree + 1)
+space = pinnx.data.PowerSeries(N=degree + 1)
 
 # Choose evaluation points
 num_eval_points = 10
 evaluation_points = geom.uniform_points(num_eval_points, boundary=True)
 
 # Define PDE operator
-pde_op = dde.data.PDEOperatorCartesianProd(
+pde_op = pinnx.data.PDEOperatorCartesianProd(
     pde,
     space,
     evaluation_points,
@@ -47,14 +47,14 @@ pde_op = dde.data.PDEOperatorCartesianProd(
 # Setup DeepONet
 dim_x = 1
 p = 32
-net = dde.nn.DeepONetCartesianProd(
+net = pinnx.nn.DeepONetCartesianProd(
     [num_eval_points, 32, p],
     [dim_x, 32, p],
     activation="tanh",
 )
 
-# Define and train model
-model = dde.Model(pde_op, net)
+# Define and train trainer
+model = pinnx.Trainer(pde_op, net)
 model.compile("L-BFGS")
 model.train()
 

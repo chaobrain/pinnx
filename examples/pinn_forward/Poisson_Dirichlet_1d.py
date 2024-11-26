@@ -7,8 +7,8 @@ import pinnx
 
 
 def pde(neu, x):
-    x = pinnx.array_to_dict(x, "x")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "u")
+    x = pinnx.array_to_dict(x, ["x"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["u"])
     hessian = pinnx.grad.hessian(approx, x)
     dy_xx = hessian["u"]["x"]["x"]
     return -dy_xx - np.pi ** 2 * u.math.sin(np.pi * x['x'])
@@ -29,25 +29,25 @@ data = pinnx.data.PDE(geom, pde, bc, 16, 2, solution=func, num_test=100)
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 
 losshistory, train_state = model.train(iterations=10000)
-# Optional: Save the model during training.
+# Optional: Save the trainer during training.
 # checkpointer = pinnx.callbacks.ModelCheckpoint(
-#     "model/model", verbose=1, save_better_only=True
+#     "trainer/trainer", verbose=1, save_better_only=True
 # )
 # Optional: Save the movie of the network solution during training.
 # ImageMagick (https://imagemagick.org/) is required to generate the movie.
 # movie = pinnx.callbacks.MovieDumper(
-#     "model/movie", [-1], [1], period=100, save_spectrum=True, y_reference=func
+#     "trainer/movie", [-1], [1], period=100, save_spectrum=True, y_reference=func
 # )
-# loss_history, train_state = model.train(iterations=10000, callbacks=[checkpointer, movie])
+# loss_history, train_state = trainer.train(iterations=10000, callbacks=[checkpointer, movie])
 
 pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
 
-# Optional: Restore the saved model with the smallest training loss
-# model.restore(f"model/model-{train_state.best_step}.ckpt", verbose=1)
+# Optional: Restore the saved trainer with the smallest training loss
+# trainer.restore(f"trainer/trainer-{train_state.best_step}.ckpt", verbose=1)
 # Plot PDE residual
 x = geom.uniform_points(1000, True)
 y = model.predict(x, operator=pde)

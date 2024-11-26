@@ -24,8 +24,8 @@ net = pinnx.nn.DeepONetCartesianProd(
     "relu",
 )
 
-# Define a Model
-model = pinnx.Model(data, net)
+# Define a Trainer
+model = pinnx.Trainer(data, net)
 
 # Compile and Train
 model.compile(bst.optim.Adam(0.001), metrics=["mean l2 relative error"])

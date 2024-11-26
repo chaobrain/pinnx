@@ -69,7 +69,7 @@ else:
 net = pinnx.nn.FNN([1] + [20] * 4 + [1], "tanh")
 net.apply_output_transform(lambda x, y: (1 - x ** 2) * y)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(
     bst.optim.Adam(1e-3),

@@ -8,8 +8,8 @@ geom = pinnx.geometry.Interval(0, np.pi)
 
 
 def pde(nwu, x):
-    x = pinnx.array_to_dict(x, "x")
-    approx = lambda x: pinnx.array_to_dict(nwu(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x"])
+    approx = lambda x: pinnx.array_to_dict(nwu(pinnx.dict_to_array(x)), ["y"])
     hessian = pinnx.grad.hessian(approx, x)
     x = x["x"]
     dy_xx = hessian["y"]["x"]["x"]
@@ -34,7 +34,7 @@ def output_transform(x, y):
 
 net.apply_output_transform(output_transform)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(bst.optim.InverseTimeDecayLR(0.001, 1000, 0.3)),
     metrics=["l2 relative error"]

@@ -52,8 +52,8 @@ def sound_hard_circle_deepxde(k0, a, points):
 
 # Definition of the pde
 def pde(net, x):
-    x = pinnx.array_to_dict(x, "x", 'y')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), 'y0', 'y1')
+    x = pinnx.array_to_dict(x, ["x", 'y'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['y0', 'y1'])
 
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
 
@@ -131,7 +131,7 @@ data = pinnx.data.PDE(
 net = pinnx.nn.FNN(
     [2] + [num_dense_nodes] * num_dense_layers + [2], activation,
 )
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(learning_rate), loss_weights=loss_weights, metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=iterations)

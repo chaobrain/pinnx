@@ -4,9 +4,11 @@ import csv
 import os
 from multiprocessing import Pool
 
+import braintools
+import jax
+import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.spatial.distance
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import preprocessing
 
@@ -14,7 +16,7 @@ from sklearn import preprocessing
 def apply(func, args=None, kwds=None):
     """Launch a new process to call the function.
 
-    This can be used to clear Tensorflow GPU memory after model execution:
+    This can be used to clear Tensorflow GPU memory after trainer execution:
     https://stackoverflow.com/questions/39758094/clearing-tensorflow-gpu-memory-after-model-execution
     """
     with Pool(1) as p:
@@ -70,9 +72,9 @@ def saveplot(
 
     Args:
         loss_history: ``LossHistory`` instance. The first variable returned from
-            ``Model.train()``.
+            ``Trainer.train()``.
         train_state: ``TrainState`` instance. The second variable returned from
-            ``Model.train()``.
+            ``Trainer.train()``.
         issave (bool): Set ``True`` (default) to save the loss, training points,
             and testing points.
         isplot (bool): Set ``True`` (default) to plot loss, metric, and the predicted
@@ -109,14 +111,14 @@ def plot_loss_history(loss_history, fname=None):
 
     Args:
         loss_history: ``LossHistory`` instance. The first variable returned from
-            ``Model.train()``.
+            ``Trainer.train()``.
         fname (string): If `fname` is a string (e.g., 'loss_history.png'), then save the
             figure to the file of the file name `fname`.
     """
     # np.sum(loss_history.loss_train, axis=1) is error-prone for arrays of varying lengths.
     # Handle irregular array sizes.
-    loss_train = np.array([np.sum(loss) for loss in loss_history.loss_train])
-    loss_test = np.array([np.sum(loss) for loss in loss_history.loss_test])
+    loss_train = np.array([np.sum(jax.tree.leaves(loss)) for loss in loss_history.loss_train])
+    loss_test = np.array([np.sum(jax.tree.leaves(loss)) for loss in loss_history.loss_test])
 
     plt.figure()
     plt.semilogy(loss_history.steps, loss_train, label="Train loss")
@@ -137,15 +139,10 @@ def plot_loss_history(loss_history, fname=None):
 def save_loss_history(loss_history, fname):
     """Save the training and testing loss history to a file."""
     print("Saving loss history to {} ...".format(fname))
-    loss = np.hstack(
-        (
-            np.array(loss_history.steps)[:, None],
-            np.array(loss_history.loss_train),
-            np.array(loss_history.loss_test),
-            np.array(loss_history.metrics_test),
-        )
-    )
-    np.savetxt(fname, loss, header="step, loss_train, loss_test, metrics_test")
+
+    train_losses = jax.tree.map(lambda *a: u.math.asarray(a), *loss_history.loss_train)
+    braintools.file.msgpack_save(fname, train_losses)
+
 
 
 def _pack_data(train_state):
@@ -154,10 +151,14 @@ def _pack_data(train_state):
             return None
         return np.hstack(values) if isinstance(values, (list, tuple)) else values
 
-    y_train = merge_values(train_state.y_train)
-    y_test = merge_values(train_state.y_test)
-    best_y = merge_values(train_state.best_y)
-    best_ystd = merge_values(train_state.best_ystd)
+    # y_train = merge_values(train_state.y_train)
+    # y_test = merge_values(train_state.y_test)
+    # best_y = merge_values(train_state.best_y)
+    # best_ystd = merge_values(train_state.best_ystd)
+    y_train = train_state.y_train
+    y_test = train_state.y_test
+    best_y = train_state.best_y
+    best_ystd = train_state.best_ystd
     return y_train, y_test, best_y, best_ystd
 
 
@@ -172,51 +173,60 @@ def plot_best_state(train_state):
 
     Args:
         train_state: ``TrainState`` instance. The second variable returned from
-            ``Model.train()``.
+            ``Trainer.train()``.
     """
     if isinstance(train_state.X_train, (list, tuple)):
-        print(
-            "Error: The network has multiple inputs, and plotting such result han't been implemented."
-        )
+        print("Error: The network has multiple inputs, and plotting such result hasn't been implemented.")
         return
 
     y_train, y_test, best_y, best_ystd = _pack_data(train_state)
-    y_dim = best_y.shape[1]
+    xkeys = tuple(train_state.X_test.keys())
 
     # Regression plot
     # 1D
-    if train_state.X_test.shape[1] == 1:
-        idx = np.argsort(train_state.X_test[:, 0])
+    if len(train_state.X_test) == 1:
+        idx = u.math.argsort(train_state.X_test[xkeys[0]])
         X = train_state.X_test[idx, 0]
         plt.figure()
-        for i in range(y_dim):
+        for ykey in best_y:
             if y_train is not None:
-                plt.plot(train_state.X_train[:, 0], y_train[:, i], "ok", label="Train")
+                plt.plot(train_state.X_train[xkeys[0]], y_train[ykey], "ok", label="Train")
             if y_test is not None:
-                plt.plot(X, y_test[idx, i], "-k", label="True")
-            plt.plot(X, best_y[idx, i], "--r", label="Prediction")
+                plt.plot(X, y_test[ykey], "-k", label="True")
+            plt.plot(X, best_y[ykey], "--r", label="Prediction")
             if best_ystd is not None:
-                plt.plot(
-                    X, best_y[idx, i] + 1.96 * best_ystd[idx, i], "-b", label="95% CI"
-                )
-                plt.plot(X, best_y[idx, i] - 1.96 * best_ystd[idx, i], "-b")
+                plt.plot(X, best_y[ykey] + 1.96 * best_ystd[ykey], "-b", label="95% CI")
+                plt.plot(X, best_y[ykey] - 1.96 * best_ystd[ykey], "-b")
         plt.xlabel("x")
         plt.ylabel("y")
         plt.legend()
+
     # 2D
-    elif train_state.X_test.shape[1] == 2:
-        for i in range(y_dim):
+    elif len(train_state.X_test) == 2:
+        for ykey in best_y:
             plt.figure()
             ax = plt.axes(projection=Axes3D.name)
             ax.plot3D(
-                train_state.X_test[:, 0],
-                train_state.X_test[:, 1],
-                best_y[:, i],
+                u.get_magnitude(train_state.X_test[xkeys[0]]),
+                u.get_magnitude(train_state.X_test[xkeys[1]]),
+                u.get_magnitude(best_y[ykey]),
                 ".",
             )
-            ax.set_xlabel("$x_1$")
-            ax.set_ylabel("$x_2$")
-            ax.set_zlabel("$y_{}$".format(i + 1))
+            unit = u.get_unit(train_state.X_test[xkeys[0]])
+            if unit.is_unitless:
+                ax.set_xlabel(f'{xkeys[0]}')
+            else:
+                ax.set_xlabel(f'{xkeys[0]} [{unit}]')
+            unit = u.get_unit(train_state.X_test[xkeys[1]])
+            if unit.is_unitless:
+                ax.set_ylabel(f'{xkeys[1]}')
+            else:
+                ax.set_ylabel(f'{xkeys[1]} [{unit}]')
+            unit = u.get_unit(best_y[ykey])
+            if unit.is_unitless:
+                ax.set_zlabel(f'{ykey}')
+            else:
+                ax.set_zlabel(f'{ykey} [{unit}]')
 
     # Residual plot
     # Not necessary to plot
@@ -249,34 +259,28 @@ def plot_best_state(train_state):
 def save_best_state(train_state, fname_train, fname_test):
     """Save the best result of the smallest training loss to a file."""
     if isinstance(train_state.X_train, (list, tuple)):
-        print(
-            "Error: The network has multiple inputs, and saving such result han't been implemented."
-        )
+        print("Error: The network has multiple inputs, and saving such result han't been implemented.")
         return
 
     print("Saving training data to {} ...".format(fname_train))
     y_train, y_test, best_y, best_ystd = _pack_data(train_state)
     if y_train is None:
-        np.savetxt(fname_train, train_state.X_train, header="x")
+        data = {'X_train': train_state.X_train}
     else:
-        train = np.hstack((train_state.X_train, y_train))
-        np.savetxt(fname_train, train, header="x, y")
+        data = {'X_train': train_state.X_train, 'y_train': y_train}
+    braintools.file.msgpack_save(fname_train, data)
 
     print("Saving test data to {} ...".format(fname_test))
     if y_test is None:
-        test = np.hstack((train_state.X_test, best_y))
-        if best_ystd is None:
-            np.savetxt(fname_test, test, header="x, y_pred")
-        else:
-            test = np.hstack((test, best_ystd))
-            np.savetxt(fname_test, test, header="x, y_pred, y_std")
+        data = {'X_test': train_state.X_test, 'best_y': best_y}
+        if best_ystd is not None:
+            data['best_ystd'] = best_ystd
+        braintools.file.msgpack_save(fname_test, data)
     else:
-        test = np.hstack((train_state.X_test, y_test, best_y))
-        if best_ystd is None:
-            np.savetxt(fname_test, test, header="x, y_true, y_pred")
-        else:
-            test = np.hstack((test, best_ystd))
-            np.savetxt(fname_test, test, header="x, y_true, y_pred, y_std")
+        data = {'X_test': train_state.X_test, 'best_y': best_y, 'y_test': y_test}
+        if best_ystd is not None:
+            data['best_ystd'] = best_ystd
+        braintools.file.msgpack_save(fname_test, data)
 
 
 def dat_to_csv(dat_file_path, csv_file_path, columns):
@@ -309,13 +313,19 @@ def isclose(a, b):
     If you want to manually set `atol` for some reason, use `np.isclose` instead.
 
     Args:
-        a, b (array like): Input arrays to compare.
+        a, b (array like): DictToArray arrays to compare.
     """
-    a_dtype = np.asarray(a).dtype
-    b_dtype = np.asarray(b).dtype
-    atol = 1e-8
-    if np.float32 in [a_dtype, b_dtype]:
-        atol = 1e-6
-    if np.float16 in [a_dtype, b_dtype]:
-        atol = 1e-4
-    return np.isclose(a, b, atol=atol)
+    if isinstance(a, np.ndarray):
+        pack = np
+    else:
+        pack = u.math
+
+    a_dtype = a.dtype
+    a_unit = u.get_unit(a)
+    if a_dtype == np.float32:
+        atol = u.maybe_decimal(u.Quantity(1e-6, unit=a_unit))
+    elif a_dtype == np.float16:
+        atol = u.maybe_decimal(u.Quantity(1e-4, unit=a_unit))
+    else:
+        atol = u.maybe_decimal(u.Quantity(1e-8, unit=a_unit))
+    return pack.isclose(a, b, atol=atol)

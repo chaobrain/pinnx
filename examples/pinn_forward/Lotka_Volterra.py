@@ -30,8 +30,8 @@ def gen_truedata():
 
 
 def ode_system(net, x):
-    x = pinnx.array_to_dict(x, 't')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), 'r', 'p')
+    x = pinnx.array_to_dict(x, ['t'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['r', 'p'])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     r = y['r']
     p = y['p']
@@ -76,7 +76,7 @@ def output_transform(t, y):
 
 net.apply_feature_transform(input_transform)
 net.apply_output_transform(output_transform)
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(0.001))
 losshistory, train_state = model.train(iterations=50000)

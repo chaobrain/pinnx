@@ -6,8 +6,8 @@ import pinnx as dde
 
 
 def pde(net, x):
-    x = dde.array_to_dict(x, "r", "theta")
-    approx = lambda x: dde.array_to_dict(net(dde.dict_to_array(x)), "y")
+    x = dde.array_to_dict(x, ["r", "theta"])
+    approx = lambda x: dde.array_to_dict(net(dde.dict_to_array(x)), ["y"])
     jacobian = dde.grad.jacobian(approx, x)
     hessian = dde.grad.hessian(approx, x)
 
@@ -23,16 +23,10 @@ def solution(x):
 
 
 geom = dde.geometry.Rectangle(xmin=[0, 0], xmax=[1, 2 * np.pi])
-bc_rad = dde.icbc.DirichletBC(
-    geom,
+bc = dde.icbc.DirichletBC(
     lambda x: np.cos(x[:, 1:2]),
     lambda x, on_boundary: on_boundary and dde.utils.isclose(x[0], 1),
 )
-data = dde.data.PDE(
-    geom, pde, bc_rad, num_domain=2540, num_boundary=80, solution=solution
-)
-
-net = dde.nn.FNN([2] + [20] * 3 + [1], "tanh")
 
 
 # Use [r*sin(theta), r*cos(theta)] as features,
@@ -42,9 +36,19 @@ def feature_transform(x):
                                x[..., 0:1] * u.math.cos(x[..., 1:2])], axis=-1)
 
 
+net = dde.nn.FNN([geom.dim] + [20] * 3 + [1], "tanh")
 net.apply_feature_transform(feature_transform)
 
-model = dde.Model(data, net)
+data = dde.problem.PDE(
+    geom,
+    pde,
+    bc,
+    num_domain=2540,
+    num_boundary=80,
+    solution=solution
+)
+
+model = dde.Trainer(data)
 model.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"])
-losshistory, train_state = model.train(iterations=15000)
-dde.saveplot(losshistory, train_state, issave=True, isplot=True)
+model.train(iterations=15000)
+model.saveplot(issave=True, isplot=True)

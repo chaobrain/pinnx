@@ -1,8 +1,8 @@
-from .data import Data
+from .base import Problem
 from pinnx.utils.sampler import BatchSampler
 
 
-class Triple(Data):
+class Triple(Problem):
     """Dataset with each data point as a triple.
 
     The couple of the first two elements are the input, and the third element is the
@@ -44,7 +44,7 @@ class Triple(Data):
         return self.test_x, self.test_y
 
 
-class TripleCartesianProd(Data):
+class TripleCartesianProd(Problem):
     """Dataset with each data point as a triple. The ordered pair of the first two
     elements are created from a Cartesian product of the first two lists. If we compute
     the Cartesian product of the first two arrays, then we have a ``Triple`` dataset.

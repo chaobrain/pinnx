@@ -1,8 +1,9 @@
 import sys
+from pprint import pformat
 
 import numpy as np
 
-from pinnx.utils import list_to_str
+from pinnx.utils import tree_repr
 
 
 class TrainingDisplay:
@@ -17,18 +18,28 @@ class TrainingDisplay:
         self.is_header_print = False
 
     def print_one(self, s1, s2, s3, s4):
-        print(
-            "{:{l1}s}{:{l2}s}{:{l3}s}{:{l4}s}".format(
-                s1,
-                s2,
-                s3,
-                s4,
-                l1=10,
-                l2=self.len_train,
-                l3=self.len_test,
-                l4=self.len_metric,
+        s1 = s1.split('\n')
+        s2 = s2.split('\n')
+        s3 = s3.split('\n')
+        s4 = s4.split('\n')
+
+        lines = []
+        for i in range(max([len(s1), len(s2), len(s3), len(s4)])):
+            s1_ = s1[i] if i < len(s1) else ''
+            s2_ = s2[i] if i < len(s2) else ''
+            s3_ = s3[i] if i < len(s3) else ''
+            s4_ = s4[i] if i < len(s4) else ''
+            lines.append(
+                "{:{l1}s}{:{l2}s}{:{l3}s}{:{l4}s}".format(
+                    s1_, s2_, s3_, s4_,
+                    l1=10,
+                    l2=self.len_train,
+                    l3=self.len_test,
+                    l4=self.len_metric,
+                )
             )
-        )
+
+        print('\n'.join(lines))
         sys.stdout.flush()
 
     def header(self):
@@ -36,23 +47,31 @@ class TrainingDisplay:
         self.is_header_print = True
 
     def __call__(self, train_state):
+        train_loss_repr = pformat(train_state.loss_train, width=40)
+        test_loss_repr = pformat(train_state.loss_test, width=40)
+        test_metrics_repr = pformat(train_state.metrics_test, width=40)
+
         if not self.is_header_print:
-            self.len_train = len(train_state.loss_train) * 10 + 4
-            self.len_test = len(train_state.loss_test) * 10 + 4
-            self.len_metric = len(train_state.metrics_test) * 10 + 4
+            train_loss_repr_max = max([len(line) for line in train_loss_repr.split('\n') if line])
+            test_loss_repr_max = max([len(line) for line in test_loss_repr.split('\n') if line])
+            test_metrics_repr_max = max([len(line) for line in test_metrics_repr.split('\n') if line])
+            self.len_train = train_loss_repr_max + 4
+            self.len_test = test_loss_repr_max + 4
+            self.len_metric = test_metrics_repr_max + 4
             self.header()
+
         self.print_one(
             str(train_state.step),
-            list_to_str(train_state.loss_train),
-            list_to_str(train_state.loss_test),
-            list_to_str(train_state.metrics_test),
+            train_loss_repr,
+            test_loss_repr,
+            test_metrics_repr,
         )
 
     def summary(self, train_state):
-        print("Best model at step {:d}:".format(train_state.best_step))
+        print("Best trainer at step {:d}:".format(train_state.best_step))
         print("  train loss: {:.2e}".format(train_state.best_loss_train))
         print("  test loss: {:.2e}".format(train_state.best_loss_test))
-        print("  test metric: {:s}".format(list_to_str(train_state.best_metrics)))
+        print("  test metric: {:s}".format(tree_repr(train_state.best_metrics)))
         if train_state.best_ystd is not None:
             print("  Uncertainty:")
             print("    l2: {:g}".format(np.linalg.norm(train_state.best_ystd)))

@@ -26,8 +26,8 @@ wave_len = 1 / n
 
 
 def pde(net, x):
-    x = pinnx.array_to_dict(x, "x", "y")
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x", "y"])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
     dy_xx = hessian["y"]["x"]["x"]
     dy_yy = hessian["y"]["y"]["y"]
@@ -36,7 +36,7 @@ def pde(net, x):
 
 
 def func(x):
-    x = pinnx.array_to_dict(x, 'x', 'y')
+    x = pinnx.array_to_dict(x, ['x', 'y'])
     return np.sin(k0 * x['x']) * np.sin(k0 * x['y'])
 
 
@@ -45,7 +45,7 @@ def boundary(_, on_boundary):
 
 
 def neumann(x):
-    x_ = pinnx.array_to_dict(x, 'x', 'y')
+    x_ = pinnx.array_to_dict(x, ['x', 'y'])
     grad = np.array(
         [
             k0 * np.cos(k0 * x_['x']) * np.sin(k0 * x_['y']),
@@ -97,7 +97,7 @@ net = pinnx.nn.FNN(
     activation
 )
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 loss_weights = [1, weight_inner, weight_outer]
 model.compile(

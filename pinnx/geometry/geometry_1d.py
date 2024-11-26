@@ -1,6 +1,7 @@
-from typing import Literal, Union
+from typing import Literal, Union, Dict
 
 import brainstate as bst
+import brainunit as u
 import numpy as np
 
 from pinnx.utils import isclose
@@ -17,21 +18,43 @@ class Interval(Geometry):
     A class for 1D interval geometry.
     """
 
-    def __init__(self, l, r):
-        super().__init__(1, (np.array([l]), np.array([r])), r - l)
+    def __init__(
+        self,
+        name: str,
+        l: bst.typing.ArrayLike,
+        r: bst.typing.ArrayLike,
+    ):
+        super().__init__(1, (u.math.array([l]), u.math.array([r])), r - l, [name])
         self.l, self.r = l, r
+        assert isinstance(name, str), "name must be a string."
+        self.name = name
 
-    def inside(self, x):
-        return np.logical_and(self.l <= x, x <= self.r).flatten()
+    def inside(
+        self,
+        x: Dict[str, bst.typing.ArrayLike]
+    ):
+        return u.math.logical_and(self.l <= x[self.name], x[self.name] <= self.r).flatten()
 
-    def on_boundary(self, x):
-        return np.any(isclose(x, [self.l, self.r]), axis=-1)
+    def on_boundary(
+        self,
+        x: Dict[str, bst.typing.ArrayLike]
+    ):
+        return u.math.logical_or(isclose(x[self.name], self.l),
+                                 isclose(x[self.name], self.r))
 
-    def distance2boundary(self, x, dirn):
-        return x - self.l if dirn < 0 else self.r - x
+    def distance2boundary(
+        self,
+        x: Dict[str, bst.typing.ArrayLike],
+        dirn
+    ):
+        return (x[self.name] - self.l) if dirn < 0 else (self.r - x[self.name])
 
-    def mindist2boundary(self, x):
-        return min(np.amin(x - self.l), np.amin(self.r - x))
+    def mindist2boundary(
+        self,
+        x: Dict[str, bst.typing.ArrayLike]
+    ):
+        return u.math.minimum(u.math.amin(x[self.name] - self.l),
+                              u.math.amin(self.r - x[self.name]))
 
     def boundary_constraint_factor(
         self,
@@ -89,68 +112,66 @@ class Interval(Geometry):
 
         # To convert self.l and self.r to tensor,
         # and avoid repeated conversion in the loop
-        l_tensor = np.asarray(self.l)
-        r_tensor = np.asarray(self.r)
+        l_tensor = self.l
+        r_tensor = self.r
 
         dist_l = dist_r = None
         if where != "right":
-            dist_l = np.abs((x - l_tensor) / (r_tensor - l_tensor) * 2)
+            dist_l = u.math.abs((x[self.name] - l_tensor) / (r_tensor - l_tensor) * 2)
         if where != "left":
-            dist_r = np.abs((x - r_tensor) / (r_tensor - l_tensor) * 2)
+            dist_r = u.math.abs((x[self.name] - r_tensor) / (r_tensor - l_tensor) * 2)
 
         if where is None:
             if smoothness == "C0":
-                return np.minimum(dist_l, dist_r)
+                return u.math.minimum(dist_l, dist_r)
             if smoothness == "C0+":
                 return dist_l * dist_r
-            return np.square(dist_l * dist_r)
+            return u.math.square(dist_l * dist_r)
         if where == "left":
             if smoothness == "Cinf":
-                dist_l = np.square(dist_l)
+                dist_l = u.math.square(dist_l)
             return dist_l
         if smoothness == "Cinf":
-            dist_r = np.square(dist_r)
+            dist_r = u.math.square(dist_r)
         return dist_r
 
     def boundary_normal(self, x):
-        return -isclose(x, self.l).astype(bst.environ.dftype()) + isclose(x, self.r)
+        normal = (-isclose(x[self.name], self.l).astype(bst.environ.dftype()) +
+                  isclose(x[self.name], self.r).astype(bst.environ.dftype()))
+        return u.math.expand_dims(normal, axis=-1)
 
-    def uniform_points(self, n, boundary=True):
+    def uniform_points(self, n, boundary=True) -> Dict[str, bst.typing.ArrayLike]:
         if boundary:
-            return np.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())[:, None]
-        return np.linspace(self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[1:, None]
-
-    def log_uniform_points(self, n, boundary=True):
-        eps = 0 if self.l > 0 else np.finfo(bst.environ.dftype()).eps
-        l = np.log(self.l + eps)
-        r = np.log(self.r + eps)
-        if boundary:
-            x = np.linspace(l, r, num=n, dtype=bst.environ.dftype())[:, None]
+            r = u.math.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())
         else:
-            x = np.linspace(l, r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[1:, None]
-        return np.exp(x) - eps
+            r = u.math.linspace(self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[1:]
+        return {self.name: r}
 
-    def random_points(self, n, random="pseudo"):
-        x = sample(n, 1, random)
-        return (self.diam * x + self.l).astype(bst.environ.dftype())
+    def random_points(self, n, random="pseudo") -> Dict[str, bst.typing.ArrayLike]:
+        x = sample(n, 1, random)[..., 0]
+        x = ((self.r - self.l) * x + self.l).astype(bst.environ.dftype())
+        return {self.name: x}
 
-    def uniform_boundary_points(self, n):
+    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
         if n == 1:
-            return np.array([[self.l]]).astype(bst.environ.dftype())
-        xl = np.full((n // 2, 1), self.l).astype(bst.environ.dftype())
-        xr = np.full((n - n // 2, 1), self.r).astype(bst.environ.dftype())
-        return np.vstack((xl, xr))
+            r = u.math.array([self.l]).astype(bst.environ.dftype())
+        else:
+            xl = u.math.full((n // 2,), self.l).astype(bst.environ.dftype())
+            xr = u.math.full((n - n // 2,), self.r).astype(bst.environ.dftype())
+            r = u.math.vstack((xl, xr))
+        return {self.name: r}
 
-    def random_boundary_points(self, n, random="pseudo"):
+    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
         if n == 2:
-            return np.array([[self.l], [self.r]]).astype(bst.environ.dftype())
-        return np.random.choice([self.l, self.r], n)[:, None].astype(bst.environ.dftype())
+            r = u.math.array([self.l, self.r]).astype(bst.environ.dftype())
+        else:
+            r = u.math.where(bst.random.rand(n) < 0.5, self.l, self.r).astype(bst.environ.dftype())
+        return {self.name: r}
 
-    def periodic_point(self, x, component=0):
-        tmp = np.copy(x)
-        tmp[isclose(x, self.l)] = self.r
-        tmp[isclose(x, self.r)] = self.l
-        return tmp
+    def periodic_point(self, x, component=0) -> Dict[str, bst.typing.ArrayLike]:
+        tmp = x[self.name]
+        tmp = u.math.where(isclose(tmp, self.l), self.r, self.l)
+        return {self.name: tmp}
 
     def background_points(self, x, dirn, dist2npt, shift):
         """

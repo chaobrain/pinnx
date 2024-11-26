@@ -1,7 +1,8 @@
 import abc
-from typing import Literal, Sequence
+from typing import Literal, Sequence, Dict
 
 import brainstate as bst
+import brainunit as u
 import numpy as np
 
 __all__ = [
@@ -14,10 +15,18 @@ __all__ = [
 
 
 class AbstractGeometry(abc.ABC):
-    def __init__(self, dim: int, names: Sequence[str] = None):
+    def __init__(self, dim: int, names: Sequence[str]):
+        assert isinstance(dim, int), "dim must be an integer"
         self.dim = dim
-        self.names = names
+        assert len(names) == dim, "The number of names must be equal to the dimension"
+        assert len(set(names)) == dim, f"The names must be unique, but we got {names}"
+        assert all(isinstance(name, str) for name in names), "The names must be strings"
+        self.dim_names = tuple(names)
         self.idstr = type(self).__name__
+
+    @property
+    def names(self):
+        return self.dim_names
 
     @abc.abstractmethod
     def inside(self, x) -> np.ndarray[bool]:
@@ -121,39 +130,69 @@ class AbstractGeometry(abc.ABC):
 
         Args:
             x: A 2D array of shape (n, dim), where `n` is the number of points and
-                `dim` is the dimension of the geometry.
+               `dim` is the dimension of the geometry.
         """
         raise NotImplementedError("{}.boundary_normal to be implemented".format(self.idstr))
 
     @abc.abstractmethod
-    def uniform_points(self, n, boundary=True):
+    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
         """
         Compute the equispaced point locations in the geometry.
+
+        Args:
+            n: The number of points.
+            boundary: If True, include the boundary points.
         """
 
     @abc.abstractmethod
-    def random_points(self, n, random="pseudo"):
+    def random_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
         """
         Compute the random point locations in the geometry.
+
+        Args:
+            n: The number of points.
+            random: The random distribution. One of the following: "pseudo" (pseudorandom),
+                "LHS" (Latin hypercube sampling), "Halton" (Halton sequence),
+                "Hammersley" (Hammersley sequence), or "Sobol" (Sobol sequence
         """
 
     @abc.abstractmethod
-    def uniform_boundary_points(self, n):
+    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
         """
         Compute the equispaced point locations on the boundary.
+
+        Args:
+            n: The number of points.
         """
 
     @abc.abstractmethod
-    def random_boundary_points(self, n, random="pseudo"):
+    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
         """Compute the random point locations on the boundary."""
 
     def periodic_point(self, x, component):
         """
         Compute the periodic image of x for periodic boundary condition.
+
+        Args:
+            x: A 2D array of shape (n, dim), where `n` is the number of points and
+                `dim` is the dimension of the geometry.
+            component: The component of the periodic direction.
         """
         raise NotImplementedError("{}.periodic_point to be implemented".format(self.idstr))
 
     def background_points(self, x, dirn, dist2npt, shift):
+        """
+        Compute the background points for the collocation points.
+
+        Args:
+            x: A 2D array of shape (n, dim), where `n` is the number of points and
+                `dim` is the dimension of the geometry.
+            dirn: The direction of the background points. One of the following: -1 (left),
+                or 1 (right), or 0 (both direction).
+            dist2npt: A function which converts distance to the number of extra
+                points (not including x).
+            shift: The number of shift.
+        """
         raise NotImplementedError("{}.background_points to be implemented".format(self.idstr))
 
 
@@ -167,24 +206,47 @@ class Geometry(AbstractGeometry):
         diam: The diameter of the geometry.
     """
 
-    def __init__(self, dim, bbox, diam):
-        super().__init__(dim)
+    def __init__(
+        self,
+        dim: int,
+        bbox: Sequence,
+        diam: float,
+        names: Sequence[str]
+    ):
+        super().__init__(dim, names)
         self.bbox = bbox
-        self.diam = min(diam, np.linalg.norm(bbox[1] - bbox[0]))
+        self.diam = diam
+        # self.diam = u.math.minimum(diam, u.linalg.norm(bbox[1] - bbox[0]))
 
-    def uniform_points(self, n, boundary=True):
-        """Compute the equispaced point locations in the geometry."""
+    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
+        """
+        Compute the equi-spaced point locations in the geometry.
+
+        Args:
+            n: The number of points.
+            boundary: If True, include the boundary points.
+        """
         print("Warning: {}.uniform_points not implemented. Use random_points instead.".format(self.idstr))
         return self.random_points(n)
 
-    def uniform_boundary_points(self, n):
-        """Compute the equispaced point locations on the boundary."""
+    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+        """
+        Compute the equi-spaced point locations on the boundary.
+
+        Args:
+            n: The number of points.
+        """
         print("Warning: {}.uniform_boundary_points not implemented. "
               "Use random_boundary_points instead.".format(self.idstr))
         return self.random_boundary_points(n)
 
     def union(self, other):
-        """CSG Union."""
+        """
+        CSG Union.
+
+        Args:
+            other: The other geometry object.
+        """
         return self.__or__(other)
 
     def __or__(self, other):
@@ -192,7 +254,12 @@ class Geometry(AbstractGeometry):
         return CSGUnion(self, other)
 
     def difference(self, other):
-        """CSG Difference."""
+        """
+        CSG Difference.
+
+        Args:
+            other: The other geometry object.
+        """
         return self.__sub__(other)
 
     def __sub__(self, other):
@@ -200,7 +267,12 @@ class Geometry(AbstractGeometry):
         return CSGDifference(self, other)
 
     def intersection(self, other):
-        """CSG Intersection."""
+        """
+        CSG Intersection.
+
+        Args:
+            other: The other geometry object.
+        """
         return self.__and__(other)
 
     def __and__(self, other):
@@ -220,35 +292,38 @@ class CSGUnion(Geometry):
     def __init__(self, geom1, geom2):
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
+        if geom1.names != geom2.names:
+            raise ValueError("{} | {} failed (names do not match).".format(geom1.names, geom2.names))
         if geom1.dim != geom2.dim:
             raise ValueError("{} | {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
         super().__init__(
             geom1.dim,
             (
-                np.minimum(geom1.bbox[0], geom2.bbox[0]),
-                np.maximum(geom1.bbox[1], geom2.bbox[1]),
+                u.math.minimum(geom1.bbox[0], geom2.bbox[0]),
+                u.math.maximum(geom1.bbox[1], geom2.bbox[1]),
             ),
             geom1.diam + geom2.diam,
+            geom1.names,
         )
         self.geom1 = geom1
         self.geom2 = geom2
 
     def inside(self, x):
-        return np.logical_or(self.geom1.inside(x), self.geom2.inside(x))
+        return u.math.logical_or(self.geom1.inside(x), self.geom2.inside(x))
 
     def on_boundary(self, x):
-        return np.logical_or(
-            np.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
-            np.logical_and(self.geom2.on_boundary(x), ~self.geom1.inside(x)),
+        return u.math.logical_or(
+            u.math.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
+            u.math.logical_and(self.geom2.on_boundary(x), ~self.geom1.inside(x)),
         )
 
     def boundary_normal(self, x):
         return (
-            np.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x))[:, np.newaxis] *
-            self.geom1.boundary_normal(x)
+            u.math.logical_and(self.geom1.on_boundary(x),
+                               ~self.geom2.inside(x))[:, np.newaxis] * self.geom1.boundary_normal(x)
             +
-            np.logical_and(self.geom2.on_boundary(x), ~self.geom1.inside(x))[:, np.newaxis] *
-            self.geom2.boundary_normal(x)
+            np.logical_and(self.geom2.on_boundary(x),
+                           ~self.geom1.inside(x))[:, np.newaxis] * self.geom2.boundary_normal(x)
         )
 
     def random_points(self, n, random="pseudo"):
@@ -305,12 +380,12 @@ class CSGDifference(Geometry):
     """
 
     def __init__(self, geom1, geom2):
-
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
+        assert geom1.names == geom2.names, "geom1.names must be equal to geom2.names"
         if geom1.dim != geom2.dim:
             raise ValueError("{} - {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
-        super().__init__(geom1.dim, geom1.bbox, geom1.diam)
+        super().__init__(geom1.dim, geom1.bbox, geom1.diam, geom1.names)
         self.geom1 = geom1
         self.geom2 = geom2
 
@@ -384,6 +459,7 @@ class CSGIntersection(Geometry):
     def __init__(self, geom1, geom2):
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
+        assert geom1.names == geom2.names, "geom1.names must be equal to geom2.names"
         if geom1.dim != geom2.dim:
             raise ValueError("{} & {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
         super().__init__(
@@ -393,6 +469,7 @@ class CSGIntersection(Geometry):
                 np.minimum(geom1.bbox[1], geom2.bbox[1]),
             ),
             min(geom1.diam, geom2.diam),
+            tuple(geom1.names),
         )
         self.geom1 = geom1
         self.geom2 = geom2

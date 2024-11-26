@@ -67,8 +67,8 @@ def pde(net, x):
     """
     Expresses the PDE residual of the heat equation.
     """
-    x = pinnx.array_to_dict(x, 'x', 't')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), 'y')
+    x = pinnx.array_to_dict(x, ['x', 't'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['y'])
     jacobian = pinnx.grad.jacobian(approx, x)
     hessian = pinnx.grad.hessian(approx, x)
     dy_t = jacobian['y']['t']
@@ -101,9 +101,9 @@ data = pinnx.data.TimePDE(
     num_test=2540,
 )
 net = pinnx.nn.FNN([2] + [20] * 3 + [1], "tanh", bst.init.KaimingUniform())
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
-# Build and train the model:
+# Build and train the trainer:
 model.compile(bst.optim.Adam(1e-3))
 model.train(iterations=200000, callbacks=[pde_resampler])
 model.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))

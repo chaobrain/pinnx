@@ -1,33 +1,35 @@
 import brainstate as bst
+import brainunit as u
 import numpy as np
 
 
 def accuracy(y_true, y_pred):
-    return np.mean(np.equal(np.argmax(y_pred, axis=-1), np.argmax(y_true, axis=-1)))
+    return u.math.mean(u.math.equal(u.math.argmax(y_pred, axis=-1),
+                                    u.math.argmax(y_true, axis=-1)))
 
 
 def l2_relative_error(y_true, y_pred):
-    return np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
+    return u.linalg.norm(y_true - y_pred) / u.linalg.norm(y_true)
 
 
 def nanl2_relative_error(y_true, y_pred):
     """Return the L2 relative error treating Not a Numbers (NaNs) as zero."""
     err = y_true - y_pred
-    err = np.nan_to_num(err)
-    y_true = np.nan_to_num(y_true)
-    return np.linalg.norm(err) / np.linalg.norm(y_true)
+    err = u.math.nan_to_num(err)
+    y_true = u.math.nan_to_num(y_true)
+    return u.linalg.norm(err) / u.linalg.norm(y_true)
 
 
 def mean_l2_relative_error(y_true, y_pred):
     """Compute the average of L2 relative error along the first axis."""
-    return np.mean(
-        np.linalg.norm(y_true - y_pred, axis=1) /
-        np.linalg.norm(y_true, axis=1)
+    return u.math.mean(
+        u.linalg.norm(y_true - y_pred, axis=1) /
+        u.linalg.norm(y_true, axis=1)
     )
 
 
 def _absolute_percentage_error(y_true, y_pred):
-    return 100 * np.abs(
+    return 100 * u.math.abs(
         (y_true - y_pred) /
         np.clip(np.abs(y_true), np.finfo(bst.environ.dftype()).eps, None)
     )

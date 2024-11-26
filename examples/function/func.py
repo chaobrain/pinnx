@@ -13,14 +13,14 @@ def func(x):
 
 
 geom = pinnx.geometry.Interval(-1, 1)
-num_train = 16
+num_train = 160
 num_test = 100
 data = pinnx.data.Function(geom, func, num_train, num_test)
 
 net = pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh", bst.init.LecunUniform())
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)
 
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+pinnx.saveplot(losshistory, train_state, issave=False, isplot=True)

@@ -36,7 +36,7 @@ data = pinnx.data.PDE(
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 
 def dy_x(x, y):

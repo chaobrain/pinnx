@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import pinnx as dde
+import pinnx
 
 # Load dataset
 d = np.load("antiderivative_unaligned_train.npz", allow_pickle=True)
@@ -11,25 +11,25 @@ d = np.load("antiderivative_unaligned_test.npz", allow_pickle=True)
 X_test = (d["X_test0"].astype(np.float32), d["X_test1"].astype(np.float32))
 y_test = d["y_test"].astype(np.float32)
 
-data = dde.data.Triple(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
+data = pinnx.data.Triple(X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
 
 # Choose a network
 m = 100
 dim_x = 1
-net = dde.nn.DeepONet(
+net = pinnx.nn.DeepONet(
     [m, 40, 40],
     [dim_x, 40, 40],
     "relu",
     "Glorot normal",
 )
 
-# Define a Model
-model = dde.Model(data, net)
+# Define a Trainer
+model = pinnx.Trainer(data, net)
 
 # Compile and Train
 model.compile("adam", lr=0.001)
 losshistory, train_state = model.train(iterations=10000)
 
 # Plot the loss trajectory
-dde.utils.plot_loss_history(losshistory)
+pinnx.utils.plot_loss_history(losshistory)
 plt.show()

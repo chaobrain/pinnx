@@ -10,7 +10,7 @@ dim_x = 5
 # PDE
 def pde(neu, x):
     approx = lambda x: neu(pinnx.dict_to_array(x))
-    jacobian = pinnx.grad.jacobian(approx, pinnx.array_to_dict(x, 'x', 't'))
+    jacobian = pinnx.grad.jacobian(approx, pinnx.array_to_dict(x, ['x', 't']))
     dy_x = jacobian['x']
     dy_t = jacobian['t']
     return dy_t + dy_x
@@ -31,7 +31,7 @@ pde = pinnx.data.TimePDE(geomtime, pde, ic, num_domain=250, num_initial=50, num_
 # Function space
 func_space = pinnx.data.GRF(kernel="ExpSineSquared", length_scale=1)
 
-# Data
+# Problem
 eval_pts = np.linspace(0, 1, num=50)[:, None]
 data = pinnx.data.PDEOperatorCartesianProd(
     pde,
@@ -66,7 +66,7 @@ def periodic(x):
 
 net.apply_feature_transform(periodic)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.0005))
 losshistory, train_state = model.train(iterations=50000)
 pinnx.utils.plot_loss_history(losshistory)

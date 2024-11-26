@@ -12,8 +12,8 @@ C = bst.ParamState(2.0)
 
 
 def pde(neu, x):
-    x = pinnx.array_to_dict(x, "x", "t")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x", "t"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["y"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
 
@@ -58,7 +58,7 @@ layer_size = [2] + [32] * 3 + [1]
 activation = "tanh"
 net = pinnx.nn.FNN(layer_size, activation)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(
     bst.optim.Adam(0.001),

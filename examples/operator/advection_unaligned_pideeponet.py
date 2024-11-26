@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-import pinnx as dde
+import pinnx as pinnx
 
 dim_x = 5
 sin = torch.sin
@@ -12,35 +12,35 @@ concat = torch.cat
 
 # PDE
 def pde(x, y, v):
-    dy_x = dde.grad.jacobian(y, x, j=0)
-    dy_t = dde.grad.jacobian(y, x, j=1)
+    dy_x = pinnx.grad.jacobian(y, x, j=0)
+    dy_t = pinnx.grad.jacobian(y, x, j=1)
     return dy_t + dy_x
 
 
-geom = dde.geometry.Interval(0, 1)
-timedomain = dde.geometry.TimeDomain(0, 1)
-geomtime = dde.geometry.GeometryXTime(geom, timedomain)
+geom = pinnx.geometry.Interval(0, 1)
+timedomain = pinnx.geometry.TimeDomain(0, 1)
+geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
 
 
 def func_ic(x, v):
     return v
 
 
-ic = dde.icbc.IC(geomtime, func_ic, lambda _, on_initial: on_initial)
+ic = pinnx.icbc.IC(geomtime, func_ic, lambda _, on_initial: on_initial)
 
-pde = dde.data.TimePDE(geomtime, pde, ic, num_domain=250, num_initial=50, num_test=500)
+pde = pinnx.data.TimePDE(geomtime, pde, ic, num_domain=250, num_initial=50, num_test=500)
 
 # Function space
-func_space = dde.data.GRF(kernel="ExpSineSquared", length_scale=1)
+func_space = pinnx.data.GRF(kernel="ExpSineSquared", length_scale=1)
 
-# Data
+# Problem
 eval_pts = np.linspace(0, 1, num=50)[:, None]
-data = dde.data.PDEOperator(
+data = pinnx.data.PDEOperator(
     pde, func_space, eval_pts, 1000, function_variables=[0], num_test=1000
 )
 
 # Net
-net = dde.nn.DeepONet(
+net = pinnx.nn.DeepONet(
     [50, 128, 128, 128],
     [dim_x, 128, 128, 128],
     "tanh",
@@ -56,10 +56,10 @@ def periodic(x):
 
 net.apply_feature_transform(periodic)
 
-model = dde.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile("adam", lr=0.0005)
 losshistory, train_state = model.train(iterations=50000)
-dde.utils.plot_loss_history(losshistory)
+pinnx.utils.plot_loss_history(losshistory)
 
 x = np.linspace(0, 1, num=100)
 t = np.linspace(0, 1, num=100)
@@ -77,4 +77,4 @@ plt.figure()
 plt.imshow(u_pred)
 plt.colorbar()
 plt.show()
-print(dde.metrics.l2_relative_error(u_true, u_pred))
+print(pinnx.metrics.l2_relative_error(u_true, u_pred))

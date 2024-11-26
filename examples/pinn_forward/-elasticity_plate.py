@@ -116,8 +116,8 @@ def jacobian(f, x, i, j):
 
 
 def pde(net, x):
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
-    x = pinnx.array_to_dict(x, 'x', 'y')
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
+    x = pinnx.array_to_dict(x, ['x', 'y'])
 
     E_xx = jacobian(f, x, i=0, j=0)
     E_yy = jacobian(f, x, i=1, j=1)
@@ -171,7 +171,7 @@ net = pinnx.nn.PFNN(layers, "tanh", bst.init.KaimingUniform())
 if BC_type == "hard":
     net.apply_output_transform(hard_BC)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile("adam", lr=0.001, metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=5000)
 

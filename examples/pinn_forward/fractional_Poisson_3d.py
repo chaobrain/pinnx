@@ -56,7 +56,7 @@ data = pinnx.data.FPDE(
 net = pinnx.nn.FNN([3] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform())
 net.apply_output_transform(lambda x, y: (1 - u.math.sum(x ** 2, axis=1, keepdims=True)) * y)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(1e-3))
 losshistory, train_state = model.train(iterations=10000)
 pinnx.saveplot(losshistory, train_state, issave=False, isplot=True)
