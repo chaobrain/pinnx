@@ -1,9 +1,10 @@
-from typing import Sequence
+from typing import Sequence, Dict
 import brainstate as bst
 import numpy as np
 
 from pinnx import utils
 from .base import Problem
+import jax
 
 
 class DataSet(Problem):
@@ -19,40 +20,38 @@ class DataSet(Problem):
 
     def __init__(
         self,
-        X_train: bst.typing.ArrayLike,
-        y_train: bst.typing.ArrayLike,
-        X_test: bst.typing.ArrayLike,
-        y_test: bst.typing.ArrayLike,
+        X_train: Dict[str, bst.typing.ArrayLike],
+        y_train: Dict[str, bst.typing.ArrayLike],
+        X_test: Dict[str, bst.typing.ArrayLike],
+        y_test: Dict[str, bst.typing.ArrayLike],
         standardize: bool = False,
         approximator: bst.nn.Module = None,
         loss_fn: str = 'MSE',
         loss_weights: Sequence[float] = None,
     ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
 
-        assert X_train.ndim == 2, "X_train must be 2D."
-        assert y_train.ndim == 2, "y_train must be 2D."
-        assert X_test.ndim == 2, "X_test must be 2D."
-        assert y_test.ndim == 2, "y_test must be 2D."
-
-        self.train_x = X_train.astype(bst.environ.dftype())
-        self.train_y = y_train.astype(bst.environ.dftype())
-        self.test_x = X_test.astype(bst.environ.dftype())
-        self.test_y = y_test.astype(bst.environ.dftype())
-
+        self.train_x = X_train
+        self.train_y = y_train
+        self.test_x = X_test
+        self.test_y = y_test
         self.scaler_x = None
         if standardize:
-            self.scaler_x, self.train_x, self.test_x = utils.standardize(self.train_x, self.test_x)
+            r = jax.tree.map(
+                lambda train, test: utils.standardize(train, test),
+                self.train_x, self.test_x
+            )
+            self.train_x = dict()
+            self.test_x = dict()
+            for key, val in r.items():
+                self.train_x[key] = val[0]
+                self.test_x[key] = val[1]
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        return loss_fn(targets, outputs)
+    def losses(self, inputs, outputs, targets, **kwargs):
+        return self.loss_fn(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         return self.train_x, self.train_y
 
     def test(self):
         return self.test_x, self.test_y
-
-    def transform_inputs(self, x):
-        if self.scaler_x is None:
-            return x
-        return self.scaler_x.transform(x)

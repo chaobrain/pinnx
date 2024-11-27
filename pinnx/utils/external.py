@@ -49,10 +49,24 @@ def standardize(X_train, X_test):
         X_train: Transformed training data.
         X_test: Transformed testing data.
     """
+
+    train_exp_dim = False
+    if u.math.ndim(X_train) == 1:
+        train_exp_dim = True
+        X_train = X_train.reshape(-1, 1)
+    test_exp_dim = False
+    if u.math.ndim(X_test) == 1:
+        test_exp_dim = True
+        X_test = X_test.reshape(-1, 1)
+
     scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
-    return scaler, X_train, X_test
+    if train_exp_dim:
+        X_train = X_train.flatten()
+    if test_exp_dim:
+        X_test = X_test.flatten()
+    return X_train, X_test
 
 
 def saveplot(
@@ -123,12 +137,11 @@ def plot_loss_history(loss_history, fname=None):
     plt.figure()
     plt.semilogy(loss_history.steps, loss_train, label="Train loss")
     plt.semilogy(loss_history.steps, loss_test, label="Test loss")
+    metric_tests = jax.tree.map(lambda *a: u.math.asarray(a), *loss_history.metrics_test)
+
     for i in range(len(loss_history.metrics_test[0])):
-        plt.semilogy(
-            loss_history.steps,
-            np.array(loss_history.metrics_test)[:, i],
-            label="Test metric",
-        )
+        for k, v in metric_tests[i].items():
+            plt.semilogy( loss_history.steps, v, label=f"Test metric {k}")
     plt.xlabel("# Steps")
     plt.legend()
 
@@ -186,7 +199,7 @@ def plot_best_state(train_state):
     # 1D
     if len(train_state.X_test) == 1:
         idx = u.math.argsort(train_state.X_test[xkeys[0]])
-        X = train_state.X_test[idx, 0]
+        X = train_state.X_test[xkeys[0]][idx]
         plt.figure()
         for ykey in best_y:
             if y_train is not None:

@@ -1,7 +1,9 @@
 import sys
 import time
 
+import brainunit as u
 import brainstate as bst
+import jax.tree
 import numpy as np
 
 from . import utils
@@ -302,11 +304,11 @@ class DropoutUncertainty(Callback):
             self.epochs_since_last = 0
             y_preds = []
             for _ in range(1000):
-                y_pred_test_one = self.model._compute_outputs(
-                    True, self.model.train_state.X_test
-                )
+                y_pred_test_one = self.model.fn_outputs(True, self.model.train_state.X_test)
                 y_preds.append(y_pred_test_one)
-            self.model.train_state.y_std_test = np.std(y_preds, axis=0)
+            y_preds = jax.tree.map(lambda *x: u.math.stack(x, axis=0), *y_preds, is_leaf=u.math.is_quantity)
+            self.model.train_state.y_std_test = jax.tree.map(lambda x: u.math.std(x, axis=0), y_preds,
+                                                             is_leaf=u.math.is_quantity)
 
     def on_train_end(self):
         self.on_epoch_end()

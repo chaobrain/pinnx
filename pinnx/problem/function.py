@@ -1,4 +1,6 @@
-from typing import Callable
+from typing import Callable, Sequence
+
+import brainstate as bst
 
 from pinnx.geometry.base import AbstractGeometry
 from pinnx.utils import run_if_any_none
@@ -29,7 +31,12 @@ class Function(Problem):
         num_test: int,
         train_distribution: str = "uniform",
         online: bool = False,
+        approximator: bst.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
+
         self.geom = geometry
         self.func = function
         self.num_train = num_train
@@ -44,8 +51,8 @@ class Function(Problem):
         self.train_x, self.train_y = None, None
         self.test_x, self.test_y = None, None
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        return loss_fn(targets, outputs)
+    def losses(self, inputs, outputs, targets, **kwargs):
+        return self.loss_fn(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if self.train_x is None or self.online:

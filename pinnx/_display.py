@@ -1,6 +1,8 @@
 import sys
 from pprint import pformat
 
+import brainunit as u
+import jax.tree
 import numpy as np
 
 from pinnx.utils import tree_repr
@@ -55,9 +57,9 @@ class TrainingDisplay:
             train_loss_repr_max = max([len(line) for line in train_loss_repr.split('\n') if line])
             test_loss_repr_max = max([len(line) for line in test_loss_repr.split('\n') if line])
             test_metrics_repr_max = max([len(line) for line in test_metrics_repr.split('\n') if line])
-            self.len_train = train_loss_repr_max + 4
-            self.len_test = test_loss_repr_max + 4
-            self.len_metric = test_metrics_repr_max + 4
+            self.len_train = train_loss_repr_max + 10
+            self.len_test = test_loss_repr_max + 10
+            self.len_metric = test_metrics_repr_max + 10
             self.header()
 
         self.print_one(
@@ -74,16 +76,30 @@ class TrainingDisplay:
         print("  test metric: {:s}".format(tree_repr(train_state.best_metrics)))
         if train_state.best_ystd is not None:
             print("  Uncertainty:")
-            print("    l2: {:g}".format(np.linalg.norm(train_state.best_ystd)))
             print(
-                "    l_infinity: {:g}".format(
-                    np.linalg.norm(train_state.best_ystd, ord=np.inf)
+                "    l2: {}".format(
+                    jax.tree.map(lambda x: u.linalg.norm(x), train_state.best_ystd)
                 )
             )
             print(
-                "    max uncertainty location:",
-                train_state.X_test[np.argmax(train_state.best_ystd)],
+                "    l_infinity: {}".format(
+                    jax.tree_map(
+                        lambda x: u.linalg.norm(x, ord=u.math.inf),
+                        train_state.best_ystd,
+                        is_leaf=u.math.is_quantity
+                    )
+                )
             )
+            if len(train_state.best_ystd) == 1:
+                index = u.math.argmax(tuple(train_state.best_ystd.values())[0])
+                print(
+                    "    max uncertainty location:",
+                    jax.tree_map(
+                        lambda test: test[index],
+                        train_state.X_test,
+                        is_leaf=u.math.is_quantity,
+                    )
+                )
         print("")
         self.is_header_print = False
 
