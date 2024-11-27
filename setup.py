@@ -60,7 +60,7 @@ setup(
     install_requires=[
         'numpy',
         'jax',
-        'brainunit>=0.0.2',
+        'brainunit>=0.0.3',
         'matplotlib',
         'scipy',
         'scikit-learn',
