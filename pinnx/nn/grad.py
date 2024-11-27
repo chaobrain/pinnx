@@ -24,6 +24,8 @@ import brainunit as u
 
 TransformFn = Callable
 
+__all__ = ['jacobian', 'hessian', 'gradient', ]
+
 
 class GradientTransform(bst.util.PrettyRepr):
 
@@ -134,6 +136,32 @@ def _raw_jacrev(
     return transform
 
 
+def _raw_jacfwd(
+    fun: Callable,
+    has_aux: bool = False,
+    y: str | Sequence[str] | None = None,
+    x: str | Sequence[str] | None = None,
+) -> Callable:
+    # process only for y
+    if isinstance(y, str):
+        y = [y]
+    if y is not None:
+        fun = _format_y(fun, y)
+
+    # process only for x
+    if isinstance(x, str):
+        x = [x]
+
+    def transform(inputs):
+        if x is not None:
+            fun2, inputs = _format_x(fun, x, inputs)
+            return u.autograd.jacfwd(fun2, has_aux=has_aux)(inputs)
+        else:
+            return u.autograd.jacfwd(fun, has_aux=has_aux)(inputs)
+
+    return transform
+
+
 def _raw_hessian(
     fun: Callable,
     has_aux: bool = False,
@@ -227,6 +255,9 @@ def jacobian(
     Returns:
         (`i`, `j`)th entry J[`i`, `j`], `i`th row J[`i`, :], or `j`th column J[:, `j`].
     """
+    assert isinstance(xs, dict), 'xs must be a dictionary.'
+    assert isinstance(mode, str), 'mode must be a string.'
+    assert mode in ['backward', 'forward'], 'mode must be either backward or forward.'
 
     # process only for x
     if isinstance(x, str):
@@ -273,11 +304,57 @@ def hessian(
     Returns:
         H[`i`, `j`].
     """
+    assert isinstance(xs, dict), 'xs must be a dictionary.'
     transform = GradientTransform(fn, _raw_hessian, transform_params={'y': y, 'xi': xi, 'xj': xj})
     return bst.augment.vmap(transform)(xs)
 
 
 def gradient(
-
+    fn: Callable,
+    xs: Dict,
+    y: str | Sequence[str] | None = None,
+    *xi: str | Sequence[str] | None,
+    order: int = 1,
 ):
-    pass
+    """
+    Compute the gradient dy/dx of a function y = f(x) with respect to x.
+
+    If order is 1, it computes the first derivative dy/dx.
+
+
+    Args:
+        fn: Function to compute the gradient.
+        xs: Inputs of the function.
+        y (str or None): The variable to differentiate.
+        xi (str or None): The variable to differentiate with respect to.
+        order: The order of the gradient. Default is 1.
+
+    Returns:
+        dy/dx.
+    """
+    assert isinstance(order, int), 'order must be an integer.'
+    assert order > 0, 'order must be positive.'
+
+    # process only for y
+    if isinstance(y, str):
+        y = [y]
+    if y is not None:
+        fn = _format_y(fn, y)
+
+    # process xi
+    if len(xi) > 0:
+        assert len(xi) == order, 'The number of xi must be equal to order.'
+        xi = list(xi)
+        for i in range(order):
+            if isinstance(xi[i], str):
+                xi[i] = [xi[i]]
+    else:
+        xi = [None] * order
+
+    # compute the gradient
+    for i, x in enumerate(xi):
+        if i == 0:
+            fn = _raw_jacrev(fn, y=y, x=x)
+        else:
+            fn = _raw_jacfwd(fn, y=None, x=x)
+    return bst.augment.vmap(fn)(xs)
