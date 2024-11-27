@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+import os
 
 import brainstate as bst
 import numpy as np
 
 import pinnx
 
-train_data = np.loadtxt("../dataset/dataset.train")
-test_data = np.loadtxt("../dataset/dataset.test")
+PATH = os.path.dirname(os.path.abspath(__file__))
+train_data = np.loadtxt(os.path.join(PATH, '..', 'dataset', 'dataset.train'))
+test_data = np.loadtxt(os.path.join(PATH, '..', 'dataset', 'dataset.test'))
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None),

@@ -57,6 +57,7 @@ dependencies = [
     'brainstate',
     'braintools',
     'optax',
+    'scikit-optimize',
 ]
 
 dynamic = ['version']

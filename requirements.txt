@@ -6,4 +6,4 @@ brainstate
 brainunit>=0.0.3
 braintools
 optax
-
+scikit-optimize
