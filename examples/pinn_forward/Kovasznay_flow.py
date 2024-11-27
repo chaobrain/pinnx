@@ -10,8 +10,8 @@ l = 1 / (2 * nu) - np.sqrt(1 / (4 * nu ** 2) + 4 * np.pi ** 2)
 
 
 def pde(net, x):
-    x = pinnx.array_to_dict(x, "x", 'y')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), 'u_vel', 'v_vel', 'p')
+    x = pinnx.array_to_dict(x, ["x", 'y'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['u_vel', 'v_vel', 'p'])
 
     jacobian, u = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
@@ -80,7 +80,7 @@ data = pinnx.data.PDE(
 
 net = pinnx.nn.FNN([2] + 4 * [50] + [3], "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(1e-3))
 model.train(iterations=30000)

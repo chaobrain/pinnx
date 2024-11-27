@@ -5,8 +5,14 @@ import brainunit as u
 import numpy as np
 
 from pinnx.utils import run_if_all_none
-from .helper import one_function
 from .pde import PDE
+
+
+def one_function(dim_outputs):
+    def one(X, *args):
+        return np.ones((len(X), dim_outputs))
+
+    return one
 
 
 class IDE(PDE):
@@ -95,7 +101,7 @@ class IDE(PDE):
         return self.test_x, self.test_y
 
     def test_points(self):
-        return self.geom.uniform_points(self.num_test, True)
+        return self.geometry.uniform_points(self.num_test, True)
 
     def quad_points(self, X):
         def get_quad_points(x):

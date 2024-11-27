@@ -127,7 +127,7 @@ plt.show()
 
 # define FNN architecture and compile
 net = pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh")
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile("adam", lr=0.001, external_trainable_variables=[C1, C2, C3])
 
 # callbacks for storing results

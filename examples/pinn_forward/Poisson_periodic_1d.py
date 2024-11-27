@@ -32,7 +32,7 @@ data = pinnx.data.PDE(geom, pde, [bc1, bc2], 16, 2, solution=func, num_test=100)
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)
 

@@ -20,7 +20,7 @@ pde = pinnx.data.PDE(geom, pde, ic, num_domain=20, num_boundary=2, num_test=40)
 # Function space
 func_space = pinnx.data.GRF(length_scale=0.2)
 
-# Data
+# Problem
 eval_pts = np.linspace(0, 1, num=50)[:, None]
 data = pinnx.data.PDEOperatorCartesianProd(
     pde, func_space, eval_pts, 1000, num_test=100, batch_size=100
@@ -41,7 +41,7 @@ def zero_ic(inputs, outputs):
 
 net.apply_output_transform(zero_ic)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.0005))
 losshistory, train_state = model.train(iterations=40000)
 

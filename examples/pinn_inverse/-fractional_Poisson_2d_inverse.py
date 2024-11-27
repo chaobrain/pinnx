@@ -59,7 +59,7 @@ data = pinnx.data.FPDE(
 net = pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh")
 net.apply_output_transform(lambda x, y: (1 - u.math.sum(x ** 2, axis=-1, keepdims=True)) * y)
 
-model = pinnx.Model(data, net, external_trainable_variables=[alpha])
+model = pinnx.Trainer(data, net, external_trainable_variables=[alpha])
 model.compile(bst.optim.Adam(1e-3), loss_weights=[1, 100], )
 variable = pinnx.callbacks.VariableValue(alpha, period=1000)
 losshistory, train_state = model.train(iterations=10000, callbacks=[variable])

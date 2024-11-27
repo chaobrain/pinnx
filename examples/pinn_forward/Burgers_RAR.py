@@ -6,7 +6,7 @@ import pinnx
 
 
 def gen_testdata():
-    data = np.load("../dataset/Burgers.npz")
+    data = np.load("../../docs/dataset/Burgers.npz")
     t, x, exact = data["t"], data["x"], data["usol"].T
     xx, tt = np.meshgrid(x, t)
     X = np.vstack((np.ravel(xx), np.ravel(tt))).T
@@ -15,8 +15,8 @@ def gen_testdata():
 
 
 def pde(neuralnet, x):
-    approx = lambda x: pinnx.array_to_dict(neuralnet(pinnx.dict_to_array(x)), 'y')
-    x = pinnx.array_to_dict(x, 'x', 't')
+    approx = lambda x: pinnx.array_to_dict(neuralnet(pinnx.dict_to_array(x)), ['y'])
+    x = pinnx.array_to_dict(x, ['x', 't'])
     jacobian, u = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
 
@@ -39,12 +39,12 @@ data = pinnx.data.TimePDE(
     geomtime, pde, [bc, ic], num_domain=2500, num_boundary=100, num_initial=160
 )
 net = pinnx.nn.FNN([2] + [20] * 3 + [1], "tanh", bst.init.KaimingUniform())
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(1e-3))
 model.train(iterations=10000)
-# model.compile("L-BFGS")
-# model.train()
+# trainer.compile("L-BFGS")
+# trainer.train()
 
 X = geomtime.random_points(100000)
 err = 1

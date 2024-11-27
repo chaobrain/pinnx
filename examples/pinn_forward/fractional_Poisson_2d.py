@@ -52,7 +52,7 @@ net.apply_output_transform(
     lambda x, y: (1 - u.math.sum(x ** 2, axis=1, keepdims=True)) * y
 )
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(1e-3))
 losshistory, train_state = model.train(iterations=20000)
 pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)

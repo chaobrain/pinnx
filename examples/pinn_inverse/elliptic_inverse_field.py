@@ -14,7 +14,7 @@ def gen_traindata(num):
 
 
 def pde(neu, x):
-    approx = lambda x: pinnx.array_to_dict(neu(x), "u", "q")
+    approx = lambda x: pinnx.array_to_dict(neu(x), ["u", "q"])
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
     u_, q = y['u'], y['q']
     q = u.math.squeeze(q)
@@ -46,7 +46,7 @@ data = pinnx.data.PDE(
 
 net = pinnx.nn.PFNN([1, [20, 20], [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform())
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(0.0001),
     loss_weights=[1, 100, 1000]

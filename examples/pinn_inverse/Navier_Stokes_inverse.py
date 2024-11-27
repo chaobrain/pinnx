@@ -20,14 +20,14 @@ C2true = 0.01
 
 # Load training data
 def load_training_data(num):
-    data = loadmat("../dataset/cylinder_nektar_wake.mat")
+    data = loadmat("../../docs/dataset/cylinder_nektar_wake.mat")
     U_star = data["U_star"]  # N x 2 x T
     P_star = data["p_star"]  # N x T
     t_star = data["t"]  # T x 1
     X_star = data["X_star"]  # N x 2
     N = X_star.shape[0]
     T = t_star.shape[0]
-    # Rearrange Data
+    # Rearrange Problem
     XX = np.tile(X_star[:, 0:1], (1, T))  # N x T
     YY = np.tile(X_star[:, 1:2], (1, T))  # N x T
     TT = np.tile(t_star, (1, N)).T  # N x T
@@ -65,8 +65,8 @@ C2 = bst.ParamState(0.0)
 
 # Define Navier Stokes Equations (Time-dependent PDEs)
 def Navier_Stokes_Equation(neu, x):
-    x = pinnx.array_to_dict(x, "x", "y", "t")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "u", "v", "p")
+    x = pinnx.array_to_dict(x, ["x", "y", "t"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["u", "v", "p"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
 
@@ -122,13 +122,13 @@ data = pinnx.data.TimePDE(
 # Neural Network setup
 layer_size = [3] + [50] * 6 + [3]
 net = pinnx.nn.FNN(layer_size, "tanh")
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 # callbacks for storing results
 fnamevar = "variables.dat"
 variable = pinnx.callbacks.VariableValue([C1, C2], period=100, filename=fnamevar)
 
-# Compile, train and save model
+# Compile, train and save trainer
 model.compile(bst.optim.Adam(1e-3), external_trainable_variables=[C1, C2])
 loss_history, train_state = model.train(
     iterations=10000, callbacks=[variable], display_every=1000, disregard_previous_best=True
@@ -139,7 +139,7 @@ loss_history, train_state = model.train(
     iterations=10000, callbacks=[variable], display_every=1000, disregard_previous_best=True
 )
 pinnx.saveplot(loss_history, train_state, issave=True, isplot=True)
-# model.save(save_path = "./NS_inverse_model/model")
+# trainer.save(save_path = "./NS_inverse_model/trainer")
 f = model.predict(ob_xyt, operator=Navier_Stokes_Equation)
 print("Mean residual:", np.mean(np.absolute(f)))
 

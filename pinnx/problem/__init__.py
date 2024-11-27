@@ -1,7 +1,7 @@
 __all__ = [
     "BatchSampler",
     "Chebyshev",
-    "Data",
+    "Problem",
     "DataSet",
     "FPDE",
     "Function",
@@ -24,7 +24,7 @@ __all__ = [
     "wasserstein2",
 ]
 
-from .data import Data
+from .base import Problem
 from .dataset import DataSet
 from .fpde import FPDE, TimeFPDE
 from .function import Function

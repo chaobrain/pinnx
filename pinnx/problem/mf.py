@@ -1,10 +1,10 @@
 import numpy as np
 
 from pinnx.utils import run_if_any_none, standardize
-from .data import Data
+from .base import Problem
 
 
-class MfFunc(Data):
+class MfFunc(Problem):
     """Multifidelity function approximation."""
 
     def __init__(
@@ -58,7 +58,7 @@ class MfFunc(Data):
         return self.X_test, self.y_test
 
 
-class MfDataSet(Data):
+class MfDataSet(Problem):
     """Multifidelity function approximation from data set.
 
     Args:

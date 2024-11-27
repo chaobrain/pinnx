@@ -48,10 +48,15 @@ keywords = [
 ]
 
 dependencies = [
-    'jax',
-    'jaxlib',
     'numpy',
-    'brainunit>=0.0.2',
+    'jax',
+    'brainunit>=0.0.3',
+    'matplotlib',
+    'scipy',
+    'scikit-learn',
+    'brainstate',
+    'braintools',
+    'optax',
 ]
 
 dynamic = ['version']

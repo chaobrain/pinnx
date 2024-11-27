@@ -13,37 +13,33 @@
 # limitations under the License.
 # ==============================================================================
 
+
+import brainstate as bst
 import brainunit as u
-import numpy as np
 
-__all__ = [
-    "array_to_dict",
-    "dict_to_array",
-]
+import pinnx
 
 
-def array_to_dict(x, *names):
-    """
-    Convert args to a dictionary.
-    """
-    if x.shape[-1] != len(names):
-        raise ValueError("The number of columns of x must be equal to the number of names.")
-
-    return {key: x[..., i] for i, key in enumerate(names)}
+def func(x):
+    return {'y': x['x'] * u.math.sin(5 * x['x'])}
 
 
-def dict_to_array(d):
-    """
-    Convert a dictionary to an array.
+layer_size = [1] + [50] * 3 + [1]
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None),
+    pinnx.nn.FNN(layer_size, "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.ArrayToDict(y=None),
+)
 
-    Args:
-        d (dict): The dictionary.
+geom = pinnx.geometry.Interval('x', -1, 1)
+num_train = 100
+num_test = 1000
+data = pinnx.problem.Function(
+    geom, func, num_train, num_test,
+    approximator=net
+)
 
-    Returns:
-        ndarray: The array.
-    """
-    keys = tuple(d.keys())
-    if isinstance(d[keys[0]], np.ndarray):
-        return np.stack([d[key] for key in keys], axis=-1)
-    else:
-        return u.math.stack([d[key] for key in keys], axis=-1)
+trainer = pinnx.Trainer(data)
+uncertainty = pinnx.callbacks.DropoutUncertainty(period=1000)
+trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=uncertainty)
+trainer.saveplot(issave=True, isplot=True)

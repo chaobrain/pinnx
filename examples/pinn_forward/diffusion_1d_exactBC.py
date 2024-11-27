@@ -6,9 +6,9 @@ import pinnx
 
 
 def pde(net, x):
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
 
-    x = pinnx.array_to_dict(x, "x", "t")
+    x = pinnx.array_to_dict(x, ["x", "t"])
     jac, y = pinnx.grad.jacobian(approx, x, return_value=True)
     hess = pinnx.grad.hessian(approx, x)
 
@@ -41,7 +41,7 @@ net = pinnx.nn.FNN(
     output_transform=lambda x, y: x[:, 1:2] * (1 - x[:, 0:1] ** 2) * y + u.math.sin(np.pi * x[:, 0:1])
 )
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)

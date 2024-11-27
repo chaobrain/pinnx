@@ -25,7 +25,7 @@ class FunctionSpace(abc.ABC):
 
         .. code-block:: python
 
-            space = pinnx.data.GRF()
+            space = pinnx.problem.GRF()
             feats = space.random(10)
             xs = np.linspace(0, 1, num=100)[:, None]
             y = space.eval_batch(feats, xs)
@@ -161,18 +161,22 @@ class GRF(FunctionSpace):
     def eval_one(self, feature, x):
         if self.interp == "linear":
             return np.interp(x, np.ravel(self.x), feature)
-        f = interpolate.interp1d(
-            np.ravel(self.x), feature, kind=self.interp, copy=False, assume_sorted=True
-        )
+        f = interpolate.interp1d(np.ravel(self.x),
+                                 feature,
+                                 kind=self.interp,
+                                 copy=False,
+                                 assume_sorted=True)
         return f(x)
 
     def eval_batch(self, features, xs):
         if self.interp == "linear":
             return np.vstack([np.interp(xs, np.ravel(self.x), y).T for y in features])
         res = map(
-            lambda y: interpolate.interp1d(
-                np.ravel(self.x), y, kind=self.interp, copy=False, assume_sorted=True
-            )(xs).T,
+            lambda y: interpolate.interp1d(np.ravel(self.x),
+                                           y,
+                                           kind=self.interp,
+                                           copy=False,
+                                           assume_sorted=True)(xs).T,
             features,
         )
         return np.vstack(list(res)).astype(bst.environ.dftype())
@@ -225,7 +229,8 @@ class GRF_KL(FunctionSpace):
         return np.sum(eigfun * feature)
 
     def eval_batch(self, features, xs):
-        eigfun = np.array([np.ravel(f(xs)) for f in self.eigfun], dtype=bst.environ.dftype())
+        eigfun = np.array([np.ravel(f(xs)) for f in self.eigfun],
+                          dtype=bst.environ.dftype())
         return np.dot(features, eigfun)
 
 
@@ -247,7 +252,7 @@ class GRF2D(FunctionSpace):
 
         .. code-block:: python
 
-            space = pinnx.data.GRF2D(length_scale=0.1)
+            space = pinnx.problem.GRF2D(length_scale=0.1)
             features = space.random(3)
             x = np.linspace(0, 1, num=500)
             y = np.linspace(0, 1, num=500)

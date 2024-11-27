@@ -10,8 +10,8 @@ Re = 1
 
 
 def pde(net, x):
-    x = pinnx.array_to_dict(x, 'x', 'y', 'z', 't')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), 'u_vel', 'v_vel', 'w_vel', 'p')
+    x = pinnx.array_to_dict(x, ['x', 'y', 'z', 't'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['u_vel', 'v_vel', 'w_vel', 'p'])
 
     jacobian, u = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
@@ -170,7 +170,7 @@ data = pinnx.data.TimePDE(
 
 net = pinnx.nn.FNN([4] + 4 * [50] + [4], "tanh", bst.init.KaimingUniform())
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(
     bst.optim.Adam(1e-3),

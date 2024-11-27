@@ -1,52 +1,79 @@
-import brainstate as bst
-import numpy as np
+import brainunit as u
+import jax
+
+
+def _accuracy(y_true, y_pred):
+    return u.math.mean(u.math.equal(u.math.argmax(y_pred, axis=-1),
+                                    u.math.argmax(y_true, axis=-1)))
 
 
 def accuracy(y_true, y_pred):
-    return np.mean(np.equal(np.argmax(y_pred, axis=-1), np.argmax(y_true, axis=-1)))
+    return jax.tree_util.tree_map(_accuracy, y_true, y_pred, is_leaf=u.math.is_quantity)
+
+
+def _l2_relative_error(y_true, y_pred):
+    return u.linalg.norm(y_true - y_pred) / u.linalg.norm(y_true)
 
 
 def l2_relative_error(y_true, y_pred):
-    return np.linalg.norm(y_true - y_pred) / np.linalg.norm(y_true)
+    return jax.tree_util.tree_map(_l2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
+
+
+def _nanl2_relative_error(y_true, y_pred):
+    """Return the L2 relative error treating Not a Numbers (NaNs) as zero."""
+    err = y_true - y_pred
+    err = u.math.nan_to_num(err)
+    y_true = u.math.nan_to_num(y_true)
+    return u.linalg.norm(err) / u.linalg.norm(y_true)
 
 
 def nanl2_relative_error(y_true, y_pred):
-    """Return the L2 relative error treating Not a Numbers (NaNs) as zero."""
-    err = y_true - y_pred
-    err = np.nan_to_num(err)
-    y_true = np.nan_to_num(y_true)
-    return np.linalg.norm(err) / np.linalg.norm(y_true)
+    return jax.tree_util.tree_map(_nanl2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
+
+
+def _mean_l2_relative_error(y_true, y_pred):
+    """Compute the average of L2 relative error along the first axis."""
+    return u.math.mean(
+        u.linalg.norm(y_true - y_pred, axis=1) /
+        u.linalg.norm(y_true, axis=1)
+    )
 
 
 def mean_l2_relative_error(y_true, y_pred):
-    """Compute the average of L2 relative error along the first axis."""
-    return np.mean(
-        np.linalg.norm(y_true - y_pred, axis=1) /
-        np.linalg.norm(y_true, axis=1)
-    )
+    return jax.tree_util.tree_map(_mean_l2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
 def _absolute_percentage_error(y_true, y_pred):
-    return 100 * np.abs(
-        (y_true - y_pred) /
-        np.clip(np.abs(y_true), np.finfo(bst.environ.dftype()).eps, None)
-    )
+    return 100 * u.math.abs((y_true - y_pred) / u.math.abs(y_true))
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
-    return np.mean(_absolute_percentage_error(y_true, y_pred))
+    return jax.tree_util.tree_map(lambda x, y: _absolute_percentage_error(x, y).mean(),
+                                  y_true,
+                                  y_pred,
+                                  is_leaf=u.math.is_quantity)
 
 
 def max_absolute_percentage_error(y_true, y_pred):
-    return np.amax(_absolute_percentage_error(y_true, y_pred))
+    return jax.tree_util.tree_map(lambda x, y: _absolute_percentage_error(x, y).max(),
+                                  y_true,
+                                  y_pred,
+                                  is_leaf=u.math.is_quantity)
 
 
 def absolute_percentage_error_std(y_true, y_pred):
-    return np.std(_absolute_percentage_error(y_true, y_pred))
+    return jax.tree_util.tree_map(lambda x, y: _absolute_percentage_error(x, y).std(),
+                                  y_true,
+                                  y_pred,
+                                  is_leaf=u.math.is_quantity)
+
+
+def _mean_squared_error(y_true, y_pred):
+    return u.math.mean(u.math.square(y_true - y_pred))
 
 
 def mean_squared_error(y_true, y_pred):
-    return np.mean(np.square(y_true - y_pred))
+    return jax.tree_util.tree_map(_mean_squared_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
 def get(identifier):

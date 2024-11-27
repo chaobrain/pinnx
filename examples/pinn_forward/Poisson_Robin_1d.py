@@ -29,7 +29,7 @@ layer_size = [1] + [50] * 3 + [1]
 activation = "tanh"
 net = pinnx.nn.FNN(layer_size, activation)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
 losshistory, train_state = model.train(iterations=10000)
 

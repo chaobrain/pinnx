@@ -3,5 +3,7 @@ numpy
 scikit-learn
 scipy
 brainstate
-brainunit
+brainunit>=0.0.3
 braintools
+optax
+

@@ -41,7 +41,7 @@ data = pinnx.data.TimePDE(geom, ode, [ic1, ic2], 16, 2, solution=func, num_test=
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(0.001), metrics=["l2 relative error"], loss_weights=[0.01, 1, 1]
 )

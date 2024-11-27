@@ -39,7 +39,7 @@ geom = pinnx.geometry.Interval(0, 1)
 
 
 def pde(neu, x):
-    approx = lambda x: pinnx.array_to_dict(neu(x), 'u', 'k')
+    approx = lambda x: pinnx.array_to_dict(neu(x), ['u', 'k'])
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
     u_, k = y['u'], y['k']
     du_xx = u.math.squeeze(hessian['u'])
@@ -66,7 +66,7 @@ data = pinnx.data.PDE(
 )
 
 net = pinnx.nn.PFNN([1, [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform())
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(1e-3))
 
 losshistory, train_state = model.train(iterations=20000)

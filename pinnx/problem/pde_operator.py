@@ -6,17 +6,17 @@ import numpy as np
 
 from pinnx.utils import run_if_all_none
 from pinnx.utils.sampler import BatchSampler
-from .data import Data
+from .base import Problem
 from .pde import PDE
 
 
-class PDEOperator(Data):
+class PDEOperator(Problem):
     """
     PDE solution operator.
 
     Args:
-        pde: Instance of ``pinnx.data.PDE`` or ``pinnx.data.TimePDE``.
-        function_space: Instance of ``pinnx.data.FunctionSpace``.
+        pde: Instance of ``pinnx.problem.PDE`` or ``pinnx.problem.TimePDE``.
+        function_space: Instance of ``pinnx.problem.FunctionSpace``.
         evaluation_points: A NumPy array of shape (n_points, dim). Discretize the input
             function sampled from `function_space` using pointwise evaluations at a set
             of points as the input of the branch net.
@@ -59,7 +59,7 @@ class PDEOperator(Data):
         self.func_vars = (
             function_variables
             if function_variables is not None
-            else list(range(pde.geom.dim))
+            else list(range(pde.geometry.dim))
         )
         self.num_test = num_test
 
@@ -153,7 +153,7 @@ class PDEOperator(Data):
         if not self.pde.ic_bcs:
             self.train_bc = (
                 np.empty((0, len(self.eval_pts)), dtype=bst.environ.dftype()),
-                np.empty((0, self.pde.geom.dim), dtype=bst.environ.dftype()),
+                np.empty((0, self.pde.geometry.dim), dtype=bst.environ.dftype()),
                 np.empty((0, 1), dtype=bst.environ.dftype()),
             )
             return self.train_bc
@@ -175,12 +175,12 @@ class PDEOperator(Data):
         self.train_next_batch()
 
 
-class PDEOperatorCartesianProd(Data):
-    """PDE solution operator with data in the format of Cartesian product.
+class PDEOperatorCartesianProd(Problem):
+    """PDE solution operator with problem in the format of Cartesian product.
 
     Args:
-        pde: Instance of ``pinnx.data.PDE`` or ``pinnx.data.TimePDE``.
-        function_space: Instance of ``pinnx.data.FunctionSpace``.
+        pde: Instance of ``pinnx.problem.PDE`` or ``pinnx.problem.TimePDE``.
+        function_space: Instance of ``pinnx.problem.FunctionSpace``.
         evaluation_points: A NumPy array of shape (n_points, dim). Discretize the input
             function sampled from `function_space` using pointwise evaluations at a set
             of points as the input of the branch net.
@@ -223,7 +223,7 @@ class PDEOperatorCartesianProd(Data):
         self.func_vars = (
             function_variables
             if function_variables is not None
-            else list(range(pde.geom.dim))
+            else list(range(pde.geometry.dim))
         )
         self.num_test = num_test
         self.batch_size = batch_size

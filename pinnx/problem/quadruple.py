@@ -1,8 +1,8 @@
-from .data import Data
+from .base import Problem
 from pinnx.utils.sampler import BatchSampler
 
 
-class Quadruple(Data):
+class Quadruple(Problem):
     """Dataset with each data point as a quadruple.
 
     The couple of the first three elements are the input, and the fourth element is the
@@ -39,7 +39,7 @@ class Quadruple(Data):
         return self.test_x, self.test_y
 
 
-class QuadrupleCartesianProd(Data):
+class QuadrupleCartesianProd(Problem):
     """Cartesian Product input data format for MIONet architecture.
 
     This dataset can be used with the network ``MIONetCartesianProd`` for operator

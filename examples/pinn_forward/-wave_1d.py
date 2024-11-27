@@ -6,7 +6,7 @@ References:
 """
 import numpy as np
 
-import pinnx as dde
+import pinnx
 
 A = 2
 C = 10
@@ -19,31 +19,29 @@ def get_initial_loss(model):
 
 
 def pde(x, y):
-    dy_tt = dde.grad.hessian(y, x, i=1, j=1)
-    dy_xx = dde.grad.hessian(y, x, i=0, j=0)
+    dy_tt = pinnx.grad.hessian(y, x, i=1, j=1)
+    dy_xx = pinnx.grad.hessian(y, x, i=0, j=0)
     return dy_tt - C ** 2 * dy_xx
 
 
 def func(x):
     x, t = np.split(x, 2, axis=1)
-    return np.sin(np.pi * x) * np.cos(C * np.pi * t) + np.sin(A * np.pi * x) * np.cos(
-        A * C * np.pi * t
-    )
+    return np.sin(np.pi * x) * np.cos(C * np.pi * t) + np.sin(A * np.pi * x) * np.cos(A * C * np.pi * t)
 
 
-geom = dde.geometry.Interval(0, 1)
-timedomain = dde.geometry.TimeDomain(0, 1)
-geomtime = dde.geometry.GeometryXTime(geom, timedomain)
+geom = pinnx.geometry.Interval(0, 1)
+time = pinnx.geometry.TimeDomain(0, 1)
+geomtime = pinnx.geometry.GeometryXTime(geom, time)
 
-bc = dde.icbc.DirichletBC(geomtime, func, lambda _, on_boundary: on_boundary)
-ic_1 = dde.icbc.IC(geomtime, func, lambda _, on_initial: on_initial)
-# do not use pinnx.NeumannBC here, since `normal_derivative` does not work with temporal coordinate.
-ic_2 = dde.icbc.OperatorBC(
+bc = pinnx.icbc.DirichletBC(geomtime, func, lambda _, on_boundary: on_boundary)
+ic_1 = pinnx.icbc.IC(geomtime, func, lambda _, on_initial: on_initial)
+# do not use pinnx.icbc.NeumannBC here, since `normal_derivative` does not work with temporal coordinate.
+ic_2 = pinnx.icbc.OperatorBC(
     geomtime,
-    lambda x, y, _: dde.grad.jacobian(y, x, i=0, j=1),
-    lambda x, _: dde.utils.isclose(x[1], 0),
+    lambda x, y, _: pinnx.grad.jacobian(y, x, i=0, j=1),
+    lambda x, _: pinnx.utils.isclose(x[1], 0),
 )
-data = dde.data.TimePDE(
+data = pinnx.data.TimePDE(
     geomtime,
     pde,
     [bc, ic_1, ic_2],
@@ -55,14 +53,10 @@ data = dde.data.TimePDE(
 )
 
 layer_size = [2] + [100] * 3 + [1]
-activation = "tanh"
-initializer = "Glorot uniform"
-net = dde.nn.STMsFFN(
-    layer_size, activation, initializer, sigmas_x=[1], sigmas_t=[1, 10]
-)
+net = pinnx.nn.STMsFFN(layer_size, "tanh", sigmas_x=[1], sigmas_t=[1, 10])
 net.apply_feature_transform(lambda x: (x - 0.5) * 2 * np.sqrt(3))
 
-model = dde.Model(data, net)
+model = pinnx.Trainer(data, net)
 initial_losses = get_initial_loss(model)
 loss_weights = 5 / initial_losses
 model.compile(
@@ -72,9 +66,9 @@ model.compile(
     loss_weights=loss_weights,
     decay=("inverse time", 2000, 0.9),
 )
-pde_residual_resampler = dde.callbacks.PDEPointResampler(period=1)
+pde_residual_resampler = pinnx.callbacks.PDEPointResampler(period=1)
 losshistory, train_state = model.train(
     iterations=10000, callbacks=[pde_residual_resampler], display_every=500
 )
 
-dde.saveplot(losshistory, train_state, issave=True, isplot=True)
+pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)

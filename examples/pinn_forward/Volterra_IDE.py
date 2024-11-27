@@ -42,7 +42,7 @@ layer_size = [1] + [20] * 3 + [1]
 activation = "tanh"
 net = pinnx.nn.FNN(layer_size, activation)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)),
 )

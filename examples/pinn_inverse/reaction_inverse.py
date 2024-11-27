@@ -5,7 +5,7 @@ import pinnx
 
 
 def gen_traindata():
-    data = np.load("../dataset/reaction.npz")
+    data = np.load("../../docs/dataset/reaction.npz")
     t, x, ca, cb = data["t"], data["x"], data["Ca"], data["Cb"]
     X, T = np.meshgrid(x, t)
     X = np.reshape(X, (-1, 1))
@@ -20,8 +20,8 @@ D = bst.ParamState(1.0)
 
 
 def pde(neu, x):
-    x = pinnx.array_to_dict(x, "x", "t")
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), "ca", "cb")
+    x = pinnx.array_to_dict(x, ["x", "t"])
+    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["ca", "cb"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     hessian = pinnx.grad.hessian(approx, x)
     ca, cb = y['ca'], y['cb']
@@ -71,7 +71,7 @@ data = pinnx.data.TimePDE(
 )
 net = pinnx.nn.FNN([2] + [20] * 3 + [2], "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(0.001),
     external_trainable_variables=[kf, D]

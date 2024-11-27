@@ -4,7 +4,7 @@ import sys
 import timeit
 from functools import wraps
 from typing import Callable, Union
-
+import jax
 import brainstate as bst
 import brainunit as u
 import matplotlib.pyplot as plt
@@ -27,6 +27,40 @@ def timing(f):
         return result
 
     return wrapper
+
+
+def merge_dict(*dicts):
+    res = dict()
+    for d in dicts:
+        for k, v in d.items():
+            if k in res:
+                raise ValueError(f"Key {k} is duplicated.")
+            res[k] = v
+
+    return res
+
+
+def subdict(dict_, keys):
+    """Get a sub-dictionary from a dictionary."""
+    return {k: dict_[k] for k in keys}
+
+
+def check_not_none(*attr):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            is_none = []
+            for a in attr:
+                if not hasattr(self, a):
+                    raise ValueError(f"{a} must be an attribute of the class.")
+                is_none.append(getattr(self, a) is None)
+            if any(is_none):
+                raise ValueError(f"{attr} must not be None.")
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def run_if_all_none(*attr):
@@ -159,6 +193,10 @@ def list_to_str(nums, precision=2):
     if not isinstance(nums, (list, tuple, np.ndarray)):
         return "{:.{}e}".format(nums, precision)
     return "[{:s}]".format(", ".join(["{:.{}e}".format(x, precision) for x in nums]))
+
+
+def tree_repr(tree, precision: int = 2):
+    return repr(jax.tree.map(lambda x: "{:.{}e}".format(x, precision), tree, is_leaf=u.math.is_quantity))
 
 
 def get_num_args(func):

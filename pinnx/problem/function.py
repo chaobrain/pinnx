@@ -1,8 +1,13 @@
+from typing import Callable, Sequence
+
+import brainstate as bst
+
+from pinnx.geometry.base import AbstractGeometry
 from pinnx.utils import run_if_any_none
-from .data import Data
+from .base import Problem
 
 
-class Function(Data):
+class Function(Problem):
     """Approximate a function via a network.
 
     Args:
@@ -20,13 +25,18 @@ class Function(Data):
 
     def __init__(
         self,
-        geometry,
-        function,
-        num_train,
-        num_test,
-        train_distribution="uniform",
-        online=False,
+        geometry: AbstractGeometry,
+        function: Callable,
+        num_train: int,
+        num_test: int,
+        train_distribution: str = "uniform",
+        online: bool = False,
+        approximator: bst.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
+
         self.geom = geometry
         self.func = function
         self.num_train = num_train
@@ -41,17 +51,15 @@ class Function(Data):
         self.train_x, self.train_y = None, None
         self.test_x, self.test_y = None, None
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        return loss_fn(targets, outputs)
+    def losses(self, inputs, outputs, targets, **kwargs):
+        return self.loss_fn(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if self.train_x is None or self.online:
             if self.dist_train == "uniform":
                 self.train_x = self.geom.uniform_points(self.num_train, boundary=True)
             else:
-                self.train_x = self.geom.random_points(
-                    self.num_train, random=self.dist_train
-                )
+                self.train_x = self.geom.random_points(self.num_train, random=self.dist_train)
             self.train_y = self.func(self.train_x)
         return self.train_x, self.train_y
 

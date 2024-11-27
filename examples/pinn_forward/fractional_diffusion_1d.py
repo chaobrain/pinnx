@@ -13,8 +13,8 @@ def fpde(net, x, int_mat):
     """
     du/dt + (D_{0+}^alpha + D_{1-}^alpha) u(x) = f(x)
     """
-    x = pinnx.array_to_dict(x, 'x', 't')
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ['x', 't'])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
     jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
     y = y['y']
 
@@ -81,14 +81,14 @@ else:
 
 
 def out_transform(x, y):
-    x = pinnx.array_to_dict(x, 'x', 't')
+    x = pinnx.array_to_dict(x, ['x', 't'])
     return x['x'] * (1 - x['x']) * x['t'] * y + x['x'] ** 3 * (1 - x['x']) ** 3
 
 
 net = pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform())
 net.apply_output_transform(out_transform)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(bst.optim.Adam(1e-3))
 losshistory, train_state = model.train(iterations=10000)
 pinnx.saveplot(losshistory, train_state, issave=False, isplot=True)

@@ -1,16 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import pinnx as dde
+import pinnx
 
 
 # PDE equation
 def pde(xy, uvp, aux):
     mu = 0.01
     u, v, p = uvp[..., 0:1], uvp[..., 1:2], uvp[..., 2:3]
-    grad_u = dde.zcs.LazyGrad(xy, u)
-    grad_v = dde.zcs.LazyGrad(xy, v)
-    grad_p = dde.zcs.LazyGrad(xy, p)
+    grad_u = pinnx.zcs.LazyGrad(xy, u)
+    grad_v = pinnx.zcs.LazyGrad(xy, v)
+    grad_p = pinnx.zcs.LazyGrad(xy, p)
     # first order
     du_x = grad_u.compute((1, 0))
     dv_y = grad_v.compute((0, 1))
@@ -28,24 +28,24 @@ def pde(xy, uvp, aux):
 
 
 # Geometry
-geom = dde.geometry.Rectangle([0, 0], [1, 1])
+geom = pinnx.geometry.Rectangle([0, 0], [1, 1])
 
 
 # Boundary condition
 # other boundary conditions will be enforced by output transform
 def bc_slip_top_func(x, aux_var):
     # using (perturbation / 10 + 1) * x * (1 - x)
-    return (aux_var / 10 + 1.) * dde.backend.as_tensor(x[:, 0:1] * (1 - x[:, 0:1]))
+    return (aux_var / 10 + 1.) * pinnx.backend.as_tensor(x[:, 0:1] * (1 - x[:, 0:1]))
 
 
-bc_slip_top = dde.icbc.DirichletBC(
+bc_slip_top = pinnx.icbc.DirichletBC(
     geom=geom,
     func=bc_slip_top_func,
     on_boundary=lambda x, on_boundary: np.isclose(x[1], 1.),
     component=0)
 
 # PDE object
-pde = dde.data.PDE(
+pde = pinnx.data.PDE(
     geom,
     pde,
     ic_bcs=[bc_slip_top],
@@ -55,18 +55,18 @@ pde = dde.data.PDE(
 )
 
 # Function space
-func_space = dde.data.GRF(length_scale=0.2)
+func_space = pinnx.data.GRF(length_scale=0.2)
 
-# Data
+# Problem
 n_pts_edge = 101  # using the size of true solution, but this is unnecessary
 eval_pts = np.linspace(0, 1, num=n_pts_edge)[:, None]
-data = dde.zcs.PDEOperatorCartesianProd(
+data = pinnx.zcs.PDEOperatorCartesianProd(
     pde, func_space, eval_pts, num_function=1000,
     function_variables=[0], num_test=100, batch_size=50
 )
 
 # Net
-net = dde.nn.DeepONetCartesianProd(
+net = pinnx.nn.DeepONetCartesianProd(
     [n_pts_edge, 128, 128, 128],
     [2, 128, 128, 128],
     "tanh",
@@ -85,18 +85,18 @@ def out_transform(inputs, outputs):
     v = outputs[:, :, 1] * (x * (1 - x) * y * (1 - y))[None, :]
     # pressure on bottom
     p = outputs[:, :, 2] * y[None, :]
-    return dde.backend.stack((u, v, p), axis=2)
+    return pinnx.backend.stack((u, v, p), axis=2)
 
 
 net.apply_output_transform(out_transform)
 
-# Model
-model = dde.zcs.Model(data, net)
+# Trainer
+model = pinnx.zcs.Trainer(data, net)
 model.compile("adam", lr=0.001, decay=("inverse time", 10000, 0.5))
 losshistory, train_state = model.train(iterations=50000)
-dde.utils.plot_loss_history(losshistory)
-# save model if needed
-# model.save('stokes_weights')
+pinnx.utils.plot_loss_history(losshistory)
+# save trainer if needed
+# trainer.save('stokes_weights')
 
 # Evaluation
 func_feats = func_space.random(1)
@@ -105,10 +105,10 @@ v[:] = 0.  # true solution uses zero perturbation
 xv, yv = np.meshgrid(eval_pts[:, 0], eval_pts[:, 0], indexing='ij')
 xy = np.vstack((np.ravel(xv), np.ravel(yv))).T
 sol_pred = model.predict((v, xy))[0]
-sol_true = np.load('../dataset/stokes.npz')['arr_0']
-print('Error on horizontal velocity:', dde.metrics.l2_relative_error(sol_true[:, 0], sol_pred[:, 0]))
-print('Error on vertical velocity:', dde.metrics.l2_relative_error(sol_true[:, 1], sol_pred[:, 1]))
-print('Error on pressure:', dde.metrics.l2_relative_error(sol_true[:, 2], sol_pred[:, 2]))
+sol_true = np.load('../../docs/dataset/stokes.npz')['arr_0']
+print('Error on horizontal velocity:', pinnx.metrics.l2_relative_error(sol_true[:, 0], sol_pred[:, 0]))
+print('Error on vertical velocity:', pinnx.metrics.l2_relative_error(sol_true[:, 1], sol_pred[:, 1]))
+print('Error on pressure:', pinnx.metrics.l2_relative_error(sol_true[:, 2], sol_pred[:, 2]))
 
 
 # Plot

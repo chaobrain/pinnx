@@ -73,7 +73,7 @@ else:
 net = pinnx.nn.FNN([1] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform())
 net.apply_output_transform(lambda x, y: x * (1 - x) * y)
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 
 model.compile(bst.optim.Adam(1e-3))
 losshistory, train_state = model.train(iterations=10000)

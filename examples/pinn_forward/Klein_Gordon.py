@@ -10,8 +10,8 @@ import pinnx
 
 def pde(net, x):
     alpha, beta, gamma, k = -1, 0, 1, 2
-    x = pinnx.array_to_dict(x, "x", "t")
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), "y")
+    x = pinnx.array_to_dict(x, ["x", "t"])
+    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
     hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
 
     dy_tt = hessian["y"]["t"]["t"]
@@ -58,7 +58,7 @@ data = pinnx.data.TimePDE(
 layer_size = [2] + [40] * 2 + [1]
 net = pinnx.nn.FNN(layer_size, "tanh")
 
-model = pinnx.Model(data, net)
+model = pinnx.Trainer(data, net)
 model.compile(
     bst.optim.Adam(bst.optim.InverseTimeDecayLR(1e-3, 3000, 0.9)),
     metrics=["l2 relative error"],
