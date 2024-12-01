@@ -243,18 +243,18 @@ class PDE(Problem):
         if self.anchors is None:
             self.anchors = anchors
         else:
-            self.anchors = jax.tree.map(lambda x, y: u.math.vstack((x, y)),
+            self.anchors = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
                                         self.anchors,
                                         anchors)
 
         # include anchors in the training points
-        self.train_x_all = jax.tree.map(lambda x, y: u.math.vstack((x, y)),
+        self.train_x_all = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
                                         anchors,
                                         self.train_x_all)
 
         if self.pde is not None:
             # include data in boundary, initial conditions, and PDE
-            self.train_x = jax.tree.map(lambda x, y: u.math.vstack((x, y)),
+            self.train_x = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
                                         self.bc_points(),
                                         self.train_x_all)
 
