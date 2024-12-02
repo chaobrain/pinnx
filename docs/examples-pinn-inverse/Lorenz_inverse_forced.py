@@ -1,7 +1,6 @@
 """
 
 Identification of the parameters of the modified Lorenz attractor (with exogenous input)
-see https://github.com/lululxvi/deepxde/issues/79
 """
 
 import re
@@ -12,6 +11,7 @@ import numpy as np
 import scipy as sp
 from scipy.integrate import odeint
 
+import jax
 import pinnx
 
 # Generate data
@@ -55,8 +55,6 @@ plt.xlabel("time")
 plt.ylabel("x(t)")
 plt.show()
 
-time = time.reshape(-1, 1)
-
 # Perform identification
 # parameters to be identified
 C1 = bst.ParamState(1.0)
@@ -65,24 +63,24 @@ C3 = bst.ParamState(1.0)
 
 
 # interpolate time / lift vectors (for using exogenous variable without fixed time stamps)
-def ex_func2(t):
-    spline = sp.interpolate.Rbf(
-        time, ex_input, function="thin_plate", smooth=0, episilon=0
-    )
-    return spline(t[:, 0:])
+spline = sp.interpolate.Rbf(time, ex_input, function="thin_plate", smooth=0, episilon=0)
 
 
 # define system ODEs
-def Lorenz_system(neu, x, ex):
-    """Modified Lorenz system (with exogenous input).
+def Lorenz_system(x, y):
+    """
+    Modified Lorenz system (with exogenous input).
     dy1/dx = 10 * (y2 - y1)
     dy2/dx = y1 * (28 - y3) - y2
     dy3/dx = y1 * y2 - 8/3 * y3 + u
     """
-    y1, y2, y3 = y[:, 0:1], y[:, 1:2], y[:, 2:]
-    dy1_x = pinnx.grad.jacobian(y, x, i=0)
-    dy2_x = pinnx.grad.jacobian(y, x, i=1)
-    dy3_x = pinnx.grad.jacobian(y, x, i=2)
+    y1, y2, y3 = y['y1'], y['y2'], y['y3']
+    jacobian = net.jacobian(x)
+    dy1_x = jacobian['y1']['t']
+    dy2_x = jacobian['y2']['t']
+    dy3_x = jacobian['y3']['t']
+
+    ex = jax.pure_callback(spline, jax.ShapeDtypeStruct(x['t'].shape, x['t'].dtype), x['t'])
     return [
         dy1_x - C1.value * (y2 - y1),
         dy2_x - y1 * (C2.value - y3) + y2,
@@ -90,51 +88,49 @@ def Lorenz_system(neu, x, ex):
     ]
 
 
-def boundary(_, on_initial):
-    return on_initial
-
+# define FNN architecture and compile
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(t=None),
+    pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh"),
+    pinnx.nn.ArrayToDict(y1=None, y2=None, y3=None),
+)
 
 # define time domain
-geom = pinnx.geometry.TimeDomain(0, maxtime)
+geom = pinnx.geometry.TimeDomain(0, maxtime).to_dict_point('t')
 
 # Initial conditions
-ic1 = pinnx.icbc.IC(geom, lambda X: x0[0], boundary, component=0)
-ic2 = pinnx.icbc.IC(geom, lambda X: x0[1], boundary, component=1)
-ic3 = pinnx.icbc.IC(geom, lambda X: x0[2], boundary, component=2)
+ic = pinnx.icbc.IC(lambda x: {"y1": x0[0], 'y2': x0[1], 'y3': x0[2]})
 
 # Get the training data
-observe_t, ob_y = time, x
-observe_y0 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 0:1], component=0)
-observe_y1 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 1:2], component=1)
-observe_y2 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 2:3], component=2)
+ob_y = x
+observe_t = {'t': time}
+observe_y = {'y1': ob_y[:, 0], 'y2': ob_y[:, 1], 'y3': ob_y[:, 2]}
+bc = pinnx.icbc.PointSetBC(observe_t, observe_y)
 
 # define data object
-data = pinnx.data.PDE(
+data = pinnx.problem.PDE(
     geom,
     Lorenz_system,
-    [ic1, ic2, ic3, observe_y0, observe_y1, observe_y2],
+    [ic, bc],
+    net,
     num_domain=400,
     num_boundary=2,
     anchors=observe_t,
-    # auxiliary_var_function=ex_func2,
 )
 
-plt.plot(observe_t, ob_y)
+plt.plot(time, ob_y)
 plt.xlabel("Time")
 plt.legend(["x", "y", "z"])
 plt.title("Training data")
 plt.show()
 
-# define FNN architecture and compile
-net = pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh")
-model = pinnx.Trainer(data, net)
-model.compile("adam", lr=0.001, external_trainable_variables=[C1, C2, C3])
-
 # callbacks for storing results
 fnamevar = "variables.dat"
 variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=100, filename=fnamevar)
 
-model.train(iterations=60000, callbacks=[variable])
+# train the model
+trainer = pinnx.Trainer(data, external_trainable_variables=[C1, C2, C3])
+trainer.compile(bst.optim.Adam(0.001)).train(iterations=60000, callbacks=[variable])
 
 # Plots
 # reopen saved data using callbacks in fnamevar
@@ -160,9 +156,10 @@ plt.plot(range(l), np.ones(Chat[:, 2].shape) * C3true, "g--")
 plt.legend(["C1hat", "C2hat", "C3hat", "True C1", "True C2", "True C3"], loc="right")
 plt.xlabel("Epoch")
 
-yhat = model.predict(observe_t)
+yhat = trainer.predict(observe_t)
+yhat = pinnx.utils.dict_to_array(yhat)
 plt.figure()
-plt.plot(observe_t, ob_y, "-", observe_t, yhat, "--")
+plt.plot(observe_t['t'], ob_y, "-", observe_t['t'], yhat, "--")
 plt.xlabel("Time")
 plt.legend(["x", "y", "z", "xh", "yh", "zh"])
 plt.title("Training data")

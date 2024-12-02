@@ -5,7 +5,6 @@ Implementation of Brinkman-Forchheimer equation example in paper https://arxiv.o
 import re
 
 import brainstate as bst
-import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -22,33 +21,38 @@ K = bst.ParamState(0.1)
 
 def sol(x):
     r = (v * e / (1e-3 * 1e-3)) ** 0.5
-    return g * 1e-3 / v * (1 - np.cosh(r * (x - H / 2)) / np.cosh(r * H / 2))
+    y = g * 1e-3 / v * (1 - np.cosh(r * (x['x'] - H / 2)) / np.cosh(r * H / 2))
+    return {'y': y}
 
 
 def gen_traindata(num):
     xvals = np.linspace(1 / (num + 1), 1, num, endpoint=False)
-    yvals = sol(xvals)
-    return np.reshape(xvals, (-1, 1)), np.reshape(yvals, (-1, 1))
+    x = {'x': xvals}
+    return x, sol(x)
 
 
-def pde(neu, x):
-    du_xx, y = pinnx.grad.hessian(neu, x, return_value=True)
-    du_xx = u.math.squeeze(du_xx)
-    y = u.math.squeeze(y)
-    return -v_e.value / e * du_xx + v * y / K.value - g
+def pde(x, y):
+    du_xx = net.hessian(x)["y"]["x"]["x"]
+    return -v_e.value / e * du_xx + v * y['y'] / K.value - g
 
 
-def output_transform(x, y):
-    return x * (1 - x) * y
-
-
-geom = pinnx.geometry.Interval(0, 1)
+geom = pinnx.geometry.Interval(0, 1).to_dict_point('x')
 ob_x, ob_u = gen_traindata(5)
-observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u, component=0)
+observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u)
 
-data = pinnx.data.PDE(
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None),
+    pinnx.nn.FNN(
+        [1] + [20] * 3 + [1], "tanh",
+        output_transform=lambda x, y: x * (1 - x) * y
+    ),
+    pinnx.nn.ArrayToDict(y=None),
+)
+
+problem = pinnx.problem.PDE(
     geom,
     pde,
+    approximator=net,
     solution=sol,
     ic_bcs=[observe_u],
     num_domain=100,
@@ -57,17 +61,12 @@ data = pinnx.data.PDE(
     num_test=500,
 )
 
-net = pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh")
-net.apply_output_transform(output_transform)
+variable = pinnx.callbacks.VariableValue([v_e, K], period=200, filename="../../examples/pinn_inverse/variables1.dat")
+trainer = pinnx.Trainer(problem, external_trainable_variables=[v_e, K])
+trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=[variable])
+trainer.saveplot(issave=True, isplot=True)
 
-model = pinnx.Trainer(data, net, external_trainable_variables=[v_e, K])
-model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
-
-variable = pinnx.callbacks.VariableValue([v_e, K], period=200, filename="variables1.dat")
-losshistory, train_state = model.train(iterations=30000, callbacks=[variable])
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
-
-lines = open("variables1.dat", "r").readlines()
+lines = open("../../examples/pinn_inverse/variables1.dat", "r").readlines()
 vkinfer = np.array(
     [
         np.fromstring(

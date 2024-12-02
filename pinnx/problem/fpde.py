@@ -19,6 +19,10 @@ __all__ = [
     "TimeFPDE"
 ]
 
+X = Dict[str, bst.typing.ArrayLike]
+Y = Dict[str, bst.typing.ArrayLike]
+InitMat = bst.typing.ArrayLike
+
 
 class FPDE(PDE):
     r"""
@@ -45,7 +49,7 @@ class FPDE(PDE):
     def __init__(
         self,
         geometry: DictPointGeometry,
-        pde: Callable[[Dict, Dict, np.ndarray], Any],
+        pde: Callable[[X, Y, InitMat], Any],
         alpha: float | bst.State[float],
         ic_bcs: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
@@ -227,7 +231,7 @@ class TimeFPDE(FPDE):
     def __init__(
         self,
         geometry: DictPointGeometry,
-        pde: Callable[[Dict, Dict, np.ndarray], Any],
+        pde: Callable[[X, Y, InitMat], Any],
         alpha: float | bst.State[float],
         ic_bcs: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
