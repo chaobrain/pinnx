@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import numbers
 from typing import Callable, Dict
 
 import brainstate as bst
@@ -270,8 +269,6 @@ class PointSetBC(BC):
         points: An array of points where the corresponding target values are known and
             used for training.
         values: A scalar or a 2D-array of values that gives the exact solution of the problem.
-        component: Integer or a list of integers. The output components satisfying this BC.
-            List of integers only supported for the backend PyTorch.
         batch_size: The number of points per minibatch, or `None` to return all points.
             This is only supported for the backend PyTorch and PaddlePaddle.
             Note, If you want to use batch size here, you should also set callback
@@ -281,17 +278,15 @@ class PointSetBC(BC):
 
     def __init__(
         self,
-        points,
-        values,
-        component: int = 0,
+        points: Dict[str, bst.typing.ArrayLike],
+        values: Dict[str, bst.typing.ArrayLike],
         batch_size: int = None,
         shuffle: bool = True
     ):
         super().__init__(lambda x, on: on)
 
-        self.points = np.array(points, dtype=bst.environ.dftype())
-        self.values = np.asarray(values, dtype=bst.environ.dftype())
-        self.component = component
+        self.points = points
+        self.values = values
         self.batch_size = batch_size
 
         if batch_size is not None:  # batch iterator and state
@@ -299,24 +294,26 @@ class PointSetBC(BC):
             self.batch_indices = None
 
     def __len__(self):
-        return self.points.shape[0]
+        v = tuple(self.points.values())[0]
+        return v.shape[0]
 
     def collocation_points(self, X):
         if self.batch_size is not None:
             self.batch_indices = self.batch_sampler.get_next(self.batch_size)
-            return self.points[self.batch_indices]
+            return jax.tree.map(lambda x: x[self.batch_indices], self.points)
         return self.points
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
         if self.batch_size is not None:
-            if isinstance(self.component, numbers.Number):
-                return bc_outputs[:, self.component: self.component + 1] - self.values[self.batch_indices]
-            else:
-                return bc_outputs[:, self.component] - self.values[self.batch_indices]
-        if isinstance(self.component, numbers.Number):
-            return bc_outputs[:, self.component: self.component + 1] - self.values
+            return {
+                k: bc_outputs[k] - self.values[k][self.batch_indices]
+                for k in self.values.keys()
+            }
         else:
-            return bc_outputs[:, self.component] - self.values
+            return {
+                k: bc_outputs[k] - self.values[k]
+                for k in self.values.keys()
+            }
 
 
 class PointSetOperatorBC(BC):

@@ -7,6 +7,7 @@ References: https://doi.org/10.1016/j.jcp.2018.10.045 Section 4.1.1
 import re
 
 import brainstate as bst
+import jax.tree
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
@@ -20,7 +21,7 @@ C2true = 0.01
 
 # Load training data
 def load_training_data(num):
-    data = loadmat("../../docs/dataset/cylinder_nektar_wake.mat")
+    data = loadmat("../dataset/cylinder_nektar_wake.mat")
     U_star = data["U_star"]  # N x 2 x T
     P_star = data["p_star"]  # N x T
     t_star = data["t"]  # T x 1
@@ -49,12 +50,12 @@ def load_training_data(num):
     data_domain = data5[:, :][data5[:, 1] <= 2]
     # choose number of training points: num =7000
     idx = np.random.choice(data_domain.shape[0], num, replace=False)
-    x_train = data_domain[idx, 0:1]
-    y_train = data_domain[idx, 1:2]
-    t_train = data_domain[idx, 2:3]
-    u_train = data_domain[idx, 3:4]
-    v_train = data_domain[idx, 4:5]
-    p_train = data_domain[idx, 5:6]
+    x_train = data_domain[idx, 0]
+    y_train = data_domain[idx, 1]
+    t_train = data_domain[idx, 2]
+    u_train = data_domain[idx, 3]
+    v_train = data_domain[idx, 4]
+    p_train = data_domain[idx, 5]
     return [x_train, y_train, t_train, u_train, v_train, p_train]
 
 
@@ -64,11 +65,10 @@ C2 = bst.ParamState(0.0)
 
 
 # Define Navier Stokes Equations (Time-dependent PDEs)
-def Navier_Stokes_Equation(neu, x):
-    x = pinnx.array_to_dict(x, ["x", "y", "t"])
-    approx = lambda x: pinnx.array_to_dict(neu(pinnx.dict_to_array(x)), ["u", "v", "p"])
-    jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
-    hessian = pinnx.grad.hessian(approx, x)
+def Navier_Stokes_Equation(x, y):
+    jacobian = net.jacobian(x)
+    x_hessian = net.hessian(x, y=['u', 'v'], xi=['x'], xj=['x'])
+    y_hessian = net.hessian(x, y=['u', 'v'], xi=['y'], xj=['y'])
 
     u = y['u']
     v = y['v']
@@ -81,15 +81,21 @@ def Navier_Stokes_Equation(neu, x):
     dv_t = jacobian['v']['t']
     dp_x = jacobian['p']['x']
     dp_y = jacobian['p']['y']
-    du_xx = hessian['u']['x']['x']
-    du_yy = hessian['u']['y']['y']
-    dv_xx = hessian['v']['x']['x']
-    dv_yy = hessian['v']['y']['y']
+    du_xx = x_hessian['u']['x']['x']
+    du_yy = y_hessian['u']['y']['y']
+    dv_xx = x_hessian['v']['x']['x']
+    dv_yy = y_hessian['v']['y']['y']
     continuity = du_x + dv_y
     x_momentum = du_t + C1.value * (u * du_x + v * du_y) + dp_x - C2.value * (du_xx + du_yy)
     y_momentum = dv_t + C1.value * (u * dv_x + v * dv_y) + dp_y - C2.value * (dv_xx + dv_yy)
     return [continuity, x_momentum, y_momentum]
 
+
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None, y=None, t=None),
+    pinnx.nn.FNN([3] + [50] * 6 + [3], "tanh"),
+    pinnx.nn.ArrayToDict(u=None, v=None, p=None),
+)
 
 # Define Spatio-temporal domain
 # Rectangular
@@ -101,18 +107,20 @@ space_domain = pinnx.geometry.Rectangle([Lx_min, Ly_min], [Lx_max, Ly_max])
 time_domain = pinnx.geometry.TimeDomain(0, 7)
 # Spatio-temporal domain
 geomtime = pinnx.geometry.GeometryXTime(space_domain, time_domain)
+geomtime = geomtime.to_dict_point("x", "y", "t")
 
 # Get the training data: num = 7000
 [ob_x, ob_y, ob_t, ob_u, ob_v, ob_p] = load_training_data(num=7000)
-ob_xyt = np.hstack((ob_x, ob_y, ob_t))
-observe_u = pinnx.icbc.PointSetBC(ob_xyt, ob_u, component=0)
-observe_v = pinnx.icbc.PointSetBC(ob_xyt, ob_v, component=1)
+ob_xyt = {"x": ob_x, "y": ob_y, "t": ob_t}
+ob_yv = {"u": ob_u, "v": ob_v, }
+observe_bc = pinnx.icbc.PointSetBC(ob_xyt, ob_yv)
 
 # Training datasets and Loss
-data = pinnx.data.TimePDE(
+problem = pinnx.problem.TimePDE(
     geomtime,
     Navier_Stokes_Equation,
-    [observe_u, observe_v],
+    [observe_bc],
+    net,
     num_domain=700,
     num_boundary=200,
     num_initial=100,
@@ -120,28 +128,23 @@ data = pinnx.data.TimePDE(
 )
 
 # Neural Network setup
-layer_size = [3] + [50] * 6 + [3]
-net = pinnx.nn.FNN(layer_size, "tanh")
-model = pinnx.Trainer(data, net)
+model = pinnx.Trainer(problem, external_trainable_variables=[C1, C2])
 
 # callbacks for storing results
 fnamevar = "variables.dat"
 variable = pinnx.callbacks.VariableValue([C1, C2], period=100, filename=fnamevar)
 
 # Compile, train and save trainer
-model.compile(bst.optim.Adam(1e-3), external_trainable_variables=[C1, C2])
-loss_history, train_state = model.train(
-    iterations=10000, callbacks=[variable], display_every=1000, disregard_previous_best=True
-)
-pinnx.saveplot(loss_history, train_state, issave=True, isplot=True)
-model.compile(bst.optim.Adam(1e-4), external_trainable_variables=[C1, C2])
-loss_history, train_state = model.train(
-    iterations=10000, callbacks=[variable], display_every=1000, disregard_previous_best=True
-)
-pinnx.saveplot(loss_history, train_state, issave=True, isplot=True)
+model.compile(bst.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable],
+                                          display_every=1000, disregard_previous_best=True)
+model.saveplot(issave=True, isplot=True)
+model.compile(bst.optim.Adam(1e-4)).train(iterations=10000, callbacks=[variable],
+                                          display_every=1000, disregard_previous_best=True)
+model.saveplot(issave=True, isplot=True)
+
 # trainer.save(save_path = "./NS_inverse_model/trainer")
 f = model.predict(ob_xyt, operator=Navier_Stokes_Equation)
-print("Mean residual:", np.mean(np.absolute(f)))
+print("Mean residual:", jax.tree.map(lambda x: np.mean(np.abs(x)), f))
 
 # Plot Variables:
 # reopen saved data using callbacks in fnamevar
@@ -169,10 +172,11 @@ plt.show()
 # Plot the velocity distribution of the flow field:
 for t in range(0, 8):
     [ob_x, ob_y, ob_t, ob_u, ob_v, ob_p] = load_training_data(num=140000)
-    xyt_pred = np.hstack((ob_x, ob_y, t * np.ones((len(ob_x), 1))))
+    xyt_pred = {"x": ob_x, "y": ob_y, "t": t * np.ones((len(ob_x), 1))}
     uvp_pred = model.predict(xyt_pred)
-    x_pred, y_pred, t_pred = xyt_pred[:, 0], xyt_pred[:, 1], xyt_pred[:, 2]
-    u_pred, v_pred, p_pred = uvp_pred[:, 0], uvp_pred[:, 1], uvp_pred[:, 2]
+
+    x_pred, y_pred, t_pred = xyt_pred['x'], xyt_pred['y'], xyt_pred['t']
+    u_pred, v_pred, p_pred = uvp_pred['u'], uvp_pred['v'], uvp_pred['p']
     x_true = ob_x[ob_t == t]
     y_true = ob_y[ob_t == t]
     u_true = ob_u[ob_t == t]

@@ -15,9 +15,10 @@
 It is rewritten according to [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
 [Brain Dynamics Programming (BDP) ecosystem](https://ecosystem-for-brain-dynamics.readthedocs.io/). 
 For example, it leverages 
-[brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
-[brainunit](https://brainunit.readthedocs.io/) for dimensional analysis, 
-[braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
+
+- [brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
+- [brainunit](https://brainunit.readthedocs.io/) for dimensional analysis, 
+- [braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
 
 
 ``PINNx`` implements the following algorithms, but with the flexibility and efficiency of JAX:

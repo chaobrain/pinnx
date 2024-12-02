@@ -11,11 +11,12 @@ alpha0 = 1.8
 alpha = bst.ParamState(1.5)
 
 
-def fpde(net, x, int_mat):
+def fpde(x, y, int_mat):
     r"""
     \int_theta D_theta^alpha u(x)
     """
-    y = net(x)
+    y = y['y']
+    x = pinnx.utils.dict_to_array(x)
 
     if isinstance(int_mat, (list, tuple)) and len(int_mat) == 3:
         rowcols = np.asarray(int_mat[0], dtype=np.int32).T
@@ -24,7 +25,6 @@ def fpde(net, x, int_mat):
         lhs = int_mat @ y
     else:
         lhs = u.math.matmul(int_mat, y)
-    lhs = lhs[:, 0]
     lhs *= (-u.math.exp(jax.lax.lgamma((1 - alpha.value) / 2) +
                         jax.lax.lgamma((2 + alpha.value) / 2)) / (2 * np.pi ** 1.5))
     x = x[: len(lhs)]
@@ -37,30 +37,38 @@ def fpde(net, x, int_mat):
     return lhs - rhs
 
 
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x1=None, x2=None),
+    pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform(),
+                 output_transform=lambda x, y: (1 - u.math.sum(x ** 2, axis=1, keepdims=True)) * y),
+    pinnx.nn.ArrayToDict(y=None),
+)
+
+
 def func(x):
-    return (1 - np.linalg.norm(x, axis=1, keepdims=True) ** 2) ** (1 + alpha0 / 2)
+    x = pinnx.utils.dict_to_array(x)
+    y = (u.math.abs(1 - u.linalg.norm(x, axis=1, keepdims=True) ** 2)) ** (1 + alpha.value / 2)
+    return {'y': y}
 
 
-geom = pinnx.geometry.Disk([0, 0], 1)
+geom = pinnx.geometry.Disk([0, 0], 1).to_dict_point('x1', 'x2')
 observe_x = geom.random_points(30)
-observe_y = pinnx.icbc.PointSetBC(observe_x, func(observe_x))
+bc = pinnx.icbc.PointSetBC(observe_x, func(observe_x))
 
-data = pinnx.data.FPDE(
+problem = pinnx.problem.FPDE(
     geom,
     fpde,
     alpha,
-    observe_y,
+    bc,
     [8, 100],
+    approximator=net,
     num_domain=64,
     anchors=observe_x,
     solution=func,
+    loss_weights=[1, 100],
 )
 
-net = pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh")
-net.apply_output_transform(lambda x, y: (1 - u.math.sum(x ** 2, axis=-1, keepdims=True)) * y)
-
-model = pinnx.Trainer(data, net, external_trainable_variables=[alpha])
-model.compile(bst.optim.Adam(1e-3), loss_weights=[1, 100], )
 variable = pinnx.callbacks.VariableValue(alpha, period=1000)
-losshistory, train_state = model.train(iterations=10000, callbacks=[variable])
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+model = pinnx.Trainer(problem, external_trainable_variables=[alpha])
+model.compile(bst.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable])
+model.saveplot(issave=True, isplot=True)

@@ -31,49 +31,49 @@ y = np.zeros((2, xvals.size))
 res = solve_bvp(fun, bc, xvals, y)
 
 
-def gen_traindata(num):
-    return np.reshape(xvals, (-1, 1)), np.reshape(res.sol(xvals)[0], (-1, 1))
+def gen_traindata():
+    x = {'x': xvals}
+    y = {'u': res.sol(xvals)[0]}
+    return x, y
 
 
-geom = pinnx.geometry.Interval(0, 1)
+geom = pinnx.geometry.Interval(0, 1).to_dict_point('x')
 
 
-def pde(neu, x):
-    approx = lambda x: pinnx.array_to_dict(neu(x), ['u', 'k'])
-    hessian, y = pinnx.grad.hessian(approx, x, return_value=True)
-    u_, k = y['u'], y['k']
-    du_xx = u.math.squeeze(hessian['u'])
-    k = u.math.squeeze(k)
-    x = u.math.squeeze(x)
-    return l * du_xx - u_ * k - u.math.sin(2 * np.pi * x)
+def pde(x, y):
+    hessian = net.hessian(x, y='u')
+    du_xx = hessian["u"]["x"]["x"]
+    return l * du_xx - y['u'] * y['k'] - u.math.sin(2 * np.pi * x['x'])
 
 
-def func(x):
-    return 0
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None),
+    pinnx.nn.PFNN([1, [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.ArrayToDict(u=None, k=None),
+)
 
+ob_x, ob_u = gen_traindata()
+observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u)
+bc = pinnx.icbc.DirichletBC(lambda x: {'u': 0})
 
-ob_x, ob_u = gen_traindata(num)
-observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u, component=0)
-bc = pinnx.icbc.DirichletBC(geom, func, lambda _, on_boundary: on_boundary, component=0)
-data = pinnx.data.PDE(
+problem = pinnx.problem.PDE(
     geom,
     pde,
     ic_bcs=[bc, observe_u],
+    approximator=net,
     num_domain=50,
     num_boundary=8,
     train_distribution="uniform",
     num_test=1000,
 )
 
-net = pinnx.nn.PFNN([1, [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform())
-model = pinnx.Trainer(data, net)
-model.compile(bst.optim.Adam(1e-3))
-
-losshistory, train_state = model.train(iterations=20000)
+model = pinnx.Trainer(problem)
+model.compile(bst.optim.Adam(1e-3)).train(iterations=20000)
 
 x = geom.uniform_points(500)
 yhat = model.predict(x)
-uhat, khat = yhat[:, 0:1], yhat[:, 1:2]
+uhat, khat = yhat['u'], yhat['k']
+x = x['x']
 
 ktrue = k(x)
 print("l2 relative error for k: " + str(pinnx.metrics.l2_relative_error(khat, ktrue)))
