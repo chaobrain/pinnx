@@ -23,7 +23,7 @@ def func(x):
     return {'y': x['x'] * u.math.sin(5 * x['x'])}
 
 
-geom = pinnx.geometry.Interval('x', -1, 1)
+geom = pinnx.geometry.Interval(-1, 1).to_dict_point('x')
 num_train = 160
 num_test = 100
 

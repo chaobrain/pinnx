@@ -1,44 +1,62 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+__all__ = ["Disk", "Ellipse", "Polygon", "Rectangle", "StarShaped", "Triangle"]
+
 from typing import Union, Literal
 
 import brainstate as bst
+import jax.numpy as jnp
 import numpy as np
 from scipy import spatial
 
-from pinnx.utils import isclose, vectorize
 from pinnx.utils.sampling import sample
 from .base import Geometry
 from .geometry_nd import Hypercube, Hypersphere
-
-__all__ = ["Disk", "Ellipse", "Polygon", "Rectangle", "StarShaped", "Triangle"]
+from ..utils import isclose, vectorize
+from pinnx import utils
 
 
 class Disk(Hypersphere):
-    """
-    The class for 2D disk geometry.
-    """
-
     def inside(self, x):
-        return np.linalg.norm(x - self.center, axis=-1) <= self.radius
+        mod = utils.smart_numpy(x)
+        return mod.linalg.norm(x - self.center, axis=-1) <= self.radius
 
     def on_boundary(self, x):
-        return isclose(np.linalg.norm(x - self.center, axis=-1), self.radius)
+        mod = utils.smart_numpy(x)
+        return mod.isclose(mod.linalg.norm(x - self.center, axis=-1), self.radius)
 
     def distance2boundary_unitdirn(self, x, dirn):
         # https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
+        mod = utils.smart_numpy(x)
         xc = x - self.center
         ad = np.dot(xc, dirn)
-        return (-ad + (ad ** 2 - np.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(bst.environ.dftype())
+        return (-ad + (ad ** 2 - mod.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(bst.environ.dftype())
 
     def distance2boundary(self, x, dirn):
-        return self.distance2boundary_unitdirn(x, dirn / np.linalg.norm(dirn))
+        mod = utils.smart_numpy(x)
+        return self.distance2boundary_unitdirn(x, dirn / mod.linalg.norm(dirn))
 
     def mindist2boundary(self, x):
-        return np.amin(self.radius - np.linalg.norm(x - self.center, axis=1))
+        mod = utils.smart_numpy(x)
+        return mod.amin(self.radius - mod.linalg.norm(x - self.center, axis=1))
 
     def boundary_normal(self, x):
+        mod = utils.smart_numpy(x)
         _n = x - self.center
-        l = np.linalg.norm(_n, axis=-1, keepdims=True)
-        _n = _n / l * isclose(l, self.radius)
+        l = mod.linalg.norm(_n, axis=-1, keepdims=True)
+        _n = _n / l * mod.isclose(l, self.radius)
         return _n
 
     def random_points(self, n, random="pseudo"):
@@ -74,8 +92,7 @@ class Disk(Hypersphere):
 
 
 class Ellipse(Geometry):
-    """
-    Ellipse.
+    """Ellipse.
 
     Args:
         center: Center of the ellipse.
@@ -107,12 +124,16 @@ class Ellipse(Geometry):
             ],
             dtype=bst.environ.dftype(),
         )
-        self.rotation_mat = np.array([[np.cos(-angle), -np.sin(-angle)], [np.sin(-angle), np.cos(-angle)]])
+        self.rotation_mat = np.array(
+            [[np.cos(-angle), -np.sin(-angle)], [np.sin(-angle), np.cos(-angle)]]
+        )
         (
             self.theta_from_arc_length,
             self.total_arc,
         ) = self._theta_from_arc_length_constructor()
-        super().__init__(2, (self.center - semimajor, self.center + semiminor), 2 * self.c)
+        super().__init__(
+            2, (self.center - semimajor, self.center + semiminor), 2 * self.c
+        )
 
     def on_boundary(self, x):
         d1 = np.linalg.norm(x - self.focus1, axis=-1)
@@ -180,8 +201,12 @@ class Ellipse(Geometry):
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("`smoothness` must be one of C0, C0+, Cinf")
 
-        d1 = np.linalg.norm(x - self.focus1, axis=-1, keepdims=True)
-        d2 = np.linalg.norm(x - self.focus2, axis=-1, keepdims=True)
+        if not hasattr(self, "self.focus1_tensor"):
+            self.focus1_tensor = np.asarray(self.focus1)
+            self.focus2_tensor = np.asarray(self.focus2)
+
+        d1 = np.linalg.norm(x - self.focus1_tensor, axis=-1, keepdims=True)
+        d2 = np.linalg.norm(x - self.focus2_tensor, axis=-1, keepdims=True)
         dist = d1 + d2 - 2 * self.semimajor
 
         if smoothness == "Cinf":
@@ -194,8 +219,6 @@ class Ellipse(Geometry):
 
 class Rectangle(Hypercube):
     """
-    The class for 2D rectangle geometry.
-
     Args:
         xmin: Coordinate of bottom left corner.
         xmax: Coordinate of top right corner.
@@ -279,13 +302,16 @@ class Rectangle(Hypercube):
         It should not be called directly in most cases.
         """
 
+        if not hasattr(self, "self.xmin_tensor"):
+            self.xmin_tensor = np.asarray(self.xmin)
+            self.xmax_tensor = np.asarray(self.xmax)
         if where not in ["right", "top"]:
             dist_l = np.abs(
-                (x - self.xmin) / (self.xmax - self.xmin) * 2
+                (x - self.xmin_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
             )
         if where not in ["left", "bottom"]:
             dist_r = np.abs(
-                (x - self.xmax) / (self.xmax - self.xmin) * 2
+                (x - self.xmax_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
             )
 
         if where == "left":
@@ -408,9 +434,8 @@ class Rectangle(Hypercube):
         if where == "top":
             return dist_top
         if smoothness == "C0":
-            return np.minimum(
-                np.minimum(dist_left, dist_right), np.minimum(dist_bottom, dist_top)
-            )
+            return np.minimum(np.minimum(dist_left, dist_right),
+                              np.minimum(dist_bottom, dist_top))
         return dist_left * dist_right * dist_bottom * dist_top
 
     @staticmethod
@@ -754,7 +779,7 @@ class Triangle(Geometry):
 
         if where is None:
             if smoothness == "C0":
-                return np.minimum(np.minimum(diff_x1_x2, diff_x1_x3), diff_x2_x3)
+                return bkd.minimum(bkd.minimum(diff_x1_x2, diff_x1_x3), diff_x2_x3)
             return diff_x1_x2 * diff_x1_x3 * diff_x2_x3
         if where == "x1-x2":
             return diff_x1_x2

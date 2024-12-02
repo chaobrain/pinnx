@@ -1,4 +1,3 @@
-import functools
 from typing import Union, Sequence, Callable, Optional
 
 import brainstate as bst
@@ -6,7 +5,7 @@ import brainunit as u
 import jax.tree
 import numpy as np
 
-from pinnx._display import training_display
+from pinnx.utils._display import training_display
 from . import metrics as metrics_module
 from . import utils
 from .callbacks import CallbackList, Callback

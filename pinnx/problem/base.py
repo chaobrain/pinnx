@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import abc
 from typing import Callable, Sequence
 
 import brainstate as bst
-from .losses import get_loss
+from pinnx.utils.losses import get_loss
 
 
 class Problem(abc.ABC):
@@ -71,13 +73,15 @@ class Problem(abc.ABC):
         """
         Return a list of losses for training dataset, i.e., constraints.
         """
-        return self.losses(inputs, outputs, targets, **kwargs)
+        with bst.environ.context(fit=True):
+            return self.losses(inputs, outputs, targets, **kwargs)
 
     def losses_test(self, inputs, outputs, targets, **kwargs):
         """
         Return a list of losses for test dataset, i.e., constraints.
         """
-        return self.losses(inputs, outputs, targets, **kwargs)
+        with bst.environ.context(fit=False):
+            return self.losses(inputs, outputs, targets, **kwargs)
 
     @abc.abstractmethod
     def train_next_batch(self, batch_size=None):

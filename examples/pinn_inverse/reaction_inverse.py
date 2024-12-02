@@ -59,7 +59,7 @@ observe_x, Ca, Cb = gen_traindata()
 observe_y1 = pinnx.icbc.PointSetBC(observe_x, Ca, component=0)
 observe_y2 = pinnx.icbc.PointSetBC(observe_x, Cb, component=1)
 
-data = pinnx.data.TimePDE(
+data = pinnx.problem.TimePDE(
     geomtime,
     pde,
     [bc_a, bc_b, ic1, ic2, observe_y1, observe_y2],
@@ -71,11 +71,7 @@ data = pinnx.data.TimePDE(
 )
 net = pinnx.nn.FNN([2] + [20] * 3 + [2], "tanh")
 
-model = pinnx.Trainer(data, net)
-model.compile(
-    bst.optim.Adam(0.001),
-    external_trainable_variables=[kf, D]
-)
 variable = pinnx.callbacks.VariableValue([kf, D], period=1000, filename="variables.dat")
-losshistory, train_state = model.train(iterations=80000, callbacks=[variable])
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+model = pinnx.Trainer(data, external_trainable_variables=[kf, D])
+model.compile(bst.optim.Adam(0.001)).train(iterations=80000, callbacks=[variable])
+model.saveplot(issave=True, isplot=True)

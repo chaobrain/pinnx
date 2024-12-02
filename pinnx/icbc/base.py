@@ -17,8 +17,8 @@ import abc
 from typing import Optional, Dict
 
 import brainstate as bst
+
 from pinnx.geometry import AbstractGeometry
-from pinnx.problem.base import Problem
 
 
 class ICBC(abc.ABC):
@@ -28,13 +28,14 @@ class ICBC(abc.ABC):
 
     # A ``pinnx.geometry.Geometry`` instance.
     geometry: Optional[AbstractGeometry]
-    problem: Optional[Problem]
+    problem: Optional['Problem']
 
     def apply_geometry(self, geom: AbstractGeometry):
         assert isinstance(geom, AbstractGeometry), 'geometry must be an instance of AbstractGeometry.'
         self.geometry = geom
 
-    def apply_problem(self, problem: Problem):
+    def apply_problem(self, problem: 'Problem'):
+        from pinnx.problem.base import Problem
         assert isinstance(problem, Problem), 'problem must be an instance of Problem.'
         self.problem = problem
 
