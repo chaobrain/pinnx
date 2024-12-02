@@ -1,60 +1,47 @@
-from typing import Literal, Union, Dict
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+from typing import Literal, Union
 
 import brainstate as bst
-import brainunit as u
 import numpy as np
 
-from pinnx.utils import isclose
+from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
 
-__all__ = [
-    'Interval',
-]
-
 
 class Interval(Geometry):
-    """
-    A class for 1D interval geometry.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        l: bst.typing.ArrayLike,
-        r: bst.typing.ArrayLike,
-    ):
-        super().__init__(1, (u.math.array([l]), u.math.array([r])), r - l, [name])
+    def __init__(self, l, r):
+        super().__init__(1, (np.array([l]), np.array([r])), r - l)
         self.l, self.r = l, r
-        assert isinstance(name, str), "name must be a string."
-        self.name = name
 
-    def inside(
-        self,
-        x: Dict[str, bst.typing.ArrayLike]
-    ):
-        return u.math.logical_and(self.l <= x[self.name], x[self.name] <= self.r).flatten()
+    def inside(self, x):
+        mod = utils.smart_numpy(x)
+        return mod.logical_and(self.l <= x, x <= self.r).flatten()
 
-    def on_boundary(
-        self,
-        x: Dict[str, bst.typing.ArrayLike]
-    ):
-        return u.math.logical_or(isclose(x[self.name], self.l),
-                                 isclose(x[self.name], self.r))
+    def on_boundary(self, x):
+        mod = utils.smart_numpy(x)
+        return mod.any(mod.isclose(x, np.array([self.l, self.r])), axis=-1)
 
-    def distance2boundary(
-        self,
-        x: Dict[str, bst.typing.ArrayLike],
-        dirn
-    ):
-        return (x[self.name] - self.l) if dirn < 0 else (self.r - x[self.name])
+    def distance2boundary(self, x, dirn):
+        return x - self.l if dirn < 0 else self.r - x
 
-    def mindist2boundary(
-        self,
-        x: Dict[str, bst.typing.ArrayLike]
-    ):
-        return u.math.minimum(u.math.amin(x[self.name] - self.l),
-                              u.math.amin(self.r - x[self.name]))
+    def mindist2boundary(self, x):
+        mod = utils.smart_numpy(x)
+        return min(mod.amin(x - self.l), mod.amin(self.r - x))
 
     def boundary_constraint_factor(
         self,
@@ -62,8 +49,7 @@ class Interval(Geometry):
         smoothness: Literal["C0", "C0+", "Cinf"] = "C0+",
         where: Union[None, Literal["left", "right"]] = None,
     ):
-        """
-        Compute the hard constraint factor at x for the boundary.
+        """Compute the hard constraint factor at x for the boundary.
 
         This function is used for the hard-constraint methods in Physics-Informed Neural Networks (PINNs).
         The hard constraint factor satisfies the following properties:
@@ -112,66 +98,74 @@ class Interval(Geometry):
 
         # To convert self.l and self.r to tensor,
         # and avoid repeated conversion in the loop
-        l_tensor = self.l
-        r_tensor = self.r
+        if not hasattr(self, "self.l_tensor"):
+            self.l_tensor = np.asarray(self.l)
+            self.r_tensor = np.asarray(self.r)
 
         dist_l = dist_r = None
         if where != "right":
-            dist_l = u.math.abs((x[self.name] - l_tensor) / (r_tensor - l_tensor) * 2)
+            dist_l = np.abs((x - self.l_tensor) / (self.r_tensor - self.l_tensor) * 2)
         if where != "left":
-            dist_r = u.math.abs((x[self.name] - r_tensor) / (r_tensor - l_tensor) * 2)
+            dist_r = np.abs((x - self.r_tensor) / (self.r_tensor - self.l_tensor) * 2)
 
         if where is None:
             if smoothness == "C0":
-                return u.math.minimum(dist_l, dist_r)
+                return np.minimum(dist_l, dist_r)
             if smoothness == "C0+":
                 return dist_l * dist_r
-            return u.math.square(dist_l * dist_r)
+            return np.square(dist_l * dist_r)
         if where == "left":
             if smoothness == "Cinf":
-                dist_l = u.math.square(dist_l)
+                dist_l = np.square(dist_l)
             return dist_l
         if smoothness == "Cinf":
-            dist_r = u.math.square(dist_r)
+            dist_r = np.square(dist_r)
         return dist_r
 
     def boundary_normal(self, x):
-        normal = (-isclose(x[self.name], self.l).astype(bst.environ.dftype()) +
-                  isclose(x[self.name], self.r).astype(bst.environ.dftype()))
-        return u.math.expand_dims(normal, axis=-1)
+        mod = utils.smart_numpy(x)
+        return -mod.isclose(x, self.l).astype(bst.environ.dftype()) + mod.isclose(x, self.r)
 
-    def uniform_points(self, n, boundary=True) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_points(self, n, boundary=True):
         if boundary:
-            r = u.math.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())
+            return np.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())[:, None]
+        return np.linspace(
+            self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype()
+        )[1:, None]
+
+    def log_uniform_points(self, n, boundary=True):
+        eps = 0 if self.l > 0 else np.finfo(bst.environ.dftype()).eps
+        l = np.log(self.l + eps)
+        r = np.log(self.r + eps)
+        if boundary:
+            x = np.linspace(l, r, num=n, dtype=bst.environ.dftype())[:, None]
         else:
-            r = u.math.linspace(self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[1:]
-        return {self.name: r}
+            x = np.linspace(l, r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[
+                1:, None
+                ]
+        return np.exp(x) - eps
 
-    def random_points(self, n, random="pseudo") -> Dict[str, bst.typing.ArrayLike]:
-        x = sample(n, 1, random)[..., 0]
-        x = ((self.r - self.l) * x + self.l).astype(bst.environ.dftype())
-        return {self.name: x}
+    def random_points(self, n, random="pseudo"):
+        x = sample(n, 1, random)
+        return (self.diam * x + self.l).astype(bst.environ.dftype())
 
-    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_boundary_points(self, n):
         if n == 1:
-            r = u.math.array([self.l]).astype(bst.environ.dftype())
-        else:
-            xl = u.math.full((n // 2,), self.l).astype(bst.environ.dftype())
-            xr = u.math.full((n - n // 2,), self.r).astype(bst.environ.dftype())
-            r = u.math.vstack((xl, xr))
-        return {self.name: r}
+            return np.array([[self.l]]).astype(bst.environ.dftype())
+        xl = np.full((n // 2, 1), self.l).astype(bst.environ.dftype())
+        xr = np.full((n - n // 2, 1), self.r).astype(bst.environ.dftype())
+        return np.vstack((xl, xr))
 
-    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_boundary_points(self, n, random="pseudo"):
         if n == 2:
-            r = u.math.array([self.l, self.r]).astype(bst.environ.dftype())
-        else:
-            r = u.math.where(bst.random.rand(n) < 0.5, self.l, self.r).astype(bst.environ.dftype())
-        return {self.name: r}
+            return np.array([[self.l], [self.r]]).astype(bst.environ.dftype())
+        return np.random.choice([self.l, self.r], n)[:, None].astype(bst.environ.dftype())
 
-    def periodic_point(self, x, component=0) -> Dict[str, bst.typing.ArrayLike]:
-        tmp = x[self.name]
-        tmp = u.math.where(isclose(tmp, self.l), self.r, self.l)
-        return {self.name: tmp}
+    def periodic_point(self, x, component=0):
+        tmp = np.copy(x)
+        tmp[utils.isclose(x, self.l)] = self.r
+        tmp[utils.isclose(x, self.r)] = self.l
+        return tmp
 
     def background_points(self, x, dirn, dist2npt, shift):
         """

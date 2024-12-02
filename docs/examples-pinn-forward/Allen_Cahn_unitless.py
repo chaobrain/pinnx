@@ -10,9 +10,9 @@ from scipy.io import loadmat
 
 import pinnx
 
-geom = pinnx.geometry.Interval('x', -1, 1)
-timedomain = pinnx.geometry.TimeDomain('t', 0, 1)
-geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
+geom = pinnx.geometry.Interval(-1, 1)
+timedomain = pinnx.geometry.TimeDomain(0, 1)
+geomtime = pinnx.geometry.GeometryXTime(geom, timedomain).to_dict_point('x', 't')
 
 d = 0.001
 

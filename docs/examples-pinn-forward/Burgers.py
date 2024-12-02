@@ -1,13 +1,13 @@
 import brainstate as bst
 import brainunit as u
 import numpy as np
+
 import pinnx
 
-
 geometry = pinnx.geometry.GeometryXTime(
-    geometry=pinnx.geometry.Interval('x', -1 * u.meter, 1. * u.meter),
-    timedomain=pinnx.geometry.TimeDomain('t', 0 * u.second, 0.99 * u.second)
-)
+    geometry=pinnx.geometry.Interval(-1, 1.),
+    timedomain=pinnx.geometry.TimeDomain(0, 0.99)
+).to_dict_point(x=u.meter, t=u.second)
 
 uy = u.meter / u.second
 bc = pinnx.icbc.DirichletBC(lambda x: {'y': 0. * uy})
@@ -47,8 +47,8 @@ problem = pinnx.problem.TimePDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=1000)
-# trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=200)
+trainer.compile(bst.optim.Adam(1e-3)).train(iterations=15000)
+trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=500)
 trainer.saveplot(issave=True, isplot=True)
 
 

@@ -8,7 +8,8 @@ from .base import Problem
 
 
 class Function(Problem):
-    """Approximate a function via a network.
+    """
+    Approximate a function via a network.
 
     Args:
         geometry: The domain of the function. Instance of ``Geometry``.

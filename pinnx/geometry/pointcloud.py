@@ -1,18 +1,27 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import brainstate as bst
 import numpy as np
 
-from pinnx.utils import isclose
 from pinnx.utils.sampler import BatchSampler
 from .base import Geometry
-
-__all__ = [
-    'PointCloud',
-]
+from ..utils import isclose
 
 
 class PointCloud(Geometry):
-    """
-    A geometry represented by a point cloud, i.e., a set of points in space.
+    """A geometry represented by a point cloud, i.e., a set of points in space.
 
     Args:
         points: A 2-D NumPy array. If `boundary_points` is not provided, `points` can
@@ -35,14 +44,20 @@ class PointCloud(Geometry):
             self.boundary_sampler = BatchSampler(self.num_boundary_points, shuffle=True)
             if boundary_normals is not None:
                 if len(boundary_normals) != len(boundary_points):
-                    raise ValueError("the shape of boundary_normals should be the same as boundary_points")
-                self.boundary_normals = np.asarray(boundary_normals, dtype=bst.environ.dftype())
-        bbox = (np.amin(all_points, axis=0), np.amax(all_points, axis=0))
-        super().__init__(len(points[0]), bbox, np.inf)
+                    raise ValueError(
+                        "the shape of boundary_normals should be the same as boundary_points"
+                    )
+                self.boundary_normals = np.asarray(
+                    boundary_normals, dtype=bst.environ.dftype()
+                )
+        super().__init__(
+            len(points[0]),
+            (np.amin(all_points, axis=0), np.amax(all_points, axis=0)),
+            np.inf,
+        )
         self.sampler = BatchSampler(self.num_points, shuffle=True)
 
     def inside(self, x):
-        assert x.ndim == 2, "x must be a 2-D NumPy array"
         return (
             isclose((x[:, None, :] - self.points[None, :, :]), 0)
             .all(axis=2)
@@ -50,20 +65,25 @@ class PointCloud(Geometry):
         )
 
     def on_boundary(self, x):
-        assert x.ndim == 2, "x must be a 2-D NumPy array"
         if self.boundary_points is None:
             raise ValueError("boundary_points must be defined to test on_boundary")
         return (
-            isclose((x[:, None, :] - self.boundary_points[None, :, :]), 0)
+            isclose(
+                (x[:, None, :] - self.boundary_points[None, :, :]),
+                0,
+            )
             .all(axis=2)
             .any(axis=1)
         )
 
     def boundary_normal(self, x):
-        assert x.ndim == 2, "x must be a 2-D NumPy array"
         if self.boundary_normals is None:
-            raise ValueError("boundary_normals must be defined for boundary_normal")
-        boundary_point_matches = isclose((self.boundary_points[:, None, :] - x[None, :, :]), 0).all(axis=2)
+            raise ValueError(
+                "boundary_normals must be defined for boundary_normal"
+            )
+        boundary_point_matches = isclose(
+            (self.boundary_points[:, None, :] - x[None, :, :]), 0
+        ).all(axis=2)
         normals_idx = np.where(boundary_point_matches)[0]
         return self.boundary_normals[normals_idx, :]
 

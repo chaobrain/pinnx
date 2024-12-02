@@ -31,7 +31,7 @@ net = pinnx.nn.Model(
     pinnx.nn.ArrayToDict(y=None),
 )
 
-geom = pinnx.geometry.Interval('x', -1, 1)
+geom = pinnx.geometry.Interval(-1, 1).to_dict_point('x')
 num_train = 100
 num_test = 1000
 data = pinnx.problem.Function(

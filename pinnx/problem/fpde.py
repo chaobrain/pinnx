@@ -1,16 +1,383 @@
+from __future__ import annotations
+
 import math
-from functools import partial
+import warnings
+from typing import Callable, Sequence, Optional, Dict, Any
 
 import brainstate as bst
 import brainunit as u
 import jax
 import numpy as np
 
-from pinnx.geometry import GeometryXTime
+from pinnx.geometry import GeometryXTime, DictPointGeometry
 from pinnx.utils import array_ops, run_if_all_none
 from .pde import PDE
+from ..icbc.base import ICBC
 
-__all__ = ["Scheme", "FPDE", "TimeFPDE"]
+__all__ = [
+    "FPDE",
+    "TimeFPDE"
+]
+
+
+class FPDE(PDE):
+    r"""
+    Fractional PDE solver.
+
+    D-dimensional fractional Laplacian of order alpha/2 (1 < alpha < 2) is defined as:
+    (-Delta)^(alpha/2) u(x) = C(alpha, D) \int_{||theta||=1} D_theta^alpha u(x) d theta,
+    where C(alpha, D) = gamma((1-alpha)/2) * gamma((D+alpha)/2) / (2 pi^((D+1)/2)),
+    D_theta^alpha is the Riemann-Liouville directional fractional derivative,
+    and theta is the differentiation direction vector.
+    The solution u(x) is assumed to be identically zero in the boundary and exterior of the domain.
+    When D = 1, C(alpha, D) = 1 / (2 cos(alpha * pi / 2)).
+
+    This solver does not consider C(alpha, D) in the fractional Laplacian,
+    and only discretizes \int_{||theta||=1} D_theta^alpha u(x) d theta.
+    D_theta^alpha is approximated by Grunwald-Letnikov formula.
+
+    References:
+        `G. Pang, L. Lu, & G. E. Karniadakis. fPINNs: Fractional physics-informed neural
+        networks. SIAM Journal on Scientific Computing, 41(4), A2603--A2626, 2019
+        <https://doi.org/10.1137/18M1229845>`_.
+    """
+
+    def __init__(
+        self,
+        geometry: DictPointGeometry,
+        pde: Callable[[Dict, Dict, np.ndarray], Any],
+        alpha: float | bst.State[float],
+        ic_bcs: ICBC | Sequence[ICBC],
+        resolution: Sequence[int],
+        approximator: Optional[bst.nn.Module] = None,
+        meshtype: str = "dynamic",
+        num_domain: int = 0,
+        num_boundary: int = 0,
+        train_distribution: str = "Hammersley",
+        anchors=None,
+        solution: Callable[[Dict], Dict] = None,
+        num_test: int = None,
+        loss_fn: str | Callable = 'MSE',
+        loss_weights: Sequence[float] = None,
+    ):
+        self.alpha = alpha
+        self.disc = Scheme(meshtype, resolution)
+        self.frac_train, self.frac_test = None, None
+        self.int_mat_train = None
+
+        super().__init__(
+            geometry,
+            pde,
+            ic_bcs,
+            approximator=approximator,
+            num_domain=num_domain,
+            num_boundary=num_boundary,
+            train_distribution=train_distribution,
+            anchors=anchors,
+            solution=solution,
+            num_test=num_test,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights,
+        )
+
+    def call_pde_errors(self, inputs, outputs, **kwargs):
+        bcs_start = np.cumsum([0] + self.num_bcs)
+
+        # # PDE inputs and outputs
+        # pde_inputs = jax.tree.map(lambda x: x[bcs_start[-1]:], inputs)
+        # pde_outputs = jax.tree.map(lambda x: x[bcs_start[-1]:], outputs)
+
+        # do not cache int_mat when alpha is a learnable parameter
+        fit = bst.environ.get('fit')
+
+        if fit:
+            if isinstance(self.alpha, bst.State):
+                int_mat = self.get_int_matrix(True)
+            else:
+                if self.int_mat_train is not None:
+                    # use cached int_mat
+                    int_mat = self.int_mat_train
+                else:
+                    # initialize self.int_mat_train with int_mat
+                    int_mat = self.get_int_matrix(True)
+                    self.int_mat_train = int_mat
+        else:
+            int_mat = self.get_int_matrix(False)
+
+        # computing PDE losses
+        # pde_errors = self.pde(pde_inputs, pde_outputs, int_mat, **kwargs)
+        # return pde_errors
+        pde_errors = self.pde(inputs, outputs, int_mat, **kwargs)
+        return jax.tree.map(lambda x: x[bcs_start[-1]:], pde_errors)
+
+    def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
+        return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
+        # fit = bst.environ.get('fit')
+        # if fit:
+        #     return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
+        # else:
+        #     return [u.math.zeros((), dtype=bst.environ.dftype()) for _ in self.ic_bcs]
+
+    @run_if_all_none("train_x", "train_y")
+    def train_next_batch(self, batch_size=None):
+        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+
+        # do not cache train data when alpha is a learnable parameter
+        if self.disc.meshtype == "static":
+            if self.geometry.geom.idstr != "Interval":
+                raise ValueError("Only Interval supports static mesh.")
+
+            self.frac_train = Fractional(alpha, self.geometry.geom, self.disc, None)
+            X = self.frac_train.get_x()
+            X = self.geometry.arr_to_dict(u.math.roll(X, -1))
+
+            # FPDE is only applied to the domain points.
+            # Boundary points are auxiliary points, and appended in the end.
+            self.train_x_all = X
+            if self.anchors is not None:
+                self.train_x_all = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
+                                                self.anchors,
+                                                self.train_x_all)
+            x_bc = self.bc_points()
+
+        elif self.disc.meshtype == "dynamic":
+            self.train_x_all = self.train_points()
+            x_bc = self.bc_points()
+
+            # FPDE is only applied to the domain points.
+            train_x_all = self.geometry.dict_to_arr(self.train_x_all)
+            x_f = train_x_all[~self.geometry.on_boundary(self.train_x_all)]
+            self.frac_train = Fractional(alpha, self.geometry.geom, self.disc, x_f)
+            X = self.geometry.arr_to_dict(self.frac_train.get_x())
+
+        else:
+            raise ValueError("Unknown meshtype %s" % self.disc.meshtype)
+
+        self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
+                                    x_bc,
+                                    X,
+                                    is_leaf=u.math.is_quantity)
+        self.train_y = self.solution(self.train_x) if self.solution else None
+        return self.train_x, self.train_y
+
+    @run_if_all_none("test_x", "test_y")
+    def test(self):
+        # do not cache test data when alpha is a learnable parameter
+        if self.disc.meshtype == "static" and self.num_test is not None:
+            raise ValueError("Cannot use test points in static mesh.")
+
+        if self.num_test is None:
+            # assign the training points to the testing points
+            num_bc = sum(self.num_bcs)
+            self.test_x = jax.tree_map(lambda x: x[num_bc:], self.train_x)
+            self.frac_test = self.frac_train
+        else:
+            alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+
+            # Generate `self.test_x`, resampling the test points
+            self.test_x = self.test_points()
+            not_boundary = ~self.geometry.on_boundary(self.test_x)
+            x_f = self.geometry.dict_to_arr(self.test_x)[not_boundary]
+            self.frac_test = Fractional(alpha, self.geometry.geom, self.disc, x_f)
+            self.test_x = self.geometry.arr_to_dict(self.frac_test.get_x())
+
+        self.test_y = self.solution(self.test_x) if self.solution else None
+        return self.test_x, self.test_y
+
+    def test_points(self):
+        return self.geometry.uniform_points(self.num_test, True)
+
+    def get_int_matrix(self, training):
+        if training:
+            int_mat = self.frac_train.get_matrix(sparse=True)
+            num_bc = sum(self.num_bcs)
+        else:
+            int_mat = self.frac_test.get_matrix(sparse=True)
+            num_bc = 0
+
+        if self.disc.meshtype == "static":
+            int_mat = np.roll(int_mat, -1, 1)
+            int_mat = int_mat[1:-1]
+
+        int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
+        return int_mat
+
+
+class TimeFPDE(FPDE):
+    r"""Time-dependent fractional PDE solver.
+
+    D-dimensional fractional Laplacian of order alpha/2 (1 < alpha < 2) is defined as:
+    (-Delta)^(alpha/2) u(x) = C(alpha, D) \int_{||theta||=1} D_theta^alpha u(x) d theta,
+    where C(alpha, D) = gamma((1-alpha)/2) * gamma((D+alpha)/2) / (2 pi^((D+1)/2)),
+    D_theta^alpha is the Riemann-Liouville directional fractional derivative,
+    and theta is the differentiation direction vector.
+    The solution u(x) is assumed to be identically zero in the boundary and exterior of the domain.
+    When D = 1, C(alpha, D) = 1 / (2 cos(alpha * pi / 2)).
+
+    This solver does not consider C(alpha, D) in the fractional Laplacian,
+    and only discretizes \int_{||theta||=1} D_theta^alpha u(x) d theta.
+    D_theta^alpha is approximated by Grunwald-Letnikov formula.
+
+    References:
+        `G. Pang, L. Lu, & G. E. Karniadakis. fPINNs: Fractional physics-informed neural
+        networks. SIAM Journal on Scientific Computing, 41(4), A2603--A2626, 2019
+        <https://doi.org/10.1137/18M1229845>`_.
+    """
+
+    def __init__(
+        self,
+        geometry: DictPointGeometry,
+        pde: Callable[[Dict, Dict, np.ndarray], Any],
+        alpha: float | bst.State[float],
+        ic_bcs: ICBC | Sequence[ICBC],
+        resolution: Sequence[int],
+        approximator: Optional[bst.nn.Module] = None,
+        meshtype: str = "dynamic",
+        num_domain: int = 0,
+        num_boundary: int = 0,
+        num_initial: int = 0,
+        train_distribution: str = "Hammersley",
+        anchors=None,
+        solution=None,
+        num_test: int = None,
+        loss_fn: str | Callable = 'MSE',
+        loss_weights: Sequence[float] = None,
+    ):
+        self.num_initial = num_initial
+        assert isinstance(geometry, DictPointGeometry), f"DictPointGeometry is required. But got {geometry}"
+        super().__init__(
+            geometry,
+            pde,
+            alpha,
+            ic_bcs,
+            resolution,
+            approximator=approximator,
+            meshtype=meshtype,
+            num_domain=num_domain,
+            num_boundary=num_boundary,
+            train_distribution=train_distribution,
+            anchors=anchors,
+            solution=solution,
+            num_test=num_test,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights,
+        )
+
+    @run_if_all_none("train_x", "train_y")
+    def train_next_batch(self, batch_size=None):
+        assert isinstance(self.geometry.geom, GeometryXTime), "GeometryXTime is required."
+        geometry = self.geometry.geom
+        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+
+        if self.disc.meshtype == "static":
+            if geometry.geometry.idstr != "Interval":
+                raise ValueError("Only Interval supports static mesh.")
+
+            nt = int(round(self.num_domain / (self.disc.resolution[0] - 2))) + 1
+            self.frac_train = FractionalTime(
+                alpha,
+                geometry.geometry,
+                geometry.timedomain.t0,
+                geometry.timedomain.t1,
+                self.disc,
+                nt,
+                None,
+            )
+            X = self.geometry.arr_to_dict(self.frac_train.get_x())
+            self.train_x_all = X
+            if self.anchors is not None:
+                self.train_x_all = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
+                                                self.anchors,
+                                                self.train_x_all)
+            x_bc = self.bc_points()
+            # Remove the initial and boundary points at the beginning of X,
+            # which are not considered in the integral matrix.
+            n_start = self.disc.resolution[0] + 2 * nt - 2
+            X = jax.tree.map(lambda x: x[n_start:], X)
+
+        elif self.disc.meshtype == "dynamic":
+            self.train_x_all = self.train_points()
+            train_x_all = self.geometry.dict_to_arr(self.train_x_all)
+            x_bc = self.bc_points()
+            # FPDE is only applied to the non-boundary points.
+            x_f = train_x_all[~geometry.on_boundary(train_x_all)]
+            self.frac_train = FractionalTime(
+                alpha,
+                geometry.geometry,
+                geometry.timedomain.t0,
+                geometry.timedomain.t1,
+                self.disc,
+                None,
+                x_f,
+            )
+            X = self.geometry.arr_to_dict(self.frac_train.get_x())
+
+        else:
+            raise ValueError("Unknown meshtype %s" % self.disc.meshtype)
+
+        self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
+                                    x_bc,
+                                    X,
+                                    is_leaf=u.math.is_quantity)
+        self.train_y = self.solution(self.train_x) if self.solution else None
+        return self.train_x, self.train_y
+
+    @run_if_all_none("test_x", "test_y")
+    def test(self):
+        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+        assert isinstance(self.geometry.geom, GeometryXTime), "GeometryXTime is required."
+        geometry = self.geometry.geom
+        if self.disc.meshtype == "static" and self.num_test is not None:
+            raise ValueError("Cannot use test points in static mesh.")
+
+        if self.num_test is None:
+            n_bc = sum(self.num_bcs)
+            self.test_x = jax.tree.map(lambda x: x[n_bc:], self.train_x)
+            self.frac_test = self.frac_train
+
+        else:
+            self.test_x = self.test_points()
+            test_x = self.geometry.dict_to_arr(self.test_x)
+            x_f = test_x[~geometry.on_boundary(test_x)]
+            self.frac_test = FractionalTime(
+                alpha,
+                geometry.geometry,
+                geometry.timedomain.t0,
+                geometry.timedomain.t1,
+                self.disc,
+                None,
+                x_f,
+            )
+            self.test_x = self.geometry.arr_to_dict(self.frac_test.get_x())
+        self.test_y = self.solution(self.test_x) if self.solution else None
+        return self.test_x, self.test_y
+
+    def train_points(self):
+        X = super().train_points()
+        if self.num_initial > 0:
+            if self.train_distribution == "uniform":
+                tmp = self.geometry.uniform_initial_points(self.num_initial)
+            else:
+                tmp = self.geometry.random_initial_points(
+                    self.num_initial,
+                    random=self.train_distribution
+                )
+            X = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
+                             tmp,
+                             X,
+                             is_leaf=u.math.is_quantity)
+        return X
+
+    def get_int_matrix(self, training):
+        if training:
+            int_mat = self.frac_train.get_matrix(sparse=True)
+            num_bc = sum(self.num_bcs)
+        else:
+            int_mat = self.frac_test.get_matrix(sparse=True)
+            num_bc = 0
+
+        int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
+        return int_mat
 
 
 class Scheme:
@@ -45,307 +412,6 @@ class Scheme:
             raise ValueError("Do not support meshtype static for dimension %d" % self.dim)
 
 
-class FPDE(PDE):
-    r"""
-    Fractional PDE solver.
-
-    D-dimensional fractional Laplacian of order alpha/2 (1 < alpha < 2) is defined as:
-    (-Delta)^(alpha/2) u(x) = C(alpha, D) \int_{||theta||=1} D_theta^alpha u(x) d theta,
-    where C(alpha, D) = gamma((1-alpha)/2) * gamma((D+alpha)/2) / (2 pi^((D+1)/2)),
-    D_theta^alpha is the Riemann-Liouville directional fractional derivative,
-    and theta is the differentiation direction vector.
-    The solution u(x) is assumed to be identically zero in the boundary and exterior of the domain.
-    When D = 1, C(alpha, D) = 1 / (2 cos(alpha * pi / 2)).
-
-    This solver does not consider C(alpha, D) in the fractional Laplacian,
-    and only discretizes \int_{||theta||=1} D_theta^alpha u(x) d theta.
-    D_theta^alpha is approximated by Grunwald-Letnikov formula.
-
-    References:
-        `G. Pang, L. Lu, & G. E. Karniadakis. fPINNs: Fractional physics-informed neural
-        networks. SIAM Journal on Scientific Computing, 41(4), A2603--A2626, 2019
-        <https://doi.org/10.1137/18M1229845>`_.
-    """
-
-    def __init__(
-        self,
-        geometry,
-        pde,
-        alpha,
-        ic_bcs,
-        resolution,
-        meshtype: str = "dynamic",
-        num_domain=0,
-        num_boundary=0,
-        train_distribution: str = "Hammersley",
-        anchors=None,
-        solution=None,
-        num_test=None,
-    ):
-        self.alpha = alpha
-        self.disc = Scheme(meshtype, resolution)
-        self.frac_train, self.frac_test = None, None
-        self.int_mat_train = None
-
-        super().__init__(
-            geometry,
-            pde,
-            ic_bcs,
-            num_domain=num_domain,
-            num_boundary=num_boundary,
-            train_distribution=train_distribution,
-            anchors=anchors,
-            solution=solution,
-            num_test=num_test,
-        )
-
-    def losses_train(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        bcs_start = np.cumsum([0] + self.num_bcs)
-        # do not cache int_mat when alpha is a learnable parameter
-        if isinstance(self.alpha, (np.ndarray, jax.Array, u.Quantity)):
-            int_mat = self.get_int_matrix(True)
-        else:
-            if self.int_mat_train is not None:
-                # use cached int_mat
-                int_mat = self.int_mat_train
-            else:
-                # initialize self.int_mat_train with int_mat
-                int_mat = self.get_int_matrix(True)
-                self.int_mat_train = int_mat
-
-        f = self.pde(partial(model.fn_outputs, True), inputs, int_mat)
-        if not isinstance(f, (list, tuple)):
-            f = [f]
-        f = [fi[bcs_start[-1]:] for fi in f]
-        losses = [loss_fn(u.math.zeros_like(fi), fi) for fi in f]
-
-        for i, bc in enumerate(self.ic_bcs):
-            beg, end = bcs_start[i], bcs_start[i + 1]
-            error = bc.error(self.train_x, inputs, outputs, beg, end)
-            losses.append(loss_fn(u.math.zeros_like(error), error))
-        return losses
-
-    def losses_test(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        int_mat = self.get_int_matrix(False)
-        f = self.pde(partial(model.fn_outputs, False), inputs, int_mat)
-        if not isinstance(f, (list, tuple)):
-            f = [f]
-        return ([loss_fn(u.math.zeros_like(fi), fi) for fi in f] +
-                [u.math.asarray(0, dtype=bst.environ.dftype()) for _ in self.ic_bcs])
-
-    def train_next_batch(self, batch_size=None):
-        # do not cache train data when alpha is a learnable parameter
-        if self.disc.meshtype == "static":
-            if self.geometry.idstr != "Interval":
-                raise ValueError("Only Interval supports static mesh.")
-
-            self.frac_train = Fractional(self.alpha, self.geometry, self.disc, None)
-            X = self.frac_train.get_x()
-            # FPDE is only applied to the domain points.
-            # Boundary points are auxiliary points, and appended in the end.
-            X = np.roll(X, -1)
-            self.train_x_all = X
-            if self.anchors is not None:
-                self.train_x_all = np.vstack((self.anchors, self.train_x_all))
-            x_bc = self.bc_points()
-        elif self.disc.meshtype == "dynamic":
-            self.train_x_all = self.train_points()
-            x_bc = self.bc_points()
-            # FPDE is only applied to the domain points.
-            x_f = self.train_x_all[~self.geometry.on_boundary(self.train_x_all)]
-            self.frac_train = Fractional(self.alpha, self.geometry, self.disc, x_f)
-            X = self.frac_train.get_x()
-
-        self.train_x = np.vstack((x_bc, X))
-        self.train_y = self.solution(self.train_x) if self.solution else None
-        return self.train_x, self.train_y
-
-    def test(self):
-        # do not cache test data when alpha is a learnable parameter
-        if self.disc.meshtype == "static" and self.num_test is not None:
-            raise ValueError("Cannot use test points in static mesh.")
-
-        if self.num_test is None:
-            self.test_x = self.train_x[sum(self.num_bcs):]
-            self.frac_test = self.frac_train
-        else:
-            self.test_x = self.test_points()
-            x_f = self.test_x[~self.geometry.on_boundary(self.test_x)]
-            self.frac_test = Fractional(self.alpha, self.geometry, self.disc, x_f)
-            self.test_x = self.frac_test.get_x()
-        self.test_y = self.solution(self.test_x) if self.solution else None
-        return self.test_x, self.test_y
-
-    def test_points(self):
-        return self.geometry.uniform_points(self.num_test, True)
-
-    def get_int_matrix(self, training):
-        if training:
-            int_mat = self.frac_train.get_matrix(sparse=True)
-            num_bc = sum(self.num_bcs)
-        else:
-            int_mat = self.frac_test.get_matrix(sparse=True)
-            num_bc = 0
-
-        if self.disc.meshtype == "static":
-            int_mat = np.roll(int_mat, -1, 1)
-            int_mat = int_mat[1:-1]
-
-        int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
-        return int_mat
-
-    def pde(self, inputs, outputs, int_mat):
-        """Return the residual of the PDE."""
-        raise NotImplementedError
-
-
-class TimeFPDE(FPDE):
-    r"""Time-dependent fractional PDE solver.
-
-    D-dimensional fractional Laplacian of order alpha/2 (1 < alpha < 2) is defined as:
-    (-Delta)^(alpha/2) u(x) = C(alpha, D) \int_{||theta||=1} D_theta^alpha u(x) d theta,
-    where C(alpha, D) = gamma((1-alpha)/2) * gamma((D+alpha)/2) / (2 pi^((D+1)/2)),
-    D_theta^alpha is the Riemann-Liouville directional fractional derivative,
-    and theta is the differentiation direction vector.
-    The solution u(x) is assumed to be identically zero in the boundary and exterior of the domain.
-    When D = 1, C(alpha, D) = 1 / (2 cos(alpha * pi / 2)).
-
-    This solver does not consider C(alpha, D) in the fractional Laplacian,
-    and only discretizes \int_{||theta||=1} D_theta^alpha u(x) d theta.
-    D_theta^alpha is approximated by Grunwald-Letnikov formula.
-
-    References:
-        `G. Pang, L. Lu, & G. E. Karniadakis. fPINNs: Fractional physics-informed neural
-        networks. SIAM Journal on Scientific Computing, 41(4), A2603--A2626, 2019
-        <https://doi.org/10.1137/18M1229845>`_.
-    """
-
-    def __init__(
-        self,
-        geometryxtime: GeometryXTime,
-        pde,
-        alpha,
-        ic_bcs,
-        resolution,
-        meshtype="dynamic",
-        num_domain=0,
-        num_boundary=0,
-        num_initial=0,
-        train_distribution="Hammersley",
-        anchors=None,
-        solution=None,
-        num_test=None,
-    ):
-        self.num_initial = num_initial
-        super().__init__(
-            geometryxtime,
-            pde,
-            alpha,
-            ic_bcs,
-            resolution,
-            meshtype=meshtype,
-            num_domain=num_domain,
-            num_boundary=num_boundary,
-            train_distribution=train_distribution,
-            anchors=anchors,
-            solution=solution,
-            num_test=num_test,
-        )
-
-    @run_if_all_none("train_x", "train_y")
-    def train_next_batch(self, batch_size=None):
-        self.geometry: GeometryXTime
-
-        if self.disc.meshtype == "static":
-            if self.geometry.geometry.idstr != "Interval":
-                raise ValueError("Only Interval supports static mesh.")
-
-            nt = int(round(self.num_domain / (self.disc.resolution[0] - 2))) + 1
-            self.frac_train = FractionalTime(
-                self.alpha,
-                self.geometry.geometry,
-                self.geometry.timedomain.t0,
-                self.geometry.timedomain.t1,
-                self.disc,
-                nt,
-                None,
-            )
-            X = self.frac_train.get_x()
-            self.train_x_all = X
-            if self.anchors is not None:
-                self.train_x_all = np.vstack((self.anchors, self.train_x_all))
-            x_bc = self.bc_points()
-            # Remove the initial and boundary points at the beginning of X,
-            # which are not considered in the integral matrix.
-            X = X[self.disc.resolution[0] + 2 * nt - 2:, :]
-        elif self.disc.meshtype == "dynamic":
-            self.train_x_all = self.train_points()
-            x_bc = self.bc_points()
-            # FPDE is only applied to the non-boundary points.
-            x_f = self.train_x_all[~self.geometry.on_boundary(self.train_x_all)]
-            self.frac_train = FractionalTime(
-                self.alpha,
-                self.geometry.geometry,
-                self.geometry.timedomain.t0,
-                self.geometry.timedomain.t1,
-                self.disc,
-                None,
-                x_f,
-            )
-            X = self.frac_train.get_x()
-
-        self.train_x = np.vstack((x_bc, X))
-        self.train_y = self.solution(self.train_x) if self.solution else None
-        return self.train_x, self.train_y
-
-    @run_if_all_none("test_x", "test_y")
-    def test(self):
-        if self.disc.meshtype == "static" and self.num_test is not None:
-            raise ValueError("Cannot use test points in static mesh.")
-
-        if self.num_test is None:
-            self.test_x = self.train_x[sum(self.num_bcs):]
-            self.frac_test = self.frac_train
-        else:
-            self.test_x = self.test_points()
-            x_f = self.test_x[~self.geometry.on_boundary(self.test_x)]
-            self.frac_test = FractionalTime(
-                self.alpha,
-                self.geometry.geometry,
-                self.geometry.timedomain.t0,
-                self.geometry.timedomain.t1,
-                self.disc,
-                None,
-                x_f,
-            )
-            self.test_x = self.frac_test.get_x()
-        self.test_y = self.solution(self.test_x) if self.solution else None
-        return self.test_x, self.test_y
-
-    def train_points(self):
-        X = super().train_points()
-        if self.num_initial > 0:
-            if self.train_distribution == "uniform":
-                tmp = self.geometry.uniform_initial_points(self.num_initial)
-            else:
-                tmp = self.geometry.random_initial_points(
-                    self.num_initial, random=self.train_distribution
-                )
-            X = np.vstack((tmp, X))
-        return X
-
-    def get_int_matrix(self, training):
-        if training:
-            int_mat = self.frac_train.get_matrix(sparse=True)
-            num_bc = sum(self.num_bcs)
-        else:
-            int_mat = self.frac_test.get_matrix(sparse=True)
-            num_bc = 0
-
-        int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
-        return int_mat
-
-
 class Fractional:
     """Fractional derivative.
 
@@ -372,9 +438,10 @@ class Fractional:
         h = 1 / self.disc.resolution[-1]
         min_h = self.geom.mindist2boundary(self.x0)
         if min_h < h:
-            print(
+            warnings.warn(
                 "Warning: mesh step size %f is larger than the boundary distance %f."
-                % (h, min_h)
+                % (h, min_h),
+                UserWarning,
             )
 
     def _init_weights(self):
@@ -389,7 +456,7 @@ class Fractional:
         w = [1.0]
         for j in range(1, n):
             w.append(w[-1] * (j - 1 - self.alpha) / j)
-        return array_ops.convert_to_array(w)
+        return np.asarray(w)
 
     def get_x(self):
         self.x = (
@@ -446,16 +513,13 @@ class Fractional:
         for x0i in self.x0:
             xi = list(
                 map(
-                    lambda dirn: self.geom.background_points(
-                        x0i, dirn, self.dynamic_dist2npts, 0
-                    ),
+                    lambda dirn: self.geom.background_points(x0i, dirn, self.dynamic_dist2npts, 0),
                     dirns,
                 )
             )
             wi = list(
                 map(
-                    lambda i: dirn_w[i]
-                              * np.linalg.norm(xi[i][1] - xi[i][0]) ** (-self.alpha)
+                    lambda i: dirn_w[i] * np.linalg.norm(xi[i][1] - xi[i][0]) ** (-self.alpha)
                               * self.get_weight(len(xi[i]) - 1),
                     range(len(dirns)),
                 )
@@ -531,31 +595,29 @@ class Fractional:
                 # int_mat[i, 0:i+2] = np.flipud(self.modify_third_order(w=self.get_weight(i)))
                 # int_mat[i, i-1:] += self.modify_third_order(w=self.get_weight(self.disc.resolution[0]-1-i))
             return h ** (-self.alpha) * int_mat
-        int_mat = u.math.zeros((1, self.disc.resolution[0]), dtype=bst.environ.dftype())
+        int_mat = np.zeros((1, self.disc.resolution[0]), dtype=bst.environ.dftype())
         for i in range(1, self.disc.resolution[0] - 1):
             # shifted
-            row = u.math.concatenate(
+            row = np.concatenate(
                 [
-                    u.math.zeros(1, dtype=bst.environ.dftype()),
-                    u.math.flip(self.get_weight(i), (0,)),
-                    u.math.zeros(
-                        self.disc.resolution[0] - i - 2, dtype=bst.environ.dftype()
-                    ),
+                    np.zeros(1, dtype=bst.environ.dftype()),
+                    np.flip(self.get_weight(i), (0,)),
+                    np.zeros(self.disc.resolution[0] - i - 2, dtype=bst.environ.dftype()),
                 ],
                 0,
             )
-            row += u.math.concatenate(
+            row += np.concatenate(
                 [
-                    u.math.zeros(i - 1, dtype=bst.environ.dftype()),
+                    np.zeros(i - 1, dtype=bst.environ.dftype()),
                     self.get_weight(self.disc.resolution[0] - 1 - i),
-                    u.math.zeros(1, dtype=bst.environ.dftype()),
+                    np.zeros(1, dtype=bst.environ.dftype()),
                 ],
                 0,
             )
-            row = u.math.expand_dims(row, 0)
-            int_mat = u.math.concatenate([int_mat, row], 0)
-        int_mat = u.math.concatenate(
-            [int_mat, u.math.zeros([1, self.disc.resolution[0]], dtype=bst.environ.dftype())], 0
+            row = np.expand_dims(row, 0)
+            int_mat = np.concatenate([int_mat, row], 0)
+        int_mat = np.concatenate(
+            [int_mat, np.zeros([1, self.disc.resolution[0]], dtype=bst.environ.dftype())], 0
         )
         h = self.geom.diam / (self.disc.resolution[0] - 1)
         return h ** (-self.alpha) * int_mat

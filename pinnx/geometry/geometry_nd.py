@@ -1,61 +1,75 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
 import itertools
 from typing import Literal
 
 import brainstate as bst
+import jax
 import numpy as np
 from scipy import stats
 from sklearn import preprocessing
 
-from pinnx.utils import isclose
+from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
-
-__all__ = [
-    'Hypercube',
-    'Hypersphere',
-]
+from ..utils import isclose
 
 
 class Hypercube(Geometry):
-    """
-    Hypercube geometry class.
-    """
-
     def __init__(self, xmin, xmax):
         if len(xmin) != len(xmax):
             raise ValueError("Dimensions of xmin and xmax do not match.")
+
         self.xmin = np.array(xmin, dtype=bst.environ.dftype())
         self.xmax = np.array(xmax, dtype=bst.environ.dftype())
         if np.any(self.xmin >= self.xmax):
             raise ValueError("xmin >= xmax")
 
         self.side_length = self.xmax - self.xmin
-        super().__init__(len(xmin), (self.xmin, self.xmax), np.linalg.norm(self.side_length))
+        super().__init__(
+            len(xmin),
+            (self.xmin, self.xmax),
+            np.linalg.norm(self.side_length)
+        )
         self.volume = np.prod(self.side_length)
 
     def inside(self, x):
-        return np.logical_and(np.all(x >= self.xmin, axis=-1),
-                              np.all(x <= self.xmax, axis=-1))
+        mod = utils.smart_numpy(x)
+        return mod.logical_and(mod.all(x >= self.xmin, axis=-1),
+                               mod.all(x <= self.xmax, axis=-1))
 
     def on_boundary(self, x):
-        _on_boundary = np.logical_or(
-            np.any(isclose(x, self.xmin), axis=-1),
-            np.any(isclose(x, self.xmax), axis=-1),
-        )
-        return np.logical_and(self.inside(x), _on_boundary)
+        mod = utils.smart_numpy(x)
+        if x.ndim == 0:
+            _on_boundary = mod.logical_or(mod.isclose(x, self.xmin),
+                                          mod.isclose(x, self.xmax))
+        else:
+            _on_boundary = mod.logical_or(
+                mod.any(mod.isclose(x, self.xmin), axis=-1),
+                mod.any(mod.isclose(x, self.xmax), axis=-1),
+            )
+        return mod.logical_and(self.inside(x), _on_boundary)
 
     def boundary_normal(self, x):
-        _n = -isclose(x, self.xmin).astype(bst.environ.dftype()) + isclose(x, self.xmax)
+        mod = utils.smart_numpy(x)
+        _n = -mod.isclose(x, self.xmin).astype(bst.environ.dftype()) + mod.isclose(x, self.xmax)
         # For vertices, the normal is averaged for all directions
-        idx = np.count_nonzero(_n, axis=-1) > 1
-        if np.any(idx):
-            print(
-                f"Warning: {self.__class__.__name__} boundary_normal called on vertices. "
-                "You may use PDE(..., exclusions=...) to exclude the vertices."
-            )
-            l = np.linalg.norm(_n[idx], axis=-1, keepdims=True)
-            _n[idx] /= l
-        return _n
+        idx = mod.count_nonzero(_n, axis=-1) > 1
+        _n = jax.vmap(lambda idx_, n_: jax.numpy.where(idx_, n_ / mod.linalg.norm(n_, keepdims=True), n_))(idx, _n)
+        return mod.asarray(_n)
 
     def uniform_points(self, n, boundary=True):
         dx = (self.volume / n) ** (1 / self.dim)
@@ -198,11 +212,15 @@ class Hypercube(Geometry):
         if not inside:
             raise ValueError("inside=False is not supported for Hypercube")
 
+        if not hasattr(self, "self.xmin_tensor"):
+            self.xmin_tensor = np.asarray(self.xmin)
+            self.xmax_tensor = np.asarray(self.xmax)
+
         dist_l = np.abs(
-            (x - self.xmin) / (self.xmax - self.xmin) * 2
+            (x - self.xmin_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
         )
         dist_r = np.abs(
-            (x - self.xmax) / (self.xmax - self.xmin) * 2
+            (x - self.xmax_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
         )
         if smoothness == "C0":
             dist_l = np.min(dist_l, dim=-1, keepdims=True)
@@ -215,14 +233,12 @@ class Hypercube(Geometry):
 
 
 class Hypersphere(Geometry):
-    """
-    Hypersphere geometry class.
-    """
-
     def __init__(self, center, radius):
         self.center = np.array(center, dtype=bst.environ.dftype())
         self.radius = radius
-        super().__init__(len(center), (self.center - radius, self.center + radius), 2 * radius)
+        super().__init__(
+            len(center), (self.center - radius, self.center + radius), 2 * radius
+        )
 
         self._r2 = radius ** 2
 
@@ -252,7 +268,11 @@ class Hypersphere(Geometry):
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
 
-        dist = np.linalg.norm(x - self.center, axis=-1, keepdims=True) - self.radius
+        if not hasattr(self, "self.center_tensor"):
+            self.center_tensor = np.asarray(self.center)
+            self.radius_tensor = np.asarray(self.radius)
+
+        dist = np.linalg.norm(x - self.center_tensor, axis=-1, keepdims=True) - self.radius
         if smoothness == "Cinf":
             dist = np.square(dist)
         else:

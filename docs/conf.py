@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Author: Chaoming Wang <chao.brain@qq.com>
-# Date: 2024-04-03
-# Copyright: 2024, Chaoming Wang
 # ==============================================================================
 
 # Configuration file for the Sphinx documentation builder.

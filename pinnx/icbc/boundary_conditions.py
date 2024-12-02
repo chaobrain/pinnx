@@ -1,5 +1,7 @@
 """Boundary conditions."""
 
+from __future__ import annotations
+
 import numbers
 from typing import Callable, Dict
 
@@ -25,6 +27,11 @@ __all__ = [
     "RobinBC",
 ]
 
+X = Dict[str, bst.typing.ArrayLike]
+Y = Dict[str, bst.typing.ArrayLike]
+F = Dict[str, bst.typing.ArrayLike]
+Boundary = Dict[str, bst.typing.ArrayLike]
+
 
 class BC(ICBC):
     """
@@ -36,7 +43,7 @@ class BC(ICBC):
 
     def __init__(
         self,
-        on_boundary: Callable[[Dict, np.array], np.array],
+        on_boundary: Callable[[X, np.array], np.array],
     ):
         self.on_boundary = lambda x, on: jax.vmap(on_boundary)(x, on)
 
@@ -78,7 +85,18 @@ class BC(ICBC):
         # boundary normal
         n = self.geometry.boundary_normal(inputs)
 
-        return jax.tree.map(lambda x, y: x * y, dydx, n)
+        assert isinstance(n, dict), "Boundary normal should be a dictionary."
+        assert isinstance(dydx, dict), "dydx should be a dictionary."
+        norms = dict()
+        for y in dydx:
+            norm = None
+            for x in dydx[y]:
+                if norm is None:
+                    norm = dydx[y][x] * n[x]
+                else:
+                    norm += dydx[y][x] * n[x]
+            norms[y] = norm
+        return norms
 
 
 class DirichletBC(BC):
@@ -93,8 +111,8 @@ class DirichletBC(BC):
 
     def __init__(
         self,
-        func: Callable[[Dict], Dict] | Dict,
-        on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
+        func: Callable[[X], F] | F,
+        on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func if callable(func) else lambda x: func
@@ -118,8 +136,8 @@ class NeumannBC(BC):
 
     def __init__(
         self,
-        func: Callable[[Dict], Dict],
-        on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
+        func: Callable[[X], F],
+        on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func
@@ -127,15 +145,20 @@ class NeumannBC(BC):
     def error(self, bc_inputs, bc_outputs, **kwargs):
         values = self.func(bc_inputs)
         normals = self.normal_derivative(bc_inputs)
-        return jax.tree.map(lambda x, y: x - y, normals, values)
+        return {
+            component: normals[component] - values[component]
+            for component in values.keys()
+        }
 
 
 class RobinBC(BC):
-    """Robin boundary conditions: dy/dn(x) = func(x, y)."""
+    """
+    Robin boundary conditions: dy/dn(x) = func(x, y).
+    """
 
     def __init__(
         self,
-        func: Callable[[Dict, Dict], Dict],
+        func: Callable[[X, Y], F],
         on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
@@ -144,21 +167,32 @@ class RobinBC(BC):
     def error(self, bc_inputs, bc_outputs, **kwargs):
         values = self.func(bc_inputs, bc_outputs)
         normals = self.normal_derivative(bc_inputs)
-        return jax.tree.map(lambda x, y: x - y, normals, values)
+        return {
+            component: normals[component] - values[component]
+            for component in values.keys()
+        }
 
 
 class PeriodicBC(BC):
     """
-    Periodic boundary conditions on component_x.
+    Periodic boundary conditions.
+
+    Args:
+        component_y: The component of the output.
+        component_x: The component of the input.
+        on_boundary: (x, Geometry.on_boundary(x)) -> True/False.
+        derivative_order: The order of the derivative. Can be 0 or 1.
     """
 
     def __init__(
         self,
-        component_x,
-        on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
+        component_y: str,
+        component_x: str,
+        on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
         derivative_order: int = 0,
     ):
         super().__init__(on_boundary)
+        self.component_y = component_y
         self.component_x = component_x
         self.derivative_order = derivative_order
         if derivative_order > 1:
@@ -168,26 +202,38 @@ class PeriodicBC(BC):
     def collocation_points(self, X):
         X1 = self.filter(X)
         X2 = self.geometry.periodic_point(X1, self.component_x)
-        return np.vstack((X1, X2))
+        return jax.tree.map(
+            lambda x1, x2: utils.smart_numpy(x1).concatenate((x1, x2), axis=-1),
+            X1,
+            X2,
+            is_leaf=u.math.is_quantity
+        )
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        mid = bc_inputs.shape[0] // 2
+        n_batch = bc_inputs[self.component_x].shape[0]
+        mid = n_batch // 2
         if self.derivative_order == 0:
-            yleft = bc_outputs[:mid, self.component: self.component + 1]
-            yright = bc_outputs[mid:, self.component: self.component + 1]
+            yleft = bc_outputs[self.component_y][:mid]
+            yright = bc_outputs[self.component_y][mid:]
+            # return jax.tree.map(
+            #     lambda y: y[:mid] - y[mid:],
+            #     bc_outputs,
+            #     is_leaf=u.math.is_quantity
+            # )
         else:
-            dydx = grad.jacobian(lambda x: approx(x)[self.component], bc_inputs)[..., self.component_x]
+            dydx = self.problem.approximator.jacobian(bc_outputs, y=self.component_y, x=self.component_x)
+            dydx = dydx[self.component_y][self.component_x]
             yleft = dydx[:mid]
             yright = dydx[mid:]
-        return yleft - yright
+        return {self.component_y: {self.component_x: yleft - yright}}
 
 
 class OperatorBC(BC):
-    """General operator boundary conditions: func(inputs, outputs, X) = 0.
+    """
+    General operator boundary conditions: func(inputs, outputs) = 0.
 
     Args:
-        geometry: ``Geometry``.
-        func: A function takes arguments (`inputs`, `outputs`, `X`)
+        func: A function takes arguments (`inputs`, `outputs`)
             and outputs a tensor of size `N x 1`, where `N` is the length of `inputs`.
             `inputs` and `outputs` are the network input and output tensors,
             respectively; `X` are the NumPy array of the `inputs`.
@@ -203,11 +249,10 @@ class OperatorBC(BC):
 
     def __init__(
         self,
-        func: Callable[[Dict, Dict], Dict],
-        component: str,
-        on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
+        func: Callable[[X, Y], F],
+        on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
-        super().__init__(on_boundary, component)
+        super().__init__(on_boundary)
         self.func = func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
@@ -242,6 +287,8 @@ class PointSetBC(BC):
         batch_size: int = None,
         shuffle: bool = True
     ):
+        super().__init__(lambda x, on: on)
+
         self.points = np.array(points, dtype=bst.environ.dftype())
         self.values = np.asarray(values, dtype=bst.environ.dftype())
         self.component = component
@@ -273,7 +320,8 @@ class PointSetBC(BC):
 
 
 class PointSetOperatorBC(BC):
-    """General operator boundary conditions for a set of points.
+    """
+    General operator boundary conditions for a set of points.
 
     Compare the function output, func, (that associates with `points`)
         with `values` (target data).
@@ -282,7 +330,7 @@ class PointSetOperatorBC(BC):
         points: An array of points where the corresponding target values are
             known and used for training.
         values: An array of values which output of function should fulfill.
-        func: A function takes arguments (`inputs`, `outputs`, `X`)
+        func: A function takes arguments (`inputs`, `outputs`,)
             and outputs a tensor of size `N x 1`, where `N` is the length of
             `inputs`. `inputs` and `outputs` are the network input and output
             tensors, respectively; `X` are the NumPy array of the `inputs`.
@@ -290,21 +338,24 @@ class PointSetOperatorBC(BC):
 
     def __init__(
         self,
-        points,
-        values,
-        func: Callable[[Dict, Dict], Dict]
+        points: Dict[str, bst.typing.ArrayLike],
+        values: Dict[str, bst.typing.ArrayLike],
+        func: Callable[[X, Y], F]
     ):
-        self.points = np.array(points, dtype=bst.environ.dftype())
-        if not isinstance(values, numbers.Number) and values.shape[1] != 1:
-            raise RuntimeError("PointSetOperatorBC should output 1D values")
-        self.values = np.asarray(values, dtype=bst.environ.dftype())
+        super().__init__(lambda x, on: on)
+        self.points = points
+        self.values = values
         self.func = func
 
     def collocation_points(self, X):
         return self.points
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        return self.func(bc_inputs, bc_outputs) - self.values
+        outs = self.func(bc_inputs, bc_outputs)
+        return {
+            component: outs[component] - self.values[component]
+            for component in outs.keys()
+        }
 
 
 class Interface2DBC(BC):
@@ -336,11 +387,13 @@ class Interface2DBC(BC):
 
     def __init__(
         self,
-        func: Callable[[Dict], Dict],
-        on_boundary1: Callable[[Dict, np.array], np.array],
-        on_boundary2: Callable[[Dict, np.array], np.array],
+        func: Callable[[X], F],
+        on_boundary1: Callable[[X, np.array], np.array],
+        on_boundary2: Callable[[X, np.array], np.array],
         direction: str = "normal"
     ):
+        super().__init__(lambda x, on: on)
+
         self.func = utils.return_tensor(func)
         self.on_boundary1 = lambda x, on: np.array([on_boundary1(x[i], on[i]) for i in range(len(x))])
         self.on_boundary2 = lambda x, on: np.array([on_boundary2(x[i], on[i]) for i in range(len(x))])

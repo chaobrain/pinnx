@@ -2,6 +2,7 @@
 ========================
 
 `PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning.
+
 It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
 `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
 For example, it leverages
@@ -33,13 +34,6 @@ For example, it leverages
     - learning from multifidelity data [`J. Comput. Phys. <https://doi.org/10.1016/j.jcp.2019.109020>`_, `PNAS <https://doi.org/10.1073/pnas.1922210117>`_]
 
 
-.. image:: images/pinn.png
-
-.. image:: images/deeponet.png
-
-.. image:: images/mfnn.png
-
-
 Features
 --------
 
@@ -67,12 +61,10 @@ User guide
 .. toctree::
   :maxdepth: 1
 
-  demos/function
-  demos/pinn_forward
-  demos/pinn_inverse
-  demos/operator
-  user/parallel
-  user/faq
+  examples-function.rst
+  examples-pinn-forward.rst
+  examples-pinn-inverse.rst
+  examples-operator.rst
 
 
 Indices and tables

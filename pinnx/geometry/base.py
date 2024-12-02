@@ -1,9 +1,29 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+
+
 import abc
-from typing import Literal, Sequence, Dict
+from typing import Dict, Union
+from typing import Literal, Sequence
 
 import brainstate as bst
 import brainunit as u
+import jax.numpy as jnp
 import numpy as np
+
+from pinnx import utils
 
 __all__ = [
     'AbstractGeometry',
@@ -15,18 +35,10 @@ __all__ = [
 
 
 class AbstractGeometry(abc.ABC):
-    def __init__(self, dim: int, names: Sequence[str]):
+    def __init__(self, dim: int):
         assert isinstance(dim, int), "dim must be an integer"
         self.dim = dim
-        assert len(names) == dim, "The number of names must be equal to the dimension"
-        assert len(set(names)) == dim, f"The names must be unique, but we got {names}"
-        assert all(isinstance(name, str) for name in names), "The names must be strings"
-        self.dim_names = tuple(names)
         self.idstr = type(self).__name__
-
-    @property
-    def names(self):
-        return self.dim_names
 
     @abc.abstractmethod
     def inside(self, x) -> np.ndarray[bool]:
@@ -135,7 +147,7 @@ class AbstractGeometry(abc.ABC):
         raise NotImplementedError("{}.boundary_normal to be implemented".format(self.idstr))
 
     @abc.abstractmethod
-    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_points(self, n, boundary: bool = True) -> np.ndarray:
         """
         Compute the equispaced point locations in the geometry.
 
@@ -145,7 +157,7 @@ class AbstractGeometry(abc.ABC):
         """
 
     @abc.abstractmethod
-    def random_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_points(self, n, random: str = "pseudo") -> np.ndarray:
         """
         Compute the random point locations in the geometry.
 
@@ -157,7 +169,7 @@ class AbstractGeometry(abc.ABC):
         """
 
     @abc.abstractmethod
-    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_boundary_points(self, n) -> np.ndarray:
         """
         Compute the equispaced point locations on the boundary.
 
@@ -166,7 +178,7 @@ class AbstractGeometry(abc.ABC):
         """
 
     @abc.abstractmethod
-    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_boundary_points(self, n, random: str = "pseudo") -> np.ndarray:
         """Compute the random point locations on the boundary."""
 
     def periodic_point(self, x, component):
@@ -195,6 +207,16 @@ class AbstractGeometry(abc.ABC):
         """
         raise NotImplementedError("{}.background_points to be implemented".format(self.idstr))
 
+    def to_dict_point(self, *names, **kw_names):
+        """
+        Convert the geometry to a dictionary geometry.
+
+        Args:
+            names: The names of the coordinates.
+            kw_names: The names of the coordinates and their physical units.
+        """
+        return DictPointGeometry(self, *names, **kw_names)
+
 
 class Geometry(AbstractGeometry):
     """
@@ -211,14 +233,12 @@ class Geometry(AbstractGeometry):
         dim: int,
         bbox: Sequence,
         diam: float,
-        names: Sequence[str]
     ):
-        super().__init__(dim, names)
+        super().__init__(dim)
         self.bbox = bbox
-        self.diam = diam
-        # self.diam = u.math.minimum(diam, u.linalg.norm(bbox[1] - bbox[0]))
+        self.diam = np.minimum(diam, np.linalg.norm(bbox[1] - bbox[0]))
 
-    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_points(self, n, boundary: bool = True) -> np.ndarray:
         """
         Compute the equi-spaced point locations in the geometry.
 
@@ -229,7 +249,7 @@ class Geometry(AbstractGeometry):
         print("Warning: {}.uniform_points not implemented. Use random_points instead.".format(self.idstr))
         return self.random_points(n)
 
-    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_boundary_points(self, n) -> np.ndarray:
         """
         Compute the equi-spaced point locations on the boundary.
 
@@ -292,38 +312,38 @@ class CSGUnion(Geometry):
     def __init__(self, geom1, geom2):
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
-        if geom1.names != geom2.names:
-            raise ValueError("{} | {} failed (names do not match).".format(geom1.names, geom2.names))
         if geom1.dim != geom2.dim:
             raise ValueError("{} | {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
         super().__init__(
             geom1.dim,
             (
-                u.math.minimum(geom1.bbox[0], geom2.bbox[0]),
-                u.math.maximum(geom1.bbox[1], geom2.bbox[1]),
+                np.minimum(geom1.bbox[0], geom2.bbox[0]),
+                np.maximum(geom1.bbox[1], geom2.bbox[1]),
             ),
             geom1.diam + geom2.diam,
-            geom1.names,
         )
         self.geom1 = geom1
         self.geom2 = geom2
 
     def inside(self, x):
-        return u.math.logical_or(self.geom1.inside(x), self.geom2.inside(x))
+        mod = utils.smart_numpy(x)
+        return mod.logical_or(self.geom1.inside(x), self.geom2.inside(x))
 
     def on_boundary(self, x):
-        return u.math.logical_or(
-            u.math.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
-            u.math.logical_and(self.geom2.on_boundary(x), ~self.geom1.inside(x)),
+        mod = utils.smart_numpy(x)
+        return mod.logical_or(
+            mod.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
+            mod.logical_and(self.geom2.on_boundary(x), ~self.geom1.inside(x)),
         )
 
     def boundary_normal(self, x):
+        mod = utils.smart_numpy(x)
         return (
-            u.math.logical_and(self.geom1.on_boundary(x),
-                               ~self.geom2.inside(x))[:, np.newaxis] * self.geom1.boundary_normal(x)
+            mod.logical_and(self.geom1.on_boundary(x),
+                            ~self.geom2.inside(x))[:, np.newaxis] * self.geom1.boundary_normal(x)
             +
-            np.logical_and(self.geom2.on_boundary(x),
-                           ~self.geom1.inside(x))[:, np.newaxis] * self.geom2.boundary_normal(x)
+            mod.logical_and(self.geom2.on_boundary(x),
+                            ~self.geom1.inside(x))[:, np.newaxis] * self.geom2.boundary_normal(x)
         )
 
     def random_points(self, n, random="pseudo"):
@@ -382,28 +402,30 @@ class CSGDifference(Geometry):
     def __init__(self, geom1, geom2):
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
-        assert geom1.names == geom2.names, "geom1.names must be equal to geom2.names"
         if geom1.dim != geom2.dim:
             raise ValueError("{} - {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
-        super().__init__(geom1.dim, geom1.bbox, geom1.diam, geom1.names)
+        super().__init__(geom1.dim, geom1.bbox, geom1.diam)
         self.geom1 = geom1
         self.geom2 = geom2
 
     def inside(self, x):
-        return np.logical_and(self.geom1.inside(x), ~self.geom2.inside(x))
+        mod = utils.smart_numpy(x)
+        return mod.logical_and(self.geom1.inside(x), ~self.geom2.inside(x))
 
     def on_boundary(self, x):
-        return np.logical_or(
-            np.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
-            np.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x)),
+        mod = utils.smart_numpy(x)
+        return mod.logical_or(
+            mod.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x)),
+            mod.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x)),
         )
 
     def boundary_normal(self, x):
+        mod = utils.smart_numpy(x)
         return (
-            np.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x))[:, np.newaxis] *
+            mod.logical_and(self.geom1.on_boundary(x), ~self.geom2.inside(x))[:, np.newaxis] *
             self.geom1.boundary_normal(x)
             +
-            np.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x))[:, np.newaxis] *
+            mod.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x))[:, np.newaxis] *
             -self.geom2.boundary_normal(x)
         )
 
@@ -459,7 +481,6 @@ class CSGIntersection(Geometry):
     def __init__(self, geom1, geom2):
         assert isinstance(geom1, Geometry), "geom1 must be an instance of Geometry"
         assert isinstance(geom2, Geometry), "geom2 must be an instance of Geometry"
-        assert geom1.names == geom2.names, "geom1.names must be equal to geom2.names"
         if geom1.dim != geom2.dim:
             raise ValueError("{} & {} failed (dimensions do not match).".format(geom1.idstr, geom2.idstr))
         super().__init__(
@@ -469,26 +490,28 @@ class CSGIntersection(Geometry):
                 np.minimum(geom1.bbox[1], geom2.bbox[1]),
             ),
             min(geom1.diam, geom2.diam),
-            tuple(geom1.names),
         )
         self.geom1 = geom1
         self.geom2 = geom2
 
     def inside(self, x):
-        return np.logical_and(self.geom1.inside(x), self.geom2.inside(x))
+        mod = utils.smart_numpy(x)
+        return mod.logical_and(self.geom1.inside(x), self.geom2.inside(x))
 
     def on_boundary(self, x):
-        return np.logical_or(
-            np.logical_and(self.geom1.on_boundary(x), self.geom2.inside(x)),
-            np.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x)),
+        mod = utils.smart_numpy(x)
+        return mod.logical_or(
+            mod.logical_and(self.geom1.on_boundary(x), self.geom2.inside(x)),
+            mod.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x)),
         )
 
     def boundary_normal(self, x):
+        mod = utils.smart_numpy(x)
         return (
-            np.logical_and(self.geom1.on_boundary(x), self.geom2.inside(x))[:, np.newaxis] *
+            mod.logical_and(self.geom1.on_boundary(x), self.geom2.inside(x))[:, np.newaxis] *
             self.geom1.boundary_normal(x)
             +
-            np.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x))[:, np.newaxis] *
+            mod.logical_and(self.geom1.inside(x), self.geom2.on_boundary(x))[:, np.newaxis] *
             self.geom2.boundary_normal(x)
         )
 
@@ -531,3 +554,121 @@ class CSGIntersection(Geometry):
         on_boundary_geom2 = np.logical_and(self.geom2.on_boundary(x), self.geom1.inside(x))
         x[on_boundary_geom2] = self.geom2.periodic_point(x, component)[on_boundary_geom2]
         return x
+
+
+def quantity_to_array(quantity: Union[np.ndarray, jnp.ndarray, u.Quantity], unit: u.Unit):
+    if isinstance(quantity, u.Quantity):
+        return quantity.to(unit).magnitude
+    else:
+        assert unit.is_unitless, "The unit should be unitless."
+    return quantity
+
+
+def array_to_quantity(array: Union[np.ndarray, jnp.ndarray], unit: u.Unit):
+    return u.math.maybe_decimal(u.Quantity(array, unit=unit))
+
+
+class DictPointGeometry(AbstractGeometry):
+    """
+    Convert a geometry to a dictionary geometry.
+    """
+
+    def __init__(self, geom: AbstractGeometry, *names, **kw_names):
+        super().__init__(geom.dim)
+
+        self.geom = geom
+        for name in names:
+            assert isinstance(name, str), "The name should be a string."
+        kw_names = {key: u.UNITLESS if unit is None else unit for key, unit in kw_names.items()}
+        for key, unit in kw_names.items():
+            assert isinstance(key, str), "The name should be a string."
+            assert isinstance(unit, u.Unit), "The unit should be a brainunit.Unit."
+        self.name2unit = {name: u.UNITLESS for name in names}
+        self.name2unit.update(kw_names)
+        if len(self.name2unit) != geom.dim:
+            raise ValueError("The number of names should match the dimension of the geometry. "
+                             "But got {} names and {} dimensions.".format(len(self.name2unit), geom.dim))
+
+    def arr_to_dict(self, x: bst.typing.ArrayLike) -> Dict[str, bst.typing.ArrayLike]:
+        return {name: array_to_quantity(x[..., i], unit)
+                for i, (name, unit) in enumerate(self.name2unit.items())}
+
+    def dict_to_arr(self, x: Dict[str, bst.typing.ArrayLike]) -> bst.typing.ArrayLike:
+        arrs = [quantity_to_array(x[name], unit) for name, unit in self.name2unit.items()]
+        mod = utils.smart_numpy(arrs[0])
+        return mod.stack(arrs, axis=-1)
+
+    def inside(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> np.ndarray[bool]:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.inside(x)
+
+    def on_initial(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> np.ndarray:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.on_initial(x)
+
+    def on_boundary(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> np.ndarray[bool]:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.on_boundary(x)
+
+    def distance2boundary(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict], dirn: int) -> np.ndarray:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.distance2boundary(x, dirn)
+
+    def mindist2boundary(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> np.ndarray:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.mindist2boundary(x)
+
+    def boundary_constraint_factor(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict], **kw) -> np.ndarray:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        return self.geom.boundary_constraint_factor(x, **kw)
+
+    def boundary_normal(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> Dict[str, bst.typing.ArrayLike]:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        normal = self.geom.boundary_normal(x)
+        return self.arr_to_dict(normal)
+
+    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.uniform_points(n, boundary=boundary)
+        return self.arr_to_dict(points)
+
+    def random_points(self, n, random="pseudo") -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.random_points(n, random=random)
+        return self.arr_to_dict(points)
+
+    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.uniform_boundary_points(n)
+        return self.arr_to_dict(points)
+
+    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.random_boundary_points(n, random=random)
+        return self.arr_to_dict(points)
+
+    def periodic_point(self, x, component: Union[str, int]) -> Dict[str, bst.typing.ArrayLike]:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        if isinstance(component, str):
+            component = list(self.name2unit.keys()).index(component)
+        assert isinstance(component, int), f"The component should be an integer or a string. But got {component}."
+        x = self.geom.periodic_point(x, component)
+        return self.arr_to_dict(x)
+
+    def background_points(self, x, dirn, dist2npt, shift) -> Dict[str, bst.typing.ArrayLike]:
+        if isinstance(x, dict):
+            x = self.dict_to_arr(x)
+        points = self.geom.background_points(x, dirn, dist2npt, shift)
+        return self.arr_to_dict(points)
+
+    def random_initial_points(self, n: int, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.random_initial_points(n, random=random)
+        return self.arr_to_dict(points)
+
+    def uniform_initial_points(self, n: int) -> Dict[str, bst.typing.ArrayLike]:
+        points = self.geom.uniform_initial_points(n)
+        return self.arr_to_dict(points)

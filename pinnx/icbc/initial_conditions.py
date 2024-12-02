@@ -2,11 +2,10 @@
 
 from typing import Callable, Dict
 
+import brainstate as bst
 import jax
 import numpy as np
 
-import brainstate as bst
-from pinnx import utils
 from .base import ICBC
 
 __all__ = ["IC"]
