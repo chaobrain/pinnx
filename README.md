@@ -21,6 +21,9 @@ For example, it leverages
 - [braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
 
 
+## Algorithms
+
+
 ``PINNx`` implements the following algorithms, but with the flexibility and efficiency of JAX:
 
 - solving different PINN problems

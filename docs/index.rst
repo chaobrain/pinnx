@@ -2,14 +2,19 @@
 ========================
 
 `PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning.
-
 It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
 `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
 For example, it leverages
-`brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-`brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
-`braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
+- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+
+
+Algorithms
+----------
+
+``PINNx`` implements the following algorithms, but with the flexibility and efficiency of JAX:
 
 - Solving different problems using PINN
     - solving forward/inverse ordinary/partial differential equations (ODEs/PDEs) [`SIAM Rev. <https://doi.org/10.1137/19M1274067>`_]
@@ -65,6 +70,7 @@ User guide
   examples-pinn-forward.rst
   examples-pinn-inverse.rst
   examples-operator.rst
+
 
 
 Indices and tables
