@@ -1,9 +1,19 @@
-from .base import Problem
+from typing import Sequence
+
+import brainstate as bst
+
 from pinnx.utils.sampler import BatchSampler
+from .base import Problem
+
+__all__ = [
+    'QuadrupleDataset',
+    'QuadrupleCartesianProd',
+]
 
 
-class Quadruple(Problem):
-    """Dataset with each data point as a quadruple.
+class QuadrupleDataset(Problem):
+    """
+    Dataset with each data point as a quadruple.
 
     The couple of the first three elements are the input, and the fourth element is the
     output. This dataset can be used with the network ``MIONet`` for operator
@@ -14,7 +24,21 @@ class Quadruple(Problem):
         y_train: A NumPy array.
     """
 
-    def __init__(self, X_train, y_train, X_test, y_test):
+    def __init__(
+        self,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        approximator: bst.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
+    ):
+        super().__init__(
+            approximator=approximator,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights
+        )
         self.train_x = X_train
         self.train_y = y_train
         self.test_x = X_test
@@ -22,15 +46,16 @@ class Quadruple(Problem):
 
         self.train_sampler = BatchSampler(len(self.train_y), shuffle=True)
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        return loss_fn(targets, outputs)
+    def losses(self, inputs, outputs, targets, **kwargs):
+        return self.loss_fn(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
             return self.train_x, self.train_y
         indices = self.train_sampler.get_next(batch_size)
         return (
-            (self.train_x[0][indices], self.train_x[1][indices]),
+            (self.train_x[0][indices],
+             self.train_x[1][indices]),
             self.train_x[2][indices],
             self.train_y[indices],
         )
@@ -75,7 +100,7 @@ class QuadrupleCartesianProd(Problem):
         self.branch_sampler = BatchSampler(len(X_train[0]), shuffle=True)
         self.trunk_sampler = BatchSampler(len(X_train[2]), shuffle=True)
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
+    def losses(self, inputs, outputs, targets, **kwargs):
         return loss_fn(targets, outputs)
 
     def train_next_batch(self, batch_size=None):

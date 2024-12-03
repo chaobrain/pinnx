@@ -140,8 +140,11 @@ def plot_loss_history(loss_history, fname=None):
     metric_tests = jax.tree.map(lambda *a: u.math.asarray(a), *loss_history.metrics_test)
 
     for i in range(len(loss_history.metrics_test[0])):
-        for k, v in metric_tests[i].items():
-            plt.semilogy(loss_history.steps, v, label=f"Test metric {k}")
+        if isinstance(metric_tests[i], dict):
+            for k, v in metric_tests[i].items():
+                plt.semilogy(loss_history.steps, v, label=f"Test metric {k}")
+        else:
+            plt.semilogy(loss_history.steps, metric_tests[i], label=f"Test metric {i}")
     plt.xlabel("# Steps")
     plt.legend()
 

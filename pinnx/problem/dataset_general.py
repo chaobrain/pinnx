@@ -1,10 +1,15 @@
 from typing import Sequence, Dict
+
 import brainstate as bst
+import jax
 import numpy as np
 
 from pinnx import utils
 from .base import Problem
-import jax
+
+__all__ = [
+    'DataSet'
+]
 
 
 class DataSet(Problem):

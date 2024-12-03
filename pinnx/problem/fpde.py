@@ -51,7 +51,7 @@ class FPDE(PDE):
         geometry: DictPointGeometry,
         pde: Callable[[X, Y, InitMat], Any],
         alpha: float | bst.State[float],
-        ic_bcs: ICBC | Sequence[ICBC],
+        constraints: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
         approximator: Optional[bst.nn.Module] = None,
         meshtype: str = "dynamic",
@@ -72,7 +72,7 @@ class FPDE(PDE):
         super().__init__(
             geometry,
             pde,
-            ic_bcs,
+            constraints,
             approximator=approximator,
             num_domain=num_domain,
             num_boundary=num_boundary,
@@ -120,7 +120,7 @@ class FPDE(PDE):
         # if fit:
         #     return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
         # else:
-        #     return [u.math.zeros((), dtype=bst.environ.dftype()) for _ in self.ic_bcs]
+        #     return [u.math.zeros((), dtype=bst.environ.dftype()) for _ in self.constraints]
 
     @run_if_all_none("train_x", "train_y")
     def train_next_batch(self, batch_size=None):
@@ -233,7 +233,7 @@ class TimeFPDE(FPDE):
         geometry: DictPointGeometry,
         pde: Callable[[X, Y, InitMat], Any],
         alpha: float | bst.State[float],
-        ic_bcs: ICBC | Sequence[ICBC],
+        constraints: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
         approximator: Optional[bst.nn.Module] = None,
         meshtype: str = "dynamic",
@@ -253,7 +253,7 @@ class TimeFPDE(FPDE):
             geometry,
             pde,
             alpha,
-            ic_bcs,
+            constraints,
             resolution,
             approximator=approximator,
             meshtype=meshtype,
@@ -294,6 +294,7 @@ class TimeFPDE(FPDE):
                                                 self.anchors,
                                                 self.train_x_all)
             x_bc = self.bc_points()
+
             # Remove the initial and boundary points at the beginning of X,
             # which are not considered in the integral matrix.
             n_start = self.disc.resolution[0] + 2 * nt - 2
@@ -303,6 +304,7 @@ class TimeFPDE(FPDE):
             self.train_x_all = self.train_points()
             train_x_all = self.geometry.dict_to_arr(self.train_x_all)
             x_bc = self.bc_points()
+
             # FPDE is only applied to the non-boundary points.
             x_f = train_x_all[~geometry.on_boundary(train_x_all)]
             self.frac_train = FractionalTime(

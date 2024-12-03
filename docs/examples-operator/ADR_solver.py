@@ -2,7 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def solve_ADR(xmin, xmax, tmin, tmax, k, v, g, dg, f, u0, Nx, Nt):
+def solve_ADR(
+    xmin, xmax, tmin, tmax, k, v, g, dg, f, u0, Nx, Nt
+):
     """Solve 1D
     u_t = (k(x) u_x)_x - v(x) u_x + g(u) + f(x, t)
     with zero boundary condition.

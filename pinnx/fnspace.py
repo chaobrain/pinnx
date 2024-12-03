@@ -19,13 +19,14 @@ from pinnx.utils import isclose
 
 
 class FunctionSpace(abc.ABC):
-    """Function space base class.
+    """
+    Function space base class.
 
     Example:
 
         .. code-block:: python
 
-            space = pinnx.problem.GRF()
+            space = pinnx.fnspace.GRF()
             feats = space.random(10)
             xs = np.linspace(0, 1, num=100)[:, None]
             y = space.eval_batch(feats, xs)
@@ -76,11 +77,11 @@ class PowerSeries(FunctionSpace):
     p(x) = \sum_{i=0}^{N-1} a_i x^i
 
     Args:
-        N (int)
+        N (int): The number of terms in the power series.
         M (float): `M` > 0. The coefficients a_i are randomly sampled from [-`M`, `M`].
     """
 
-    def __init__(self, N=100, M=1):
+    def __init__(self, N: int = 100, M: float = 1):
         self.N = N
         self.M = M
 
@@ -98,18 +99,19 @@ class PowerSeries(FunctionSpace):
 
 
 class Chebyshev(FunctionSpace):
-    r"""Chebyshev polynomial.
+    r"""
+    Chebyshev polynomial.
 
     p(x) = \sum_{i=0}^{N-1} a_i T_i(x),
     where T_i is Chebyshev polynomial of the first kind.
     Note: The domain of x is scaled from [-1, 1] to [0, 1].
 
     Args:
-        N (int)
+        N (int): The number of terms in the Chebyshev polynomial.
         M (float): `M` > 0. The coefficients a_i are randomly sampled from [-`M`, `M`].
     """
 
-    def __init__(self, N=100, M=1):
+    def __init__(self, N: int = 100, M: float = 1):
         self.N = N
         self.M = M
 
@@ -124,7 +126,8 @@ class Chebyshev(FunctionSpace):
 
 
 class GRF(FunctionSpace):
-    """Gaussian random field (Gaussian process) in 1D.
+    """
+    Gaussian random field (Gaussian process) in 1D.
 
     The random sampling algorithm is based on Cholesky decomposition of the covariance
     matrix.
@@ -141,7 +144,14 @@ class GRF(FunctionSpace):
             "quadratic", or "cubic".
     """
 
-    def __init__(self, T=1, kernel="RBF", length_scale=1, N=1000, interp="cubic"):
+    def __init__(
+        self,
+        T: float = 1,
+        kernel: str = "RBF",
+        length_scale: float = 1,
+        N: int = 1000,
+        interp: str = "cubic"
+    ):
         self.N = N
         self.interp = interp
         self.x = np.linspace(0, T, num=N)[:, None]
@@ -199,7 +209,13 @@ class GRF_KL(FunctionSpace):
     """
 
     def __init__(
-        self, T=1, kernel="RBF", length_scale=1, num_eig=10, N=100, interp="cubic"
+        self,
+        T: float = 1,
+        kernel: str = "RBF",
+        length_scale: float = 1,
+        num_eig: int = 10,
+        N: int = 100,
+        interp: str = "cubic"
     ):
         if not isclose(T, 1):
             raise ValueError("GRF_KL only supports T = 1.")
@@ -252,7 +268,7 @@ class GRF2D(FunctionSpace):
 
         .. code-block:: python
 
-            space = pinnx.problem.GRF2D(length_scale=0.1)
+            space = pinnx.fnspace.GRF2D(length_scale=0.1)
             features = space.random(3)
             x = np.linspace(0, 1, num=500)
             y = np.linspace(0, 1, num=500)
@@ -266,7 +282,13 @@ class GRF2D(FunctionSpace):
             plt.show()
     """
 
-    def __init__(self, kernel="RBF", length_scale=1, N=100, interp="splinef2d"):
+    def __init__(
+        self,
+        kernel: str = "RBF",
+        length_scale: float = 1,
+        N: int = 100,
+        interp: str = "splinef2d"
+    ):
         self.N = N
         self.interp = interp
         self.x = np.linspace(0, 1, num=N)

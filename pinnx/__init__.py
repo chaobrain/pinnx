@@ -14,10 +14,11 @@
 # ==============================================================================
 
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 __all__ = [
     "callbacks",
+    "fnspace",
     "geometry",
     "grad",
     "icbc",
@@ -28,8 +29,8 @@ __all__ = [
     "Trainer",
 ]
 
-
 from . import callbacks
+from . import fnspace
 from . import geometry
 from . import grad
 from . import icbc

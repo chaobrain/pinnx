@@ -110,14 +110,14 @@ class DirichletBC(BC):
 
     def __init__(
         self,
-        func: Callable[[X], F] | F,
+        func: Callable[[X, ...], F] | Callable[[X], F] | F,
         on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func if callable(func) else lambda x: func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        values = self.func(bc_inputs)
+        values = self.func(bc_inputs, **kwargs)
         errors = dict()
         for component in values.keys():
             errors[component] = bc_outputs[component] - values[component]
@@ -135,14 +135,14 @@ class NeumannBC(BC):
 
     def __init__(
         self,
-        func: Callable[[X], F],
+        func: Callable[[X, ...], F] | Callable[[X], F],
         on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        values = self.func(bc_inputs)
+        values = self.func(bc_inputs, **kwargs)
         normals = self.normal_derivative(bc_inputs)
         return {
             component: normals[component] - values[component]
@@ -157,14 +157,14 @@ class RobinBC(BC):
 
     def __init__(
         self,
-        func: Callable[[X, Y], F],
+        func: Callable[[X, Y, ...], F] | Callable[[X, Y], F],
         on_boundary: Callable[[Dict, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        values = self.func(bc_inputs, bc_outputs)
+        values = self.func(bc_inputs, bc_outputs, **kwargs)
         normals = self.normal_derivative(bc_inputs)
         return {
             component: normals[component] - values[component]
@@ -214,11 +214,6 @@ class PeriodicBC(BC):
         if self.derivative_order == 0:
             yleft = bc_outputs[self.component_y][:mid]
             yright = bc_outputs[self.component_y][mid:]
-            # return jax.tree.map(
-            #     lambda y: y[:mid] - y[mid:],
-            #     bc_outputs,
-            #     is_leaf=u.math.is_quantity
-            # )
         else:
             dydx = self.problem.approximator.jacobian(bc_outputs, y=self.component_y, x=self.component_x)
             dydx = dydx[self.component_y][self.component_x]
@@ -248,14 +243,14 @@ class OperatorBC(BC):
 
     def __init__(
         self,
-        func: Callable[[X, Y], F],
+        func: Callable[[X, Y, ...], F] | Callable[[X, Y], F],
         on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
         self.func = func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        return self.func(bc_inputs, bc_outputs)
+        return self.func(bc_inputs, bc_outputs, **kwargs)
 
 
 class PointSetBC(BC):
@@ -374,7 +369,6 @@ class Interface2DBC(BC):
     where 'values' is the argument `func` evaluated on the first edge.
 
     Args:
-        geometry: a ``pinnx.geometry.Rectangle`` or ``pinnx.geometry.Polygon`` instance.
         func: the target discontinuity between edges, evaluated on the first edge,
             e.g., ``func=lambda x: 0`` means no discontinuity is wanted.
         on_boundary1: First edge func. (x, Geometry.on_boundary(x)) -> True/False.
@@ -384,9 +378,9 @@ class Interface2DBC(BC):
 
     def __init__(
         self,
-        func: Callable[[X], F],
-        on_boundary1: Callable[[X, np.array], np.array],
-        on_boundary2: Callable[[X, np.array], np.array],
+        func: Callable[[X, ...], F] | Callable[[X], F],
+        on_boundary1: Callable[[X, np.array], np.array] = lambda x, on: on,
+        on_boundary2: Callable[[X, np.array], np.array] = lambda x, on: on,
         direction: str = "normal"
     ):
         super().__init__(lambda x, on: on)
@@ -413,7 +407,7 @@ class Interface2DBC(BC):
             raise RuntimeError("There is a different number of points on each edge,\n "
                                "this is likely because the chosen edges do not have the same length.")
         aux_var = None
-        values = self.func(bc_inputs[: mid])
+        values = self.func(bc_inputs[: mid], **kwargs)
         if np.ndim(values) == 2 and np.shape(values)[1] != 1:
             raise RuntimeError("BC function should return an array of shape N by 1")
         left_n = self.geometry.boundary_normal(bc_inputs[: mid])

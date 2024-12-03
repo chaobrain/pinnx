@@ -34,7 +34,7 @@ class IDE(PDE):
         self,
         geometry: DictPointGeometry,
         ide: Callable[[X, Y, InitMat], Any],
-        ic_bcs: Union[ICBC, Sequence[ICBC]],
+        constraints: Union[ICBC, Sequence[ICBC]],
         quad_deg: int,
         approximator: Optional[bst.nn.Module] = None,
         kernel: Callable = None,
@@ -56,7 +56,7 @@ class IDE(PDE):
         super().__init__(
             geometry,
             ide,
-            ic_bcs,
+            constraints,
             approximator=approximator,
             num_domain=num_domain,
             num_boundary=num_boundary,

@@ -2,6 +2,18 @@ import brainunit as u
 import jax
 
 
+__all__ = [
+    'accuracy',
+    'l2_relative_error',
+    'nanl2_relative_error',
+    'mean_l2_relative_error',
+    'mean_squared_error',
+    'mean_absolute_percentage_error',
+    'max_absolute_percentage_error',
+    'absolute_percentage_error_std',
+]
+
+
 def _accuracy(y_true, y_pred):
     return u.math.mean(u.math.equal(u.math.argmax(y_pred, axis=-1),
                                     u.math.argmax(y_true, axis=-1)))

@@ -1,15 +1,37 @@
 from __future__ import annotations
 
 import abc
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Any, Tuple
 
 import brainstate as bst
+import jax
+
 from pinnx.utils.losses import get_loss
+
+Inputs = Any
+Targets = Any
+Auxiliary = Any
+Outputs = Any
+LOSS = jax.typing.ArrayLike
+
+__all__ = [
+    'Problem',
+]
 
 
 class Problem(abc.ABC):
     """
     Base Problem Class.
+
+    A problem is defined by the approximator and the loss function.
+
+    Attributes:
+        approximator: The approximator.
+        loss_fn: The loss function.
+        loss_weights: A list specifying scalar coefficients (Python floats) to
+            weight the loss contributions. The loss value that will be minimized by
+            the trainer will then be the weighted sum of all individual losses,
+            weighted by the `loss_weights` coefficients.
     """
 
     approximator: bst.nn.Module
@@ -18,7 +40,7 @@ class Problem(abc.ABC):
     def __init__(
         self,
         approximator: bst.nn.Module = None,
-        loss_fn: str = 'MSE',
+        loss_fn: str | Callable[[Inputs, Outputs], LOSS] = 'MSE',
         loss_weights: Sequence[float] = None,
     ):
         """
@@ -52,7 +74,7 @@ class Problem(abc.ABC):
     def define_approximator(
         self,
         approximator: bst.nn.Module,
-    ):
+    ) -> Problem:
         """
         Define the approximator.
 
@@ -62,6 +84,7 @@ class Problem(abc.ABC):
         """
         assert isinstance(approximator, bst.nn.Module), "approximator must be an instance of bst.nn.Module."
         self.approximator = approximator
+        return self
 
     def losses(self, inputs, outputs, targets, **kwargs):
         """
@@ -84,13 +107,13 @@ class Problem(abc.ABC):
             return self.losses(inputs, outputs, targets, **kwargs)
 
     @abc.abstractmethod
-    def train_next_batch(self, batch_size=None):
+    def train_next_batch(self, batch_size=None) -> Tuple[Inputs, Targets] | Tuple[Inputs, Targets, Auxiliary]:
         """
         Return a training dataset of the size `batch_size`.
         """
 
     @abc.abstractmethod
-    def test(self):
+    def test(self) -> Tuple[Inputs, Targets] | Tuple[Inputs, Targets, Auxiliary]:
         """
         Return a test dataset.
         """
