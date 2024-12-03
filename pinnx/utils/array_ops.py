@@ -1,5 +1,3 @@
-"""Operations which handle numpy and tensorflow.compat.v1 automatically."""
-
 from typing import Sequence
 
 import brainstate as bst

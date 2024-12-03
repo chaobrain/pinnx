@@ -59,7 +59,7 @@ bc = pinnx.icbc.DirichletBC(lambda x: {'u': 0})
 problem = pinnx.problem.PDE(
     geom,
     pde,
-    ic_bcs=[bc, observe_u],
+    constraints=[bc, observe_u],
     approximator=net,
     num_domain=50,
     num_boundary=8,

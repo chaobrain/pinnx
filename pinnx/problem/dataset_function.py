@@ -6,6 +6,10 @@ from pinnx.geometry.base import AbstractGeometry
 from pinnx.utils import run_if_any_none
 from .base import Problem
 
+__all__ = [
+    'Function',
+]
+
 
 class Function(Problem):
     """

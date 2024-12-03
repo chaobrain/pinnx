@@ -5,14 +5,12 @@ import brainunit as u
 
 from pinnx.utils import get_activation
 from .base import NN
-from .deeponet_strategy import (
-    DeepONetStrategy,
-    SingleOutputStrategy,
-    IndependentStrategy,
-    SplitBothStrategy,
-    SplitBranchStrategy,
-    SplitTrunkStrategy,
-)
+from .deeponet_strategy import (DeepONetStrategy,
+                                SingleOutputStrategy,
+                                IndependentStrategy,
+                                SplitBothStrategy,
+                                SplitBranchStrategy,
+                                SplitTrunkStrategy)
 from .fnn import FNN
 
 strategies = {
@@ -251,7 +249,7 @@ class DeepONetCartesianProd(NN):
         x = self.multi_output_strategy.call(x_func, x_loc)
         if self._output_transform is not None:
             x = self._output_transform(inputs, x)
-        return x
+        return x if x.ndim == 3 else x[..., None]
 
 
 class PODDeepONet(NN):

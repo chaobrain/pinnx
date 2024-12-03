@@ -54,7 +54,7 @@ problem = pinnx.problem.PDE(
     pde,
     approximator=net,
     solution=sol,
-    ic_bcs=[observe_u],
+    constraints=[observe_u],
     num_domain=100,
     num_boundary=0,
     train_distribution="uniform",

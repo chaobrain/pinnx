@@ -20,31 +20,39 @@ import jax
 
 
 def mean_absolute_error(y_true, y_pred):
-    return jax.tree.map(lambda x, y: braintools.metric.absolute_error(x, y).mean(),
-                        y_true,
-                        y_pred,
-                        is_leaf=u.math.is_quantity)
+    return jax.tree.map(
+        lambda x, y: braintools.metric.absolute_error(x, y).mean(),
+        y_true,
+        y_pred,
+        is_leaf=u.math.is_quantity
+    )
 
 
 def mean_squared_error(y_true, y_pred):
-    return jax.tree.map(lambda x, y: braintools.metric.squared_error(x, y).mean(),
-                        y_true,
-                        y_pred,
-                        is_leaf=u.math.is_quantity)
+    return jax.tree.map(
+        lambda x, y: braintools.metric.squared_error(x, y).mean(),
+        y_true,
+        y_pred,
+        is_leaf=u.math.is_quantity
+    )
 
 
 def mean_l2_relative_error(y_true, y_pred):
-    return jax.tree.map(lambda x, y: braintools.metric.l2_norm(x, y).mean(),
-                        y_true,
-                        y_pred,
-                        is_leaf=u.math.is_quantity)
+    return jax.tree.map(
+        lambda x, y: braintools.metric.l2_norm(x, y).mean(),
+        y_true,
+        y_pred,
+        is_leaf=u.math.is_quantity
+    )
 
 
 def softmax_cross_entropy(y_true, y_pred):
-    return jax.tree.map(lambda x, y: braintools.metric.softmax_cross_entropy(x, y).mean(),
-                        y_true,
-                        y_pred,
-                        is_leaf=u.math.is_quantity)
+    return jax.tree.map(
+        lambda x, y: braintools.metric.softmax_cross_entropy(x, y).mean(),
+        y_true,
+        y_pred,
+        is_leaf=u.math.is_quantity
+    )
 
 
 LOSS_DICT = {

@@ -10,6 +10,20 @@ import numpy as np
 from . import utils
 
 
+__all__ = [
+    'Callback',
+    'CallbackList',
+    'ModelCheckpoint',
+    'EarlyStopping',
+    'Timer',
+    'DropoutUncertainty',
+    'VariableValue',
+    'OperatorPredictor',
+    'MovieDumper',
+    'PDEPointResampler',
+]
+
+
 class Callback:
     """
     Callback base class.
@@ -471,7 +485,7 @@ class MovieDumper(Callback):
         self.epochs_since_last_save = 0
 
     def on_train_begin(self):
-        self.y.append(self.model._compute_outputs(False, self.x)[:, self.component])
+        self.y.append(self.model.fn_outputs(False, self.x)[:, self.component])
         if self.save_spectrum:
             A = np.fft.rfft(self.y[-1])
             self.spectrum.append(np.abs(A))

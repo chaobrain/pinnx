@@ -56,6 +56,7 @@ class Model(bst.nn.Module):
         assert isinstance(output, ArrayToDict), "output must be an instance of Output."
         self.output = output
 
+    @bst.compile.jit(static_argnums=(0,))
     def update(self, x):
         return self.output(self.approx(self.input(x)))
 

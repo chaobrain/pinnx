@@ -3,9 +3,16 @@ import numpy as np
 from pinnx.utils import run_if_any_none, standardize
 from .base import Problem
 
+__all__ = [
+    "MfFunc",
+    "MfDataSet",
+]
+
 
 class MfFunc(Problem):
-    """Multifidelity function approximation."""
+    """
+    Multifidelity function approximation.
+    """
 
     def __init__(
         self, geom, func_lo, func_hi, num_lo, num_hi, num_test, dist_train="uniform"
@@ -23,7 +30,7 @@ class MfFunc(Problem):
         self.X_test = None
         self.y_test = None
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
+    def losses(self, inputs, outputs, targets, **kwargs):
         loss_lo = loss_fn(targets[0][: self.num_lo], outputs[0][: self.num_lo])
         loss_hi = loss_fn(targets[1][self.num_lo:], outputs[1][self.num_lo:])
         return [loss_lo, loss_hi]
@@ -108,13 +115,13 @@ class MfDataSet(Problem):
         if standardize:
             self._standardize()
 
-    def losses_train(self, targets, outputs, loss_fn, inputs, model, aux=None):
+    def losses_train(self, inputs, outputs, targets, **kwargs):
         n = len(self.X_lo_train)
         loss_lo = loss_fn(targets[0][:n], outputs[0][:n])
         loss_hi = loss_fn(targets[1][n:], outputs[1][n:])
         return [loss_lo, loss_hi]
 
-    def losses_test(self, targets, outputs, loss_fn, inputs, model, aux=None):
+    def losses_test(self, inputs, outputs, targets, **kwargs):
         return [0, loss_fn(targets[1], outputs[1])]
 
     @run_if_any_none("X_train", "y_train")

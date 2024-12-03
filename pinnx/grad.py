@@ -243,6 +243,7 @@ def jacobian(
     y: str | Sequence[str] | None = None,
     x: str | Sequence[str] | None = None,
     mode: str = 'backward',
+    vmap: bool = True,
 ):
     """
     Compute `Jacobian matrix <https://en.wikipedia.org/wiki/Jacobian_matrix_and_determinant>`_
@@ -261,7 +262,7 @@ def jacobian(
     Returns:
         (`i`, `j`)th entry J[`i`, `j`], `i`th row J[`i`, :], or `j`th column J[:, `j`].
     """
-    assert isinstance(xs, dict), 'xs must be a dictionary.'
+    # assert isinstance(xs, dict), 'xs must be a dictionary.'
     assert isinstance(mode, str), 'mode must be a string.'
     assert mode in ['backward', 'forward'], 'mode must be either backward or forward.'
 
@@ -280,7 +281,10 @@ def jacobian(
         transform = GradientTransform(fn, _raw_jacfwd, transform_params={'y': y, 'x': x})
     else:
         raise ValueError('Invalid mode. Choose between backward and forward.')
-    return bst.augment.vmap(transform)(xs)
+    if vmap:
+        return bst.augment.vmap(transform)(xs)
+    else:
+        return transform(xs)
 
 
 def hessian(
@@ -289,6 +293,7 @@ def hessian(
     y: str | Sequence[str] | None = None,
     xi: str | Sequence[str] | None = None,
     xj: str | Sequence[str] | None = None,
+    vmap: bool = True,
 ):
     """
     Compute `Hessian matrix <https://en.wikipedia.org/wiki/Hessian_matrix>`_ H as
@@ -306,9 +311,12 @@ def hessian(
     Returns:
         H[`i`, `j`].
     """
-    assert isinstance(xs, dict), 'xs must be a dictionary.'
+    # assert isinstance(xs, dict), 'xs must be a dictionary.'
     transform = GradientTransform(fn, _raw_hessian, transform_params={'y': y, 'xi': xi, 'xj': xj})
-    return bst.augment.vmap(transform)(xs)
+    if vmap:
+        return bst.augment.vmap(transform)(xs)
+    else:
+        return transform(xs)
 
 
 def gradient(

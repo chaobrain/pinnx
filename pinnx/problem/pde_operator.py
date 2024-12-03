@@ -1,24 +1,38 @@
-from functools import partial
+from __future__ import annotations
 
-import brainstate as bst
+from typing import Callable, Sequence, Union, Optional, Any, Dict
+
+import jax
 import brainunit as u
+import brainstate as bst
 import numpy as np
 
+from pinnx.fnspace import FunctionSpace
+from pinnx.geometry import DictPointGeometry
+from pinnx.icbc.base import ICBC
 from pinnx.utils import run_if_all_none
 from pinnx.utils.sampler import BatchSampler
-from .base import Problem
-from .pde import PDE
+from .pde import TimePDE
+
+__all__ = [
+    'PDEOperator',
+    'PDEOperatorCartesianProd',
+]
+
+Inputs = Any
+Outputs = Any
+Auxiliary = Any
+Residual = Any
 
 
-class PDEOperator(Problem):
+class PDEOperator(TimePDE):
     """
     PDE solution operator.
 
     Args:
-        pde: Instance of ``pinnx.problem.PDE`` or ``pinnx.problem.TimePDE``.
-        function_space: Instance of ``pinnx.problem.FunctionSpace``.
+        function_space: Instance of ``pinnx.fnspace.FunctionSpace``.
         evaluation_points: A NumPy array of shape (n_points, dim). Discretize the input
-            function sampled from `function_space` using pointwise evaluations at a set
+            function sampled from `function_space` using point-wise evaluations at a set
             of points as the input of the branch net.
         num_function (int): The number of functions for training.
         function_variables: ``None`` or a list of integers. The functions in the
@@ -28,113 +42,136 @@ class PDEOperator(Problem):
             variables of the function by `function_variables=[0]`, where `0` indicates
             the first variable `x`. If ``None``, then we assume the domains of the
             function and the PDE are the same.
-        num_test: The number of functions for testing PDE loss. The testing functions
+        num_fn_test: The number of functions for testing PDE loss. The testing functions
             for BCs/ICs are the same functions used for training. If ``None``, then the
             training functions will be used for testing.
-
-    Attributes:
-        train_bc: A triple of three Numpy arrays (v, x, vx) fed into PIDeepONet for
-            training BCs/ICs.
-        num_bcs (list): `num_bcs[i]` is the number of points for `ic_bcs[i]`.
-        train_x: A tuple of two Numpy arrays (v, x) fed into PIDeepONet for training. v
-            is the function input to the branch net; x is the point input to
-            the trunk net. `train_x` is ordered from BCs/ICs (`train_bc`) to PDEs.
-        train_aux_vars: v(x), i.e., the value of v evaluated at x.
     """
 
     def __init__(
         self,
-        pde: PDE,
-        function_space,
+        geometry: DictPointGeometry,
+        pde: Callable[[Inputs, Outputs, Auxiliary], Residual],
+        constraints: Union[ICBC, Sequence[ICBC]],
+        function_space: FunctionSpace,
         evaluation_points,
-        num_function,
-        function_variables=None,
-        num_test=None,
+        num_function: int,
+        function_variables: Optional[Sequence[int]] = None,
+        num_test: int = None,
+        approximator: Optional[bst.nn.Module] = None,
+        solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
+        num_domain: int = 0,  # for space PDE
+        num_boundary: int = 0,  # for space PDE
+        num_initial: int = 0,  # for time PDE
+        num_fn_test: int = None,
+        train_distribution: str = "Hammersley",
+        anchors: Optional[bst.typing.ArrayLike] = None,
+        exclusions=None,
+        loss_fn: str | Callable = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
-        assert isinstance(pde, PDE), "pde must be an instance of PDE."
-        self.pde = pde
-        self.func_space = function_space
+
+        assert isinstance(function_space, FunctionSpace), (
+            f"Expected `function_space` to be an instance of `FunctionSpace`, "
+            f"but got {type(function_space)}."
+        )
+        self.fn_space = function_space
         self.eval_pts = evaluation_points
-        self.num_func = num_function
         self.func_vars = (
             function_variables
             if function_variables is not None
-            else list(range(pde.geometry.dim))
+            else list(range(geometry.dim))
         )
-        self.num_test = num_test
 
-        self.num_bcs = [n * self.num_func for n in self.pde.num_bcs]
-        self.train_bc = None
-        self.train_x = None
-        self.train_y = None
-        self.train_aux_vars = None
-        self.test_x = None
-        self.test_y = None
-        self.test_aux_vars = None
+        self.num_fn = num_function
+        self.num_fn_test = num_fn_test
 
-        self.train_next_batch()
-        self.test()
+        self.fn_train_bc = None
+        self.fn_train_x = None
+        self.fn_train_y = None
+        self.fn_train_aux_vars = None
+        self.fn_test_x = None
+        self.fn_test_y = None
+        self.fn_test_aux_vars = None
 
-    def losses(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        f = []
-        if self.pde.pde is not None:
-            f = self.pde.pde(partial(model.fn_outputs, True), inputs[1])
-            if not isinstance(f, (list, tuple)):
-                f = [f]
+        super().__init__(
+            geometry=geometry,
+            pde=pde,
+            constraints=constraints,
+            approximator=approximator,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights,
+            num_initial=num_initial,
+            num_domain=num_domain,
+            num_boundary=num_boundary,
+            train_distribution=train_distribution,
+            anchors=anchors,
+            exclusions=exclusions,
+            solution=solution,
+            num_test=num_test,
+        )
 
-        bcs_start = np.cumsum([0] + self.num_bcs)
-        error_f = [fi[bcs_start[-1]:] for fi in f]
-        losses = [loss_fn(u.math.zeros_like(error), error) for error in error_f]
-        for i, bc in enumerate(self.pde.ic_bcs):
-            beg, end = bcs_start[i], bcs_start[i + 1]
-            # The same BC points are used for training and testing.
-            error = bc.error(
-                self.train_x[1],
-                inputs[1],
-                outputs,
-                beg,
-                end,
-                aux_var=self.train_aux_vars,
-            )
-            losses.append(loss_fn(u.math.zeros_like(error), error))
+    def call_pde_errors(self, inputs, outputs, **kwargs):
+        num_bcs = self.num_bcs
+        self.num_bcs = self.num_fn_bcs
+        losses = super().call_pde_errors(inputs, outputs, **kwargs)
+        self.num_bcs = num_bcs
         return losses
 
-    @run_if_all_none("train_x", "train_y", "train_aux_vars")
+    def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
+        num_bcs = self.num_bcs
+        self.num_bcs = self.num_fn_bcs
+        losses = super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
+        self.num_bcs = num_bcs
+        return losses
+
+    @run_if_all_none("fn_train_x", "fn_train_y", "fn_train_aux_vars")
     def train_next_batch(self, batch_size=None):
-        func_feats = self.func_space.random(self.num_func)
-        func_vals = self.func_space.eval_batch(func_feats, self.eval_pts)
+        super().train_next_batch(batch_size)
+
+        self.num_fn_bcs = [n * self.num_fn for n in self.num_bcs]
+        func_feats = self.fn_space.random(self.num_fn)
+        func_vals = self.fn_space.eval_batch(func_feats, self.eval_pts)
         v, x, vx = self.bc_inputs(func_feats, func_vals)
-        if self.pde.pde is not None:
+
+        if self._pde is not None:
             v_pde, x_pde, vx_pde = self.gen_inputs(
-                func_feats, func_vals, self.pde.train_x_all
+                func_feats,
+                func_vals,
+                self.geometry.dict_to_arr(self.train_x_all)
             )
             v = np.vstack((v, v_pde))
             x = np.vstack((x, x_pde))
             vx = np.vstack((vx, vx_pde))
-        self.train_x = (v, x)
-        self.train_aux_vars = vx
-        return self.train_x, self.train_y, self.train_aux_vars
+        self.fn_train_x = (v, x)
+        self.fn_train_aux_vars = {'aux': vx}
+        return self.fn_train_x, self.fn_train_x, self.fn_train_aux_vars
 
-    @run_if_all_none("test_x", "test_y", "test_aux_vars")
+    @run_if_all_none("fn_test_x", "fn_test_y", "fn_test_aux_vars")
     def test(self):
-        if self.num_test is None:
-            self.test_x = self.train_x
-            self.test_aux_vars = self.train_aux_vars
+        super().test()
+
+        if self.num_fn_test is None:
+            self.fn_test_x = self.fn_train_x
+            self.fn_test_aux_vars = self.fn_train_aux_vars
+
         else:
-            func_feats = self.func_space.random(self.num_test)
-            func_vals = self.func_space.eval_batch(func_feats, self.eval_pts)
-            # TODO: Use different BC data from self.train_x
+            func_feats = self.fn_space.random(self.num_fn_test)
+            func_vals = self.fn_space.eval_batch(func_feats, self.eval_pts)
+            # TODO: Use different BC data from self.fn_train_x
             v, x, vx = self.train_bc
-            if self.pde.pde is not None:
+            if self._pde is not None:
+                test_x = self.geometry.dict_to_arr(self.test_x)
                 v_pde, x_pde, vx_pde = self.gen_inputs(
-                    func_feats, func_vals, self.pde.test_x[sum(self.pde.num_bcs):]
+                    func_feats,
+                    func_vals,
+                    test_x[sum(self.num_bcs):]
                 )
                 v = np.vstack((v, v_pde))
                 x = np.vstack((x, x_pde))
                 vx = np.vstack((vx, vx_pde))
-            self.test_x = (v, x)
-            self.test_aux_vars = vx
-        return self.test_x, self.test_y, self.test_aux_vars
+            self.fn_test_x = (v, x)
+            self.fn_test_aux_vars = {'aux': vx}
+        return self.fn_test_x, self.fn_test_y, self.fn_test_aux_vars
 
     def gen_inputs(self, func_feats, func_vals, points):
         # Format:
@@ -146,22 +183,24 @@ class PDEOperator(Problem):
         # v2, x_N1
         v = np.repeat(func_vals, len(points), axis=0)
         x = np.tile(points, (len(func_feats), 1))
-        vx = self.func_space.eval_batch(func_feats, points[:, self.func_vars]).reshape(-1, 1)
+        vx = self.fn_space.eval_batch(func_feats, points[:, self.func_vars]).reshape(-1, 1)
         return v, x, vx
 
     def bc_inputs(self, func_feats, func_vals):
-        if not self.pde.ic_bcs:
+        if len(self.constraints) == 0:
             self.train_bc = (
                 np.empty((0, len(self.eval_pts)), dtype=bst.environ.dftype()),
-                np.empty((0, self.pde.geometry.dim), dtype=bst.environ.dftype()),
+                np.empty((0, self.geometry.dim), dtype=bst.environ.dftype()),
                 np.empty((0, 1), dtype=bst.environ.dftype()),
             )
             return self.train_bc
+
         v, x, vx = [], [], []
-        bcs_start = np.cumsum([0] + self.pde.num_bcs)
-        for i, _ in enumerate(self.pde.num_bcs):
+        bcs_start = np.cumsum([0] + self.num_bcs)
+        train_x_bc = self.geometry.dict_to_arr(self.train_x_bc)
+        for i, _ in enumerate(self.num_bcs):
             beg, end = bcs_start[i], bcs_start[i + 1]
-            vi, xi, vxi = self.gen_inputs(func_feats, func_vals, self.pde.train_x_bc[beg:end])
+            vi, xi, vxi = self.gen_inputs(func_feats, func_vals, train_x_bc[beg:end])
             v.append(vi)
             x.append(xi)
             vx.append(vxi)
@@ -169,14 +208,18 @@ class PDEOperator(Problem):
         return self.train_bc
 
     def resample_train_points(self, pde_points=True, bc_points=True):
-        """Resample the training points for the operator."""
-        self.pde.resample_train_points(pde_points, bc_points)
-        self.train_x, self.train_y, self.train_aux_vars = None, None, None
+        """
+        Resample the training points for the operator.
+        """
+        super().resample_train_points(pde_points=pde_points, bc_points=bc_points)
+
+        self.fn_train_x, self.fn_train_x, self.fn_train_aux_vars = None, None, None
         self.train_next_batch()
 
 
-class PDEOperatorCartesianProd(Problem):
-    """PDE solution operator with problem in the format of Cartesian product.
+class PDEOperatorCartesianProd(TimePDE):
+    """
+    PDE solution operator with problem in the format of Cartesian product.
 
     Args:
         pde: Instance of ``pinnx.problem.PDE`` or ``pinnx.problem.TimePDE``.
@@ -201,154 +244,186 @@ class PDEOperatorCartesianProd(Problem):
         train_x: A tuple of two Numpy arrays (v, x) fed into PIDeepONet for training. v
             is the function input to the branch net and has the shape (`N1`, `dim1`); x
             is the point input to the trunk net and has the shape (`N2`, `dim2`).
-        train_aux_vars: v(x), i.e., the value of v evaluated at x, has the shape (`N1`,
-            `N2`).
     """
 
     def __init__(
         self,
-        pde: PDE,
-        function_space,
+        geometry: DictPointGeometry,
+        pde: Callable[[Inputs, Outputs, Auxiliary], Residual],
+        constraints: Union[ICBC, Sequence[ICBC]],
+        function_space: FunctionSpace,
         evaluation_points,
-        num_function,
-        function_variables=None,
-        num_test=None,
-        batch_size=None,
+        num_function: int,
+        function_variables: Optional[Sequence[int]] = None,
+        num_test: int = None,
+        approximator: Optional[bst.nn.Module] = None,
+        solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
+        num_domain: int = 0,  # for space PDE
+        num_boundary: int = 0,  # for space PDE
+        num_initial: int = 0,  # for time PDE
+        num_fn_test: int = None, # for function space
+        train_distribution: str = "Hammersley",
+        anchors: Optional[bst.typing.ArrayLike] = None,
+        exclusions=None,
+        loss_fn: str | Callable = 'MSE',
+        loss_weights: Sequence[float] = None,
+        batch_size: int = None,
     ):
-        assert isinstance(pde, PDE), "pde must be an instance of PDE."
-        self.pde = pde
-        self.func_space = function_space
+
+        assert isinstance(function_space, FunctionSpace), (
+            f"Expected `function_space` to be an instance of `FunctionSpace`, "
+            f"but got {type(function_space)}."
+        )
+        self.fn_space = function_space
         self.eval_pts = evaluation_points
-        self.num_func = num_function
         self.func_vars = (
             function_variables
             if function_variables is not None
-            else list(range(pde.geometry.dim))
+            else list(range(geometry.dim))
         )
-        self.num_test = num_test
+        self.num_fn = num_function
+        self.num_fn_test = num_fn_test
+
+        self.train_sampler = BatchSampler(self.num_fn, shuffle=True)
         self.batch_size = batch_size
 
-        self.train_x = None
-        self.train_y = None
-        self.train_aux_vars = None
-        self.test_x = None
-        self.test_y = None
-        self.test_aux_vars = None
+        self.fn_train_bc = None
+        self.fn_train_x = None
+        self.fn_train_y = None
+        self.fn_train_aux_vars = None
+        self.fn_test_x = None
+        self.fn_test_y = None
+        self.fn_test_aux_vars = None
 
-        self.train_sampler = BatchSampler(self.num_func, shuffle=True)
-        self.train_next_batch()
-        self.test()
+        super().__init__(
+            geometry=geometry,
+            pde=pde,
+            constraints=constraints,
+            approximator=approximator,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights,
+            num_initial=num_initial,
+            num_domain=num_domain,
+            num_boundary=num_boundary,
+            train_distribution=train_distribution,
+            anchors=anchors,
+            exclusions=exclusions,
+            solution=solution,
+            num_test=num_test,
+        )
 
-    def _losses(self, outputs, loss_fn, inputs, model, num_func):
-        bcs_start = np.cumsum([0] + self.pde.num_bcs)
+    def call_pde_errors(self, inputs, outputs, **kwargs):
+        bcs_start = np.cumsum([0] + self.num_bcs)
 
+        # PDE inputs and outputs, computing PDE losses
+        pde_inputs = (inputs[0], jax.tree.map(lambda x: x[bcs_start[-1]:], inputs[1]))
+        pde_outputs = jax.tree.map(lambda x: x[:, bcs_start[-1]:], outputs)
+        pde_kwargs = jax.tree.map(lambda x: x[:, bcs_start[-1]:], kwargs)
+
+        # error
+        pde_errors = self.pde(pde_inputs, pde_outputs, **pde_kwargs)
+        return pde_errors
+
+    def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
+        bcs_start = np.cumsum([0] + self.num_bcs)
         losses = []
-        for i in range(num_func):
-            out = outputs[i]
-            # Single output
-            if u.math.ndim(out) == 1:
-                out = out[:, None]
-            f = []
-            if self.pde.pde is not None:
-                f = self.pde.pde(partial(model.fn_outputs, True), inputs[1])
-                if not isinstance(f, (list, tuple)):
-                    f = [f]
-            error_f = [fi[bcs_start[-1]:] for fi in f]
-            losses_i = [loss_fn(u.math.zeros_like(error), error) for error in error_f]
+        for i, bc in enumerate(self.constraints):
+            # ICBC inputs and outputs, computing ICBC losses
+            beg, end = bcs_start[i], bcs_start[i + 1]
+            icbc_inputs = (inputs[0], jax.tree.map(lambda x: x[beg:end], inputs[1]))
+            icbc_outputs = jax.tree.map(lambda x: x[:, beg:end], outputs)
+            icbc_kwargs = jax.tree.map(lambda x: x[:, beg:end], kwargs)
 
-            for j, bc in enumerate(self.pde.ic_bcs):
-                beg, end = bcs_start[j], bcs_start[j + 1]
-                # The same BC points are used for training and testing.
-                error = bc.error(
-                    self.train_x[1],
-                    inputs[1],
-                    out,
-                    beg,
-                    end,
-                    aux_var=model.net.auxiliary_vars[i][:, None],
-                )
-                losses_i.append(loss_fn(u.math.zeros_like(error), error))
+            # error
+            error: Dict = bc.error(icbc_inputs, icbc_outputs, **icbc_kwargs)
 
-            losses.append(losses_i)
+            # loss and weights
+            f_loss = loss_fns[i]
+            if loss_weights is not None:
+                w = loss_weights[i]
+                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err) * w, error)
+            else:
+                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err), error)
 
-        losses = zip(*losses)
-        # Use stack instead of as_tensor to keep the gradients.
-        losses = [u.math.mean(u.math.stack(loss, 0)) for loss in losses]
+            # append to losses
+            losses.append({f'ibc{i}': bc_loss})
         return losses
 
-    def losses_train(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        num_func = self.num_func if self.batch_size is None else self.batch_size
-        return self._losses(outputs, loss_fn, inputs, model, num_func)
 
-    def losses_test(self, targets, outputs, loss_fn, inputs, model, aux=None):
-        return self._losses(outputs, loss_fn, inputs, model, len(self.test_x[0]))
+    # def _losses(self, inputs, outputs, num_fn):
+    #     bcs_start = np.cumsum([0] + self.num_bcs)
+    #
+    #     losses = []
+    #     for i in range(num_fn):
+    #         out = outputs[i]
+    #         # Single output
+    #         if u.math.ndim(out) == 1:
+    #             out = out[:, None]
+    #         f = []
+    #         if self.pde.pde is not None:
+    #             f = self.pde.pde(partial(model.fn_outputs, True), inputs[1])
+    #             if not isinstance(f, (list, tuple)):
+    #                 f = [f]
+    #         error_f = [fi[bcs_start[-1]:] for fi in f]
+    #         losses_i = [loss_fn(u.math.zeros_like(error), error) for error in error_f]
+    #
+    #         for j, bc in enumerate(self.constraints):
+    #             beg, end = bcs_start[j], bcs_start[j + 1]
+    #             # The same BC points are used for training and testing.
+    #             error = bc.error(
+    #                 self.fn_train_x[1],
+    #                 inputs[1],
+    #                 out,
+    #                 beg,
+    #                 end,
+    #                 aux_var=model.net.auxiliary_vars[i][:, None],
+    #             )
+    #             losses_i.append(loss_fn(u.math.zeros_like(error), error))
+    #
+    #         losses.append(losses_i)
+    #
+    #     losses = zip(*losses)
+    #     # Use stack instead of as_tensor to keep the gradients.
+    #     losses = [u.math.mean(u.math.stack(loss, 0)) for loss in losses]
+    #     return losses
+    #
+    # def losses_train(self, inputs, outputs, targets, **kwargs):
+    #     num_fn = self.num_fn if self.batch_size is None else self.batch_size
+    #     return self._losses(outputs, inputs, num_fn)
+    #
+    # def losses_test(self, inputs, outputs, targets, **kwargs):
+    #     return self._losses(outputs, inputs, len(self.test_x[0]))
 
     def train_next_batch(self, batch_size=None):
-        if self.train_x is None:
-            func_feats = self.func_space.random(self.num_func)
-            func_vals = self.func_space.eval_batch(func_feats, self.eval_pts)
-            vx = self.func_space.eval_batch(
-                func_feats, self.pde.train_x[:, self.func_vars]
-            )
-            self.train_x = (func_vals, self.pde.train_x)
-            self.train_aux_vars = vx
+        super().train_next_batch(batch_size)
+
+        if self.fn_train_x is None:
+            train_x = self.geometry.dict_to_arr(self.train_x)
+            func_feats = self.fn_space.random(self.num_fn)
+            func_vals = self.fn_space.eval_batch(func_feats, self.eval_pts)
+            vx = self.fn_space.eval_batch(func_feats, train_x[:, self.func_vars])
+            self.fn_train_x = (func_vals, train_x)
+            self.fn_train_aux_vars = {'aux': vx}
 
         if self.batch_size is None:
-            return self.train_x, self.train_y, self.train_aux_vars
+            return self.fn_train_x, self.train_y, self.fn_train_aux_vars
 
         indices = self.train_sampler.get_next(self.batch_size)
-        traix_x = (self.train_x[0][indices], self.train_x[1])
-        return traix_x, self.train_y, self.train_aux_vars[indices]
+        train_x = (self.fn_train_x[0][indices], self.fn_train_x[1])
+        return train_x, self.train_y, {'aux': self.fn_train_aux_vars['aux'][indices]}
 
-    @run_if_all_none("test_x", "test_y", "test_aux_vars")
+    @run_if_all_none("fn_test_x", "test_y", "fn_test_aux_vars")
     def test(self):
-        if self.num_test is None:
-            self.test_x = self.train_x
-            self.test_aux_vars = self.train_aux_vars
+        super().test()
+
+        if self.num_fn_test is None:
+            self.fn_test_x = self.fn_train_x
+            self.fn_test_aux_vars = self.fn_train_aux_vars
         else:
-            func_feats = self.func_space.random(self.num_test)
-            func_vals = self.func_space.eval_batch(func_feats, self.eval_pts)
-            vx = self.func_space.eval_batch(
-                func_feats, self.pde.test_x[:, self.func_vars]
-            )
-            self.test_x = (func_vals, self.pde.test_x)
-            self.test_aux_vars = vx
-        return self.test_x, self.test_y, self.test_aux_vars
-
-
-class ZCSPDEOperatorCartesianProd(PDEOperatorCartesianProd):
-    """Derived `PDEOperatorCartesianProd` class for ZCS support."""
-
-    def _losses(self, outputs, loss_fn, inputs, model, num_func):
-        # PDE
-        f = []
-        if self.pde.pde is not None:
-            f = self.pde.pde(model.net, model.zcs_parameters)
-            if not isinstance(f, (list, tuple)):
-                f = [f]
-        bcs_start = np.cumsum([0] + self.pde.num_bcs)
-        error_f = [fi[:, bcs_start[-1]:] for fi in f]
-        losses = [loss_fn(bkd.zeros_like(error), error) for error in error_f]  # noqa
-
-        # BC
-        for k, bc in enumerate(self.pde.ic_bcs):
-            beg, end = bcs_start[k], bcs_start[k + 1]
-            error_k = []
-            # NOTE: this loop over functions can also be avoided if we implement collective ic/bc
-            for i in range(num_func):
-                output_i = outputs[i]
-                if bkd.ndim(output_i) == 1:  # noqa
-                    output_i = output_i[:, None]
-                error_ki = bc.error(
-                    self.train_x[1],
-                    inputs[1],
-                    output_i,
-                    beg,
-                    end,
-                    aux_var=model.net.auxiliary_vars[i][:, None],
-                )
-                error_k.append(error_ki)
-            error_k = bkd.stack(error_k, axis=0)  # noqa
-            loss_k = loss_fn(bkd.zeros_like(error_k), error_k)  # noqa
-            losses.append(loss_k)
-        return losses
+            test_x = self.geometry.dict_to_arr(self.test_x)
+            func_feats = self.fn_space.random(self.num_fn_test)
+            func_vals = self.fn_space.eval_batch(func_feats, self.eval_pts)
+            vx = self.fn_space.eval_batch(func_feats, test_x[:, self.func_vars])
+            self.fn_test_x = (func_vals, test_x)
+            self.fn_test_aux_vars = {'aux': vx}
+        return self.fn_test_x, self.test_y, {'aux': self.fn_test_aux_vars}
