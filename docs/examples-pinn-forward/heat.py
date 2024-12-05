@@ -1,3 +1,5 @@
+import os
+
 import brainstate as bst
 import numpy as np
 import optax
@@ -5,7 +7,6 @@ import brainunit as u
 
 import pinnx
 
-@bst.compile.jit
 def heat_eq_exact_solution(x, t):
     """Returns the exact solution for a given x and t (for sinusoidal initial conditions).
 
@@ -14,40 +15,47 @@ def heat_eq_exact_solution(x, t):
     x : np.ndarray
     t : np.ndarray
     """
-    return u.math.exp(-(n ** 2 * u.math.pi ** 2 * a * t) / (L ** 2), unit_to_scale=u.becquerel2) * u.math.sin(n * u.math.pi * x / L, unit_to_scale=u.becquerel)  * u.kelvin
+    a_value = a.to_decimal(u.meter2 / u.second).item()
+    n_value = n.to_decimal(u.Hz).item()
+    L_value = L.to_decimal(u.meter).item()
+    return np.exp(-(n_value ** 2 * np.pi ** 2 * a_value * t) / (L_value ** 2)) * np.sin(n_value * np.pi * x / L_value)
 
-@bst.compile.jit
+
 def gen_exact_solution():
     """Generates exact solution for the heat equation for the given values of x and t."""
     # Number of points in each dimension:
     x_dim, t_dim = (256, 201)
 
     # Bounds of 'x' and 't':
-    x_min, t_min = (0 * u.meter, 0.0 * u.second)
-    x_max, t_max = (L, 1.0 * u.second)
+    x_min, t_min = (0, 0.0)
+    x_max, t_max = (L.to_decimal(u.meter), 1.0)
 
     # Create tensors:
-    t = u.math.linspace(t_min, t_max, num=t_dim).reshape((t_dim, 1))
-    x = u.math.linspace(x_min, x_max, num=x_dim).reshape((x_dim, 1))
-    usol = u.math.zeros((x_dim, t_dim), unit=u.kelvin).reshape((x_dim, t_dim))
+    t = np.linspace(t_min, t_max, num=t_dim).reshape(t_dim, 1)
+    x = np.linspace(x_min, x_max, num=x_dim).reshape(x_dim, 1)
+    usol = np.zeros((x_dim, t_dim)).reshape(x_dim, t_dim)
 
     # Obtain the value of the exact solution for each generated point:
     for i in range(x_dim):
         for j in range(t_dim):
-            usol[i, j] = u.math.squeeze(heat_eq_exact_solution(x[i], t[j]))
+            usol[i, j] = heat_eq_exact_solution(x[i], t[j])
 
-    return t, x, usol
-
+    # Save solution:
+    np.savez("heat_eq_data", x=x, t=t, usol=usol)
 
 def gen_testdata():
+    if os.path.exists("heat_eq_data.npz"):
+        return
     """Import and preprocess the dataset with the exact solution."""
-    # Load the data, Obtain the values for t, x, and the excat solution:
-    t, x, exact = gen_exact_solution()
+    # Load the data:
+    data = np.load("heat_eq_data.npz")
+    # Obtain the values for t, x, and the excat solution:
+    t, x, exact = data["t"], data["x"], data["usol"].T
     # Process the data and flatten it out (like labels and features):
-    xx, tt = u.math.meshgrid(x, t)
-    X = u.math.vstack((u.math.ravel(xx), u.math.ravel(tt))).T
+    xx, tt = np.meshgrid(x, t)
+    X = {'x': np.ravel(xx) * u.meter, 't': np.ravel(tt) * u.second}
     y = exact.flatten()[:, None]
-    return X, y
+    return X, y * uy
 
 
 # Problem parameters:
@@ -55,11 +63,13 @@ a = 0.4 * u.meter2 / u.second # Thermal diffusivity
 L = 1 * u.meter  # Length of the bar
 n = 1 * u.Hz # Frequency of the sinusoidal initial conditions
 
+gen_exact_solution()
 
 # Computational geometry:
-geom = pinnx.geometry.Interval('x', 0 * u.meter, L)
-timedomain = pinnx.geometry.TimeDomain('t', 0 * u.second, 1 * u.second)
-geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
+geomtime = pinnx.geometry.GeometryXTime(
+    geometry=pinnx.geometry.Interval(0., 1.),
+    timedomain=pinnx.geometry.TimeDomain(0., 1.)
+).to_dict_point(x=u.meter, t=u.second)
 
 uy = u.kelvin / u.second
 # Initial and boundary conditions:
@@ -114,9 +124,9 @@ trainer.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
 # Plot/print the results
 trainer.saveplot(issave=True, isplot=True)
 
-# X, y_true = gen_testdata()
-# y_pred = trainer.predict(X)
-# f = trainer.predict(X, operator=pde)
-# print("Mean residual:", u.math.mean(np.absolute(f)))
-# print("L2 relative error:", pinnx.metrics.l2_relative_error(y_true, y_pred))
+X, y_true = gen_testdata()
+y_pred = trainer.predict(X)
+f = pde(X, y_pred)
+print("Mean residual:", u.math.mean(u.math.absolute(f)))
+print("L2 relative error:", pinnx.metrics.l2_relative_error(y_true, y_pred['y']))
 # np.savetxt("test.dat", u.math.hstack((X, y_true, y_pred)))
