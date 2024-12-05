@@ -1,12 +1,27 @@
 import sys
 import time
+from typing import Dict, Callable
 
-import brainunit as u
 import brainstate as bst
+import brainunit as u
 import jax.tree
 import numpy as np
 
 from . import utils
+
+
+__all__ = [
+    'Callback',
+    'CallbackList',
+    'ModelCheckpoint',
+    'EarlyStopping',
+    'Timer',
+    'DropoutUncertainty',
+    'VariableValue',
+    'OperatorPredictor',
+    'MovieDumper',
+    'PDEPointResampler',
+]
 
 
 class Callback:
@@ -243,9 +258,9 @@ class EarlyStopping(Callback):
 
     def get_monitor_value(self):
         if self.monitor == "loss_train":
-            result = sum(self.model.train_state.loss_train)
+            result = np.sum(jax.tree.leaves(self.model.train_state.loss_train))
         elif self.monitor == "loss_test":
-            result = sum(self.model.train_state.loss_test)
+            result = np.sum(jax.tree.leaves(self.model.train_state.loss_test))
         else:
             raise ValueError("The specified monitor function is incorrect.")
 
@@ -367,7 +382,8 @@ class VariableValue(Callback):
 
 
 class OperatorPredictor(Callback):
-    """Generates operator values for the input samples.
+    """
+    Generates operator values for the input samples.
 
     Args:
         x: The input data.
@@ -379,7 +395,14 @@ class OperatorPredictor(Callback):
         precision (int): The precision of variables to display.
     """
 
-    def __init__(self, x, op, period=1, filename=None, precision=2):
+    def __init__(
+        self,
+        x: Dict,
+        op: Callable,
+        period: int = 1,
+        filename: str = None,
+        precision: int = 2
+    ):
         super().__init__()
         self.x = x
         self.op = op
@@ -391,14 +414,14 @@ class OperatorPredictor(Callback):
         self.epochs_since_last = 0
 
     def init(self):
-        self.x = torch.as_tensor(self.x)
-        self.x.requires_grad_()
+        pass
 
     def on_train_begin(self):
         self.on_predict_end()
         print(
             self.model.train_state.epoch,
-            utils.list_to_str(self.value.flatten().tolist(), precision=self.precision),
+            # utils.list_to_str(self.value.flatten().tolist(), precision=self.precision),
+            utils.tree_repr(self.value, precision=self.precision),
             file=self.file,
         )
         self.file.flush()
@@ -414,9 +437,14 @@ class OperatorPredictor(Callback):
             self.on_train_begin()
 
     def on_predict_end(self):
-        self.model.net.eval()
-        outputs = self.model.net(self.x)
-        self.value = utils.to_numpy(self.op(self.x, outputs))
+        self.value = self._eval()
+        # self.value = jax.tree.map(np.asarray, self._eval())
+
+    @bst.compile.jit(static_argnums=0)
+    def _eval(self):
+        with bst.environ.context(fit=False):
+            outputs = self.model.problem.approximator(self.x)
+            return self.op(self.x, outputs)
 
     def get_value(self):
         return self.value
@@ -457,7 +485,7 @@ class MovieDumper(Callback):
         self.epochs_since_last_save = 0
 
     def on_train_begin(self):
-        self.y.append(self.model._compute_outputs(False, self.x)[:, self.component])
+        self.y.append(self.model.fn_outputs(False, self.x)[:, self.component])
         if self.save_spectrum:
             A = np.fft.rfft(self.y[-1])
             self.spectrum.append(np.abs(A))

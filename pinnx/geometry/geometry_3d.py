@@ -1,16 +1,24 @@
+# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+#
+# Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import itertools
 from typing import Union, Literal
 
-import brainunit as u
 import numpy as np
 
 from .geometry_2d import Rectangle
 from .geometry_nd import Hypercube, Hypersphere
-
-__all__ = [
-    'Cuboid',
-    'Sphere',
-]
 
 
 class Cuboid(Hypercube):
@@ -66,14 +74,20 @@ class Cuboid(Hypercube):
                 pts.append(np.hstack((np.full((len(u), 1), v), u)))
         pts = np.vstack(pts)
         if n != len(pts):
-            print("Warning: {} points required, but {} points sampled.".format(n, len(pts)))
+            print(
+                "Warning: {} points required, but {} points sampled.".format(
+                    n, len(pts)
+                )
+            )
         return pts
 
     def boundary_constraint_factor(
         self,
         x,
         smoothness: Literal["C0", "C0+", "Cinf"] = "C0+",
-        where: Union[None, Literal["back", "front", "left", "right", "bottom", "top"]] = None,
+        where: Union[
+            None, Literal["back", "front", "left", "right", "bottom", "top"]
+        ] = None,
         inside: bool = True,
     ):
         """Compute the hard constraint factor at x for the boundary.
@@ -123,7 +137,9 @@ class Cuboid(Hypercube):
             Each element in the tensor corresponds to the computed distance value for the respective point in `x`.
         """
         if where not in [None, "back", "front", "left", "right", "bottom", "top"]:
-            raise ValueError("where must be one of None, back, front, left, right, bottom, top")
+            raise ValueError(
+                "where must be one of None, back, front, left, right, bottom, top"
+            )
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
         if self.dim != 3:
@@ -131,11 +147,19 @@ class Cuboid(Hypercube):
         if not inside:
             raise ValueError("inside=False is not supported for Cuboid")
 
+        if not hasattr(self, "self.xmin_tensor"):
+            self.xmin_tensor = np.asarray(self.xmin)
+            self.xmax_tensor = np.asarray(self.xmax)
+
         dist_l = dist_r = None
         if where not in ["front", "right", "top"]:
-            dist_l = u.math.abs((x - self.xmin) / (self.xmax - self.xmin) * 2)
+            dist_l = np.abs(
+                (x - self.xmin_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
+            )
         if where not in ["back", "left", "bottom"]:
-            dist_r = u.math.abs((x - self.xmax) / (self.xmax - self.xmin) * 2)
+            dist_r = np.abs(
+                (x - self.xmax_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
+            )
 
         if where == "back":
             return dist_l[:, 0:1]
@@ -151,11 +175,11 @@ class Cuboid(Hypercube):
             return dist_r[:, 2:]
 
         if smoothness == "C0":
-            dist_l = u.math.min(dist_l, dim=-1, keepdims=True)
-            dist_r = u.math.min(dist_r, dim=-1, keepdims=True)
-            return u.math.minimum(dist_l, dist_r)
-        dist_l = u.math.prod(dist_l, dim=-1, keepdims=True)
-        dist_r = u.math.prod(dist_r, dim=-1, keepdims=True)
+            dist_l = np.min(dist_l, dim=-1, keepdims=True)
+            dist_r = np.min(dist_r, dim=-1, keepdims=True)
+            return np.minimum(dist_l, dist_r)
+        dist_l = np.prod(dist_l, dim=-1, keepdims=True)
+        dist_r = np.prod(dist_r, dim=-1, keepdims=True)
         return dist_l * dist_r
 
 

@@ -5,8 +5,8 @@ import os
 from multiprocessing import Pool
 
 import braintools
-import jax
 import brainunit as u
+import jax
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
@@ -140,8 +140,11 @@ def plot_loss_history(loss_history, fname=None):
     metric_tests = jax.tree.map(lambda *a: u.math.asarray(a), *loss_history.metrics_test)
 
     for i in range(len(loss_history.metrics_test[0])):
-        for k, v in metric_tests[i].items():
-            plt.semilogy( loss_history.steps, v, label=f"Test metric {k}")
+        if isinstance(metric_tests[i], dict):
+            for k, v in metric_tests[i].items():
+                plt.semilogy(loss_history.steps, v, label=f"Test metric {k}")
+        else:
+            plt.semilogy(loss_history.steps, metric_tests[i], label=f"Test metric {i}")
     plt.xlabel("# Steps")
     plt.legend()
 
@@ -155,7 +158,6 @@ def save_loss_history(loss_history, fname):
 
     train_losses = jax.tree.map(lambda *a: u.math.asarray(a), *loss_history.loss_train)
     braintools.file.msgpack_save(fname, train_losses)
-
 
 
 def _pack_data(train_state):
@@ -328,11 +330,7 @@ def isclose(a, b):
     Args:
         a, b (array like): DictToArray arrays to compare.
     """
-    if isinstance(a, np.ndarray):
-        pack = np
-    else:
-        pack = u.math
-
+    pack = smart_numpy(a)
     a_dtype = a.dtype
     a_unit = u.get_unit(a)
     if a_dtype == np.float32:
@@ -342,3 +340,14 @@ def isclose(a, b):
     else:
         atol = u.maybe_decimal(u.Quantity(1e-8, unit=a_unit))
     return pack.isclose(a, b, atol=atol)
+
+
+def smart_numpy(x):
+    if isinstance(x, np.ndarray):
+        return np
+    elif isinstance(x, jax.Array):
+        return jax.numpy
+    elif isinstance(x, u.Quantity):
+        return u.math
+    else:
+        raise TypeError(f"Unknown type {type(x)}.")

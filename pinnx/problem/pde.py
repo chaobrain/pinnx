@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Callable, Sequence, Union, Optional, Dict, List
 
 import brainstate as bst
@@ -6,12 +8,13 @@ import jax.tree
 import numpy as np
 
 from pinnx import utils
-from pinnx.geometry import GeometryXTime, AbstractGeometry
-from pinnx.icbc import ICBC
+from pinnx.geometry import GeometryXTime, DictPointGeometry
 from .base import Problem
+from ..icbc.base import ICBC
 
 __all__ = [
-    "PDE", "TimePDE"
+    "PDE",
+    "TimePDE"
 ]
 
 
@@ -19,10 +22,10 @@ class PDE(Problem):
     """ODE or time-independent PDE solver.
 
     Args:
-        approximator: A neural network trainer for approximating the solution.
         geometry: Instance of ``Geometry``.
-        ic_bcs: A boundary condition or a list of boundary conditions. Use ``[]`` if no
+        constraints: A boundary condition or a list of boundary conditions. Use ``[]`` if no
             boundary condition.
+        approximator: A neural network trainer for approximating the solution.
         num_domain (int): The number of training points sampled inside the domain.
         num_boundary (int): The number of training points sampled on the boundary.
         train_distribution (string): The distribution to sample training points. One of
@@ -67,7 +70,7 @@ class PDE(Problem):
             won't be updated when `train_x_all` changes. To update `train_x_bc`, set it
             to `None` and call `bc_points`, and then update the loss function by
             ``trainer.compile()``.
-        num_bcs (list): `num_bcs[i]` is the number of points for `ic_bcs[i]`.
+        num_bcs (list): `num_bcs[i]` is the number of points for `constraints[i]`.
         train_x: A Numpy array of the points fed into the network for training.
             `train_x` is ordered from BC points (`train_x_bc`) to PDE points
             (`train_x_all`), and may have duplicate points.
@@ -77,9 +80,9 @@ class PDE(Problem):
 
     def __init__(
         self,
-        geometry: AbstractGeometry,
+        geometry: DictPointGeometry,
         pde: Callable,
-        ic_bcs: Union[ICBC, Sequence[ICBC]],
+        constraints: Union[ICBC, Sequence[ICBC]],
         approximator: Optional[bst.nn.Module] = None,
         solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
         loss_fn: str | Callable = 'MSE',
@@ -89,19 +92,26 @@ class PDE(Problem):
         train_distribution: str = "Hammersley",
         anchors: Optional[bst.typing.ArrayLike] = None,
         exclusions=None,
+        loss_weights: Sequence[float] = None,
     ):
-        super().__init__(approximator=approximator, loss_fn=loss_fn)
+        super().__init__(
+            approximator=approximator,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights
+        )
 
+        assert isinstance(geometry, DictPointGeometry), f"Expected DictPointGeometry, got {type(geometry)}"
         # geometry is a Geometry object
         self.geometry = geometry
 
         # PDE function
-        self.pde = pde
-        assert callable(pde), f"Expected callable, got {type(pde)}"
+        self._pde = pde
+        if pde is not None:
+            assert callable(pde), f"Expected callable, got {type(pde)}"
 
         # initial and boundary conditions
-        self.ic_bcs = ic_bcs if isinstance(ic_bcs, (list, tuple)) else [ic_bcs]
-        for bc in self.ic_bcs:
+        self.constraints = constraints if isinstance(constraints, (list, tuple)) else [constraints]
+        for bc in self.constraints:
             assert isinstance(bc, ICBC), f"Expected ICBC, got {type(bc)}"
             bc.apply_geometry(self.geometry)
             bc.apply_problem(self)
@@ -140,51 +150,87 @@ class PDE(Problem):
         self.train_next_batch()
         self.test()
 
-    @utils.check_not_none('num_bcs')
-    def losses(self, inputs, outputs, targets, **kwargs):
+    def pde(self, *args, **kwargs):
+        """
+        Compute the PDE residual.
+        """
+        if self._pde is not None:
+            return self._pde(*args, **kwargs)
+        else:
+            raise NotImplementedError("PDE is not defined.")
+
+    def call_pde_errors(self, inputs, outputs, **kwargs):
         bcs_start = np.cumsum([0] + self.num_bcs)
 
         # PDE inputs and outputs, computing PDE losses
         pde_inputs = jax.tree.map(lambda x: x[bcs_start[-1]:], inputs)
         pde_outputs = jax.tree.map(lambda x: x[bcs_start[-1]:], outputs)
-        pde_errors = self.pde(pde_inputs, pde_outputs, **kwargs)
+        pde_kwargs = jax.tree.map(lambda x: x[bcs_start[-1]:], kwargs)
+
+        # error
+        pde_errors = self.pde(pde_inputs, pde_outputs, **pde_kwargs)
+        return pde_errors
+
+    def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
+        bcs_start = np.cumsum([0] + self.num_bcs)
+        losses = []
+        for i, bc in enumerate(self.constraints):
+            # ICBC inputs and outputs, computing ICBC losses
+            beg, end = bcs_start[i], bcs_start[i + 1]
+            icbc_inputs = jax.tree.map(lambda x: x[beg:end], inputs)
+            icbc_outputs = jax.tree.map(lambda x: x[beg:end], outputs)
+            icbc_kwargs = jax.tree.map(lambda x: x[beg:end], kwargs)
+
+            # error
+            error: Dict = bc.error(icbc_inputs, icbc_outputs, **icbc_kwargs)
+
+            # loss and weights
+            f_loss = loss_fns[i]
+            if loss_weights is not None:
+                w = loss_weights[i]
+                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err) * w, error)
+            else:
+                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err), error)
+
+            # append to losses
+            losses.append({f'ibc{i}': bc_loss})
+        return losses
+
+    @utils.check_not_none('num_bcs')
+    def losses(self, inputs, outputs, targets, **kwargs):
+        # PDE inputs and outputs, computing PDE losses
+        pde_errors = self.call_pde_errors(inputs, outputs, **kwargs)
         if not isinstance(pde_errors, (list, tuple)):
             pde_errors = [pde_errors]
 
         # loss functions
         if not isinstance(self.loss_fn, (list, tuple)):
-            loss_fn = [self.loss_fn] * (len(pde_errors) + len(self.ic_bcs))
+            loss_fn = [self.loss_fn] * (len(pde_errors) + len(self.constraints))
         else:
             loss_fn = self.loss_fn
-        if len(loss_fn) != len(pde_errors) + len(self.ic_bcs):
-            raise ValueError(f"There are {len(pde_errors) + len(self.ic_bcs)} errors, "
+        if len(loss_fn) != len(pde_errors) + len(self.constraints):
+            raise ValueError(f"There are {len(pde_errors) + len(self.constraints)} errors, "
                              f"but only {len(loss_fn)} losses.")
 
         # PDE loss
         losses = [loss_fn[i](u.math.zeros_like(error), error) for i, error in enumerate(pde_errors)]
         if self.loss_weights is not None:
-            n_loss = len(losses) + len(self.ic_bcs)
-            if len(self.loss_weights) != len(losses) + len(self.ic_bcs):
+            n_loss = len(losses) + len(self.constraints)
+            if len(self.loss_weights) != len(losses) + len(self.constraints):
                 raise ValueError(f"Expected {n_loss} weights, got {len(self.loss_weights)}. "
-                                 f"There are {len(losses)} PDE losses and {len(self.ic_bcs)} IC+BC losses.")
+                                 f"There are {len(losses)} PDE losses and {len(self.constraints)} IC+BC losses.")
             del n_loss
             losses = [w * loss for w, loss in zip(self.loss_weights[:len(losses)], losses)]
 
         # loss of boundary or initial conditions
-        for i, bc in enumerate(self.ic_bcs):
-            beg, end = bcs_start[i], bcs_start[i + 1]
-            icbc_inputs = jax.tree.map(lambda x: x[beg:end], inputs)
-            icbc_outputs = jax.tree.map(lambda x: x[beg:end], outputs)
-            error: Dict = bc.error(icbc_inputs, icbc_outputs, **kwargs)
-            i_loss = len(pde_errors) + i
-            f_loss = loss_fn[i_loss]
-            if self.loss_weights is not None:
-                w = self.loss_weights[i_loss]
-                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err) * w, error)
-            else:
-                bc_loss = jax.tree.map(lambda err: f_loss(u.math.zeros_like(err), err), error)
-            losses.append({f'ibc{i}': bc_loss})
-
+        bc_errors = self.call_bc_errors(
+            loss_fn[len(pde_errors):],
+            self.loss_weights[len(pde_errors):] if self.loss_weights is not None else None,
+            inputs,
+            outputs,
+            **kwargs
+        )
+        losses.extend(bc_errors)
         return losses
 
     @utils.run_if_all_none("train_x", "train_y")
@@ -243,18 +289,18 @@ class PDE(Problem):
         if self.anchors is None:
             self.anchors = anchors
         else:
-            self.anchors = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
+            self.anchors = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         self.anchors,
                                         anchors)
 
         # include anchors in the training points
-        self.train_x_all = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
+        self.train_x_all = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         anchors,
                                         self.train_x_all)
 
         if self.pde is not None:
             # include data in boundary, initial conditions, and PDE
-            self.train_x = jax.tree.map(lambda x, y: u.math.hstack((x, y)),
+            self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         self.bc_points(),
                                         self.train_x_all)
 
@@ -275,7 +321,7 @@ class PDE(Problem):
 
         if self.pde is not None:
             # include data in boundary, initial conditions, and PDE
-            self.train_x = jax.tree.map(lambda x, y: u.math.vstack((x, y)),
+            self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         self.bc_points(),
                                         self.train_x_all)
         else:
@@ -314,6 +360,8 @@ class PDE(Problem):
 
         # exclude points
         if self.exclusions is not None:
+            raise NotImplementedError
+
             # TODO: Check if this is correct
             def is_not_excluded(x):
                 return not np.any([np.allclose(x, y) for y in self.exclusions])
@@ -332,8 +380,9 @@ class PDE(Problem):
         Returns:
             np.ndarray: The boundary condition points.
         """
-        x_bcs = [bc.collocation_points(self.train_x_all) for bc in self.ic_bcs]
-        self.num_bcs = list([len(x[self.geometry.names[0]]) for x in x_bcs])
+        x_bcs = [bc.collocation_points(self.train_x_all) for bc in self.constraints]
+        # self.num_bcs = list([len(x[self.geometry.names[0]]) for x in x_bcs])
+        self.num_bcs = list([len(tuple(x.values())[0]) for x in x_bcs])
         if len(self.num_bcs):
             self.train_x_bc = jax.tree.map(lambda *x: u.math.concatenate(x, axis=0), *x_bcs)
         else:
@@ -345,7 +394,7 @@ class PDE(Problem):
         x = self.geometry.uniform_points(self.num_test, boundary=False)
 
         # # different BC points from self.train_x_bc
-        # x_bcs = [bc.collocation_points(x) for bc in self.ic_bcs]
+        # x_bcs = [bc.collocation_points(x) for bc in self.constraints]
         # x_bcs = jax.tree.map(lambda *x: u.math.vstack(x), *x_bcs)
 
         # reuse the same BC points
@@ -365,9 +414,9 @@ class TimePDE(PDE):
 
     def __init__(
         self,
-        geometry: GeometryXTime,
+        geometry: DictPointGeometry,
         pde: Callable,
-        ic_bcs: Union[ICBC, Sequence[ICBC]],
+        constraints: Union[ICBC, Sequence[ICBC]],
         approximator: Optional[bst.nn.Module] = None,
         num_domain: int = 0,
         num_boundary: int = 0,
@@ -376,14 +425,15 @@ class TimePDE(PDE):
         anchors=None,
         exclusions=None,
         solution=None,
-        num_test=None,
+        num_test: int = None,
+        loss_fn: str | Callable = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
         self.num_initial = num_initial
-        assert isinstance(geometry, GeometryXTime), f"Expected GeometryXTime, got {type(geometry)}"
         super().__init__(
             geometry,
             pde,
-            ic_bcs,
+            constraints,
             num_domain=num_domain,
             num_boundary=num_boundary,
             train_distribution=train_distribution,
@@ -392,6 +442,8 @@ class TimePDE(PDE):
             solution=solution,
             num_test=num_test,
             approximator=approximator,
+            loss_fn=loss_fn,
+            loss_weights=loss_weights,
         )
 
     @utils.run_if_all_none("train_x_all")
@@ -399,6 +451,7 @@ class TimePDE(PDE):
         self.geometry: GeometryXTime
 
         X = super().train_points()
+
         if self.num_initial > 0:
             if self.train_distribution == "uniform":
                 tmp = self.geometry.uniform_initial_points(self.num_initial)
@@ -412,7 +465,3 @@ class TimePDE(PDE):
             X = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=0), X, tmp)
         self.train_x_all = X
         return X
-
-
-class _Empty:
-    pass

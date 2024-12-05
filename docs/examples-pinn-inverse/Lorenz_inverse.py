@@ -1,21 +1,20 @@
 import brainstate as bst
 import numpy as np
-import optax
 
 import pinnx
 
 
 def gen_traindata():
-    data = np.load("../../docs/dataset/Lorenz.npz")
+    data = np.load("../dataset/Lorenz.npz")
     return data["t"], data["y"]
 
 
-C1 = bst.ParamState(1.0)
-C2 = bst.ParamState(1.0)
-C3 = bst.ParamState(1.0)
+C1 = bst.ParamState(8.0)
+C2 = bst.ParamState(20.0)
+C3 = bst.ParamState(-3.0)
 
 
-def Lorenz_system(neu, x):
+def Lorenz_system(x, y):
     """
     Lorenz system.
 
@@ -23,12 +22,11 @@ def Lorenz_system(neu, x):
     dy2/dx = y1 * (15 - y3) - y2
     dy3/dx = y1 * y2 - 8/3 * y3
     """
-    approx = lambda x: pinnx.array_to_dict(neu(x), ["y1", 'y2', 'y3'])
-    jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
+    jacobian = net.jacobian(x)
     y1, y2, y3 = y['y1'], y['y2'], y['y3']
-    dy1_x = jacobian['y1']
-    dy2_x = jacobian['y2']
-    dy3_x = jacobian['y3']
+    dy1_x = jacobian['y1']['t']
+    dy2_x = jacobian['y2']['t']
+    dy3_x = jacobian['y3']['t']
     return [
         dy1_x - C1.value * (y2 - y1),
         dy2_x - y1 * (C2.value - y3) + y2,
@@ -36,54 +34,38 @@ def Lorenz_system(neu, x):
     ]
 
 
-def boundary(_, on_initial):
-    return on_initial
-
-
-geom = pinnx.geometry.TimeDomain(0, 3)
+geom = pinnx.geometry.TimeDomain(0, 3).to_dict_point('t')
 
 # Initial conditions
-# TODO: component parameter is not supported in DirichletBC
-ic1 = pinnx.icbc.IC(geom, lambda X: -8, boundary, component=0)
-ic2 = pinnx.icbc.IC(geom, lambda X: 7, boundary, component=1)
-ic3 = pinnx.icbc.IC(geom, lambda X: 27, boundary, component=2)
+ic = pinnx.icbc.IC(lambda x: {'y1': -8, 'y2': 7, 'y3': 27})
 
 # Get the train data
 observe_t, ob_y = gen_traindata()
-observe_y0 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 0:1], component=0)
-observe_y1 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 1:2], component=1)
-observe_y2 = pinnx.icbc.PointSetBC(observe_t, ob_y[:, 2:3], component=2)
+observe_t = {'t': observe_t.flatten()}
+observe_bc = pinnx.icbc.PointSetBC(
+    observe_t,
+    {'y1': ob_y[:, 0], 'y2': ob_y[:, 1], 'y3': ob_y[:, 2]}
+)
 
-data = pinnx.data.PDE(
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(t=None),
+    pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh"),
+    pinnx.nn.ArrayToDict(y1=None, y2=None, y3=None),
+)
+
+data = pinnx.problem.PDE(
     geom,
     Lorenz_system,
-    [ic1, ic2, ic3, observe_y0, observe_y1, observe_y2],
+    [ic, observe_bc],
+    net,
     num_domain=400,
-    num_boundary=2,
+    num_boundary=20,
     anchors=observe_t,
 )
 
-net = pinnx.nn.FNN([1] + [40] * 3 + [3], "tanh")
-model = pinnx.Trainer(data, net)
+variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=600, filename="../../examples/pinn_inverse/variables.dat")
 
-external_trainable_variables = [C1, C2, C3]
-variable = pinnx.callbacks.VariableValue(
-    external_trainable_variables,
-    period=600,
-    filename="variables.dat"
-)
-
-# train adam
-model.compile(
-    bst.optim.Adam(0.001),
-    external_trainable_variables=external_trainable_variables
-)
-losshistory, train_state = model.train(iterations=20000, callbacks=[variable])
-
-model.compile(
-    bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)),
-    external_trainable_variables=external_trainable_variables
-)
-losshistory, train_state = model.train(10000, callbacks=[variable])
-
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+trainer = pinnx.Trainer(data, external_trainable_variables=[C1, C2, C3])
+trainer.compile(bst.optim.Adam(0.001)).train(iterations=50000, callbacks=[variable])
+# trainer.compile(bst.optim.LBFGS(1e-3)).train(10000, callbacks=[variable])
+trainer.saveplot(issave=True, isplot=True)

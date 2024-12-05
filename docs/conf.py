@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Author: Chaoming Wang <chao.brain@qq.com>
-# Date: 2024-04-03
-# Copyright: 2024, Chaoming Wang
 # ==============================================================================
 
 # Configuration file for the Sphinx documentation builder.
@@ -65,6 +61,7 @@ extensions = [
     'sphinx_design',
     'sphinx_math_dollar',
 ]
+
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".

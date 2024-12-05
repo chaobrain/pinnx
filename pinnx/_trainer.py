@@ -1,4 +1,3 @@
-import functools
 from typing import Union, Sequence, Callable, Optional
 
 import brainstate as bst
@@ -6,27 +5,27 @@ import brainunit as u
 import jax.tree
 import numpy as np
 
-from pinnx._display import training_display
+from pinnx.utils._display import training_display
 from . import metrics as metrics_module
 from . import utils
 from .callbacks import CallbackList, Callback
 from .problem.base import Problem
 
 __all__ = [
-    "LossHistory",
     "Trainer",
-    "TrainState"
+    "TrainState",
+    "LossHistory",
 ]
 
 
 class Trainer:
     """
-    A ``Trainer`` trains a ``NN`` on a ``Problem``.
+    A ``Trainer`` trains a neural network on a ``Problem``.
 
     Args:
         problem: ``pinnx.problem.Problem`` instance.
-        external_trainable_variables: A trainable ``pinnx.Variable`` object or a list
-                of trainable ``pinnx.Variable`` objects. The unknown parameters in the
+        external_trainable_variables: A trainable ``brainstate.ParamState`` object or a list
+                of trainable ``brainstate.ParamState`` objects. The unknown parameters in the
                 physics systems that need to be recovered.
     """
     __module__ = 'pinnx'
@@ -119,18 +118,16 @@ class Trainer:
                     losses = self.problem.losses_test(inputs, outputs, targets, **kwargs)
                 return outputs, losses
 
-        def fn_outputs_losses_train(inputs, targets):
-            return fn_outputs_losses(True, inputs, targets)
+        def fn_outputs_losses_train(inputs, targets, **aux):
+            return fn_outputs_losses(True, inputs, targets, **aux)
 
-        def fn_outputs_losses_test(inputs, targets):
-            return fn_outputs_losses(False, inputs, targets)
+        def fn_outputs_losses_test(inputs, targets, **aux):
+            return fn_outputs_losses(False, inputs, targets, **aux)
 
-        def fn_train_step(inputs, targets):
+        def fn_train_step(inputs, targets, **aux):
             def _loss_fun():
-                losses = fn_outputs_losses_train(inputs, targets)[1]
-                return u.math.sum(
-                    u.math.asarray([l.sum() for l in jax.tree.leaves(losses)]),
-                )
+                losses = fn_outputs_losses_train(inputs, targets, **aux)[1]
+                return u.math.sum(u.math.asarray([loss.sum() for loss in jax.tree.leaves(losses)]))
 
             grads = bst.augment.grad(_loss_fun, grad_states=self.params)()
             self.optimizer.update(grads)
@@ -142,16 +139,6 @@ class Trainer:
         self.fn_train_step = bst.compile.jit(fn_train_step)
 
         return self
-
-    def _compute_outputs(self, training, inputs):
-        outs = self.fn_outputs(training, inputs)
-        return outs
-
-    def _compute_outputs_losses(self, training, inputs, targets):
-        outs = (self.fn_outputs_losses_train(inputs, targets)
-                if training else
-                self.fn_outputs_losses_test(inputs, targets))
-        return outs[0], outs[1]
 
     @utils.timing
     def train(
@@ -201,19 +188,24 @@ class Trainer:
         if disregard_previous_best:
             self.train_state.disregard_best()
 
+        # restore
         if model_restore_path is not None:
             self.restore(model_restore_path, verbose=1)
 
         print("Training trainer...\n")
-
         self.stop_training = False
+
+        # testing
         self.train_state.set_data_train(*self.problem.train_next_batch(batch_size))
         self.train_state.set_data_test(*self.problem.test())
         self._test()
+
+        # training
         callbacks.on_train_begin()
         self._train(iterations, display_every, batch_size, callbacks)
         callbacks.on_train_end()
 
+        # summary
         print("")
         training_display.summary(self.train_state)
         if model_save_path is not None:
@@ -229,7 +221,7 @@ class Trainer:
             self.train_state.set_data_train(*self.problem.train_next_batch(batch_size))
 
             # train one batch
-            self.fn_train_step(self.train_state.X_train, self.train_state.y_train)
+            self.fn_train_step(self.train_state.X_train, self.train_state.y_train, **self.train_state.Aux_train)
 
             self.train_state.epoch += 1
             self.train_state.step += 1
@@ -247,35 +239,38 @@ class Trainer:
         (
             self.train_state.y_pred_train,
             self.train_state.loss_train,
-        ) = self._compute_outputs_losses(
-            True,
+        ) = self.fn_outputs_losses_train(
             self.train_state.X_train,
             self.train_state.y_train,
+            **self.train_state.Aux_train,
         )
 
         # evaluate the test data
         (
             self.train_state.y_pred_test,
             self.train_state.loss_test
-        ) = self._compute_outputs_losses(
-            False,
+        ) = self.fn_outputs_losses_test(
             self.train_state.X_test,
             self.train_state.y_test,
+            **self.train_state.Aux_test,
         )
 
         # metrics
         if isinstance(self.train_state.y_test, (list, tuple)):
             self.train_state.metrics_test = [
-                m(self.train_state.y_test[i], self.train_state.y_pred_test[i])
+                m(self.train_state.y_test[i],
+                  self.train_state.y_pred_test[i])
                 for m in self.metrics
                 for i in range(len(self.train_state.y_test))
             ]
         else:
             self.train_state.metrics_test = [
-                m(self.train_state.y_test, self.train_state.y_pred_test)
+                m(self.train_state.y_test,
+                  self.train_state.y_pred_test)
                 for m in self.metrics
             ]
 
+        # history
         self.train_state.update_best()
         self.loss_history.append(
             self.train_state.step,
@@ -284,12 +279,14 @@ class Trainer:
             self.train_state.metrics_test,
         )
 
+        # check NaN
         if (
             np.isnan(np.asarray(jax.tree.leaves(self.train_state.loss_train))).any()
             or np.isnan(np.asarray(jax.tree.leaves(self.train_state.loss_test))).any()
         ):
             self.stop_training = True
 
+        # display
         training_display(self.train_state)
 
     def predict(
@@ -410,8 +407,10 @@ class TrainState:
         # Current data
         self.X_train = None
         self.y_train = None
+        self.Aux_train = dict()
         self.X_test = None
         self.y_test = None
+        self.Aux_test = dict()
 
         # Results of current step
         # Train results
@@ -434,10 +433,18 @@ class TrainState:
     def set_data_train(self, X_train, y_train, *args):
         self.X_train = X_train
         self.y_train = y_train
+        if len(args) > 0:
+            assert len(args) == 1, "Auxiliary training data must be a single argument."
+            assert isinstance(args[0], dict), "Auxiliary training data must be a dictionary."
+            self.Aux_train = args[0]
 
     def set_data_test(self, X_test, y_test, *args):
         self.X_test = X_test
         self.y_test = y_test
+        if len(args) > 0:
+            assert len(args) == 1, "Auxiliary test data must be a single argument."
+            assert isinstance(args[0], dict), "Auxiliary test data must be a dictionary."
+            self.Aux_test = args[0]
 
     def update_best(self):
         current_loss_train = np.sum(jax.tree.leaves(self.loss_train))
@@ -471,91 +478,3 @@ class LossHistory:
             metrics_test = self.metrics_test[-1]
         self.loss_test.append(loss_test)
         self.metrics_test.append(metrics_test)
-
-
-class ZCSTrainer(Trainer):
-    """Derived `Trainer` class for ZCS support."""
-
-    def __init__(self, problem, net):
-        super().__init__(problem, net)
-        # store ZCS parameters, sent to user for PDE calculation
-        self.zcs_parameters = None
-
-    def _compile_pytorch(self, lr, loss_fn, decay):
-        """pytorch"""
-        super()._compile_pytorch(lr, loss_fn, decay)
-
-        def process_inputs_zcs(inputs):
-            # get inputs
-            branch_inputs, trunk_inputs = inputs
-
-            # convert to tensors with grad disabled
-            branch_inputs = u.math.asarray(branch_inputs)
-            trunk_inputs = u.math.asarray(trunk_inputs)
-
-            # create ZCS scalars
-            n_dim_crds = trunk_inputs.shape[1]
-            zcs_scalars = [
-                u.math.asarray(0.0).requires_grad_() for _ in range(n_dim_crds)
-            ]
-
-            # add ZCS to truck inputs
-            zcs_vector = u.math.stack(zcs_scalars)
-            trunk_inputs = trunk_inputs + zcs_vector[None, :]
-
-            # return inputs and ZCS scalars
-            return (branch_inputs, trunk_inputs), {"leaves": zcs_scalars}
-
-        def outputs_losses_zcs(training, inputs, targets, auxiliary_vars, losses_fn):
-            # aux
-            self.net.auxiliary_vars = None
-            if auxiliary_vars is not None:
-                self.net.auxiliary_vars = u.math.asarray(auxiliary_vars)
-
-            # inputs
-            inputs, self.zcs_parameters = process_inputs_zcs(inputs)
-
-            # forward
-            self.net.train(mode=training)
-            outputs_ = self.net(inputs)
-
-            # losses
-            if targets is not None:
-                targets = u.math.asarray(targets)
-            losses = losses_fn(targets, outputs_, loss_fn, inputs, self)
-            if not isinstance(losses, list):
-                losses = [losses]
-            losses = u.math.stack(losses)
-
-            # TODO: regularization
-
-            # weighted
-            if self.loss_weights is not None:
-                losses *= u.math.asarray(self.loss_weights)
-
-            return outputs_, losses
-
-        def outputs_losses_train_zcs(inputs, targets, auxiliary_vars):
-            return outputs_losses_zcs(
-                True, inputs, targets, auxiliary_vars, self.problem.losses_train
-            )
-
-        def outputs_losses_test_zcs(inputs, targets, auxiliary_vars):
-            return outputs_losses_zcs(
-                False, inputs, targets, auxiliary_vars, self.problem.losses_test
-            )
-
-        def train_step_zcs(inputs, targets, auxiliary_vars):
-            def closure():
-                losses = outputs_losses_train_zcs(inputs, targets, auxiliary_vars)[1]
-                total_loss = u.math.sum(losses)
-                return total_loss
-
-            self.opt.step(closure)
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
-
-        # overwrite callables
-        self.outputs_losses_train = outputs_losses_train_zcs
-        self.outputs_losses_test = outputs_losses_test_zcs
-        self.train_step = train_step_zcs

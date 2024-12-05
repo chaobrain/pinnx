@@ -2,14 +2,12 @@ import brainstate as bst
 import brainunit as u
 import numpy as np
 
-import pinnx as dde
+import pinnx
 
 
-def pde(net, x):
-    x = dde.array_to_dict(x, ["r", "theta"])
-    approx = lambda x: dde.array_to_dict(net(dde.dict_to_array(x)), ["y"])
-    jacobian = dde.grad.jacobian(approx, x)
-    hessian = dde.grad.hessian(approx, x)
+def pde(x, y):
+    jacobian = net.jacobian(x)
+    hessian = net.hessian(x)
 
     dy_r = jacobian["y"]["r"]
     dy_rr = hessian["y"]["r"]["r"]
@@ -18,37 +16,43 @@ def pde(net, x):
 
 
 def solution(x):
-    r, theta = x[:, 0:1], x[:, 1:]
-    return r * np.cos(theta)
+    r, theta = x['r'], x['theta']
+    return {'y': r * u.math.cos(theta)}
 
-# TODO: Rectangle compat with brainunit
-geom = dde.geometry.Rectangle(xmin=[0, 0], xmax=[1, 2 * np.pi])
-bc = dde.icbc.DirichletBC(
-    lambda x: np.cos(x[:, 1:2]),
-    lambda x, on_boundary: on_boundary and dde.utils.isclose(x[0], 1),
+
+geom = pinnx.geometry.Rectangle(xmin=[0, 0], xmax=[1, 2 * np.pi])
+geom = geom.to_dict_point("r", "theta")
+
+bc = pinnx.icbc.DirichletBC(
+    lambda x: {'y': u.math.cos(x['theta'])},
+    lambda x, on_boundary: u.math.logical_and(on_boundary, u.math.allclose(x['r'], 1)),
 )
 
 
 # Use [r*sin(theta), r*cos(theta)] as features,
 # so that the network is automatically periodic along the theta coordinate.
 def feature_transform(x):
-    return u.math.concatenate([x[..., 0:1] * u.math.sin(x[..., 1:2]),
-                               x[..., 0:1] * u.math.cos(x[..., 1:2])], axis=-1)
+    x = pinnx.utils.array_to_dict(x, ["r", "theta"], keep_dim=True)
+    return u.math.concatenate([x['r'] * u.math.sin(x['theta']),
+                               x['r'] * u.math.cos(x['theta'])], axis=-1)
 
 
-net = dde.nn.FNN([geom.dim] + [20] * 3 + [1], "tanh")
-net.apply_feature_transform(feature_transform)
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(r=None, theta=None),
+    pinnx.nn.FNN([geom.dim] + [20] * 3 + [1], "tanh", input_transform=feature_transform),
+    pinnx.nn.ArrayToDict(y=None),
+)
 
-data = dde.problem.PDE(
+data = pinnx.problem.PDE(
     geom,
     pde,
     bc,
+    net,
     num_domain=2540,
     num_boundary=80,
     solution=solution
 )
 
-model = dde.Trainer(data)
-model.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"])
-model.train(iterations=15000)
-model.saveplot(issave=True, isplot=True)
+trainer = pinnx.Trainer(data)
+trainer.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"]).train(iterations=15000)
+trainer.saveplot(issave=True, isplot=True)

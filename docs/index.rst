@@ -5,10 +5,16 @@
 It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
 `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
 For example, it leverages
-`brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-`brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
-`braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
+- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+
+
+Algorithms
+----------
+
+``PINNx`` implements the following algorithms, but with the flexibility and efficiency of JAX:
 
 - Solving different problems using PINN
     - solving forward/inverse ordinary/partial differential equations (ODEs/PDEs) [`SIAM Rev. <https://doi.org/10.1137/19M1274067>`_]
@@ -31,13 +37,6 @@ For example, it leverages
     - Reliable extrapolation [`Comput. Methods Appl. Mech. Eng. <https://doi.org/10.1016/j.cma.2023.116064>`_]
 - multifidelity neural network (MFNN)
     - learning from multifidelity data [`J. Comput. Phys. <https://doi.org/10.1016/j.jcp.2019.109020>`_, `PNAS <https://doi.org/10.1073/pnas.1922210117>`_]
-
-
-.. image:: images/pinn.png
-
-.. image:: images/deeponet.png
-
-.. image:: images/mfnn.png
 
 
 Features
@@ -67,12 +66,11 @@ User guide
 .. toctree::
   :maxdepth: 1
 
-  demos/function
-  demos/pinn_forward
-  demos/pinn_inverse
-  demos/operator
-  user/parallel
-  user/faq
+  examples-function.rst
+  examples-pinn-forward.rst
+  examples-pinn-inverse.rst
+  examples-operator.rst
+
 
 
 Indices and tables

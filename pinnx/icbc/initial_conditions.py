@@ -1,12 +1,13 @@
 """Initial conditions."""
 
+from __future__ import annotations
+
 from typing import Callable, Dict
 
+import brainstate as bst
 import jax
 import numpy as np
 
-import brainstate as bst
-from pinnx import utils
 from .base import ICBC
 
 __all__ = ["IC"]
@@ -35,7 +36,7 @@ class IC(ICBC):
 
     def __init__(
         self,
-        func: Callable[[Dict], Dict],
+        func: Callable[[Dict, ...], Dict] | Callable[[Dict], Dict],
         on_initial: Callable[[Dict, np.array], np.array] = lambda x, on: on,
     ):
         self.func = func
@@ -80,7 +81,7 @@ class IC(ICBC):
         Returns:
             Error for initial conditions.
         """
-        values = self.func(inputs)
+        values = self.func(inputs, **kwargs)
         errors = dict()
         for key, value in values.items():
             errors[key] = outputs[key] - value

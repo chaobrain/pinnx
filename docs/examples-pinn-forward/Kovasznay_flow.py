@@ -1,7 +1,7 @@
 import brainstate as bst
-import numpy as np
-import optax
 import brainunit as u
+import jax.tree
+import numpy as np
 
 import pinnx
 
@@ -10,14 +10,11 @@ nu = 1 / Re
 l = 1 / (2 * nu) - u.math.sqrt(1 / (4 * nu ** 2) + 4 * u.math.pi ** 2)
 
 
-def pde(net, x):
-    x = pinnx.array_to_dict(x, ["x", 'y'])
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['u_vel', 'v_vel', 'p'])
+def pde(x, y):
+    jacobian = net.jacobian(x)
+    hessian = net.hessian(x)
 
-    jacobian, u = pinnx.grad.jacobian(approx, x, return_value=True)
-    hessian = pinnx.grad.hessian(approx, x)
-
-    u_vel, v_vel, p = u['u_vel'], u['v_vel'], u['p']
+    u_vel, v_vel, p = y['u_vel'], y['v_vel'], y['p']
     u_vel_x = jacobian['u_vel']['x']
     u_vel_y = jacobian['u_vel']['y']
     u_vel_xx = hessian['u_vel']['x']['x']
@@ -31,83 +28,57 @@ def pde(net, x):
     p_x = jacobian['p']['x']
     p_y = jacobian['p']['y']
 
-    momentum_x = (
-        u_vel * u_vel_x + v_vel * u_vel_y + p_x - 1 / Re * (u_vel_xx + u_vel_yy)
-    )
-    momentum_y = (
-        u_vel * v_vel_x + v_vel * v_vel_y + p_y - 1 / Re * (v_vel_xx + v_vel_yy)
-    )
+    momentum_x = u_vel * u_vel_x + v_vel * u_vel_y + p_x - 1 / Re * (u_vel_xx + u_vel_yy)
+    momentum_y = u_vel * v_vel_x + v_vel * v_vel_y + p_y - 1 / Re * (v_vel_xx + v_vel_yy)
     continuity = u_vel_x + v_vel_y
 
-    return [momentum_x, momentum_y, continuity]
+    return momentum_x, momentum_y, continuity
+    # return {'momentum_u': momentum_x, 'momentum_v': momentum_y, 'continuity': continuity}
 
 
-def u_func(x):
-    return {'u': 1 - u.math.exp(l * x[:, 0:1]) * u.math.cos(2 * u.math.pi * x[:, 1:2])}
-
-
-def v_func(x):
-    return {'v': l / (2 * u.math.pi) * u.math.exp(l * x[:, 0:1]) * u.math.sin(2 * np.pi * x[:, 1:2])}
-
-
-def p_func(x):
-    return {'p': 1 / 2 * (1 - u.math.exp(2 * l * x[:, 0:1]))}
+def bc_func(x):
+    u_ = 1 - u.math.exp(l * x['x']) * u.math.cos(2 * u.math.pi * x['y'])
+    v = l / (2 * u.math.pi) * u.math.exp(l * x['x']) * u.math.sin(2 * u.math.pi * x['y'])
+    p = 1 / 2 * (1 - u.math.exp(2 * l * x['x']))
+    return {'u_vel': u_, 'v_vel': v, 'p': p}
 
 
 def boundary_outflow(x, on_boundary):
     return on_boundary and pinnx.utils.isclose(x[0], 1)
 
 
-spatial_domain = pinnx.geometry.Rectangle(xmin=[-0.5 * u.meter, -0.5 * u.meter],
-                                          xmax=[1 * u.meter, 1.5 * u.meter])
+spatial_domain = pinnx.geometry.Rectangle(xmin=[-0.5, -0.5], xmax=[1, 1.5])
+spatial_domain = spatial_domain.to_dict_point('x', 'y')
 
-# TODO: component parameter is not supported in DirichletBC
-boundary_condition_u = pinnx.icbc.DirichletBC(
-    spatial_domain, u_func, component=0
-)
-boundary_condition_v = pinnx.icbc.DirichletBC(
-    spatial_domain, v_func, lambda _, on_boundary: on_boundary, component=1
-)
-boundary_condition_right_p = pinnx.icbc.DirichletBC(
-    spatial_domain, p_func, boundary_outflow, component=2
+bc = pinnx.icbc.DirichletBC(bc_func)
+
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None, y=None),
+    pinnx.nn.FNN([2] + 4 * [50] + [3], "tanh"),
+    pinnx.nn.ArrayToDict(u_vel=None, v_vel=None, p=None),
 )
 
 data = pinnx.problem.PDE(
     spatial_domain,
     pde,
-    [boundary_condition_u, boundary_condition_v, boundary_condition_right_p],
+    [bc],
+    net,
     num_domain=2601,
     num_boundary=400,
     num_test=100000,
 )
 
-net = pinnx.nn.FNN([2] + 4 * [50] + [3], "tanh")
-
-model = pinnx.Trainer(data, net)
-
-model.compile(bst.optim.Adam(1e-3))
-model.train(iterations=30000)
-model.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
-losshistory, train_state = model.train(2000)
+trainer = pinnx.Trainer(data)
+trainer.compile(bst.optim.Adam(1e-3)).train(iterations=30000)
+trainer.compile(bst.optim.LBFGS(1e-3)).train(iterations=2000)
 
 X = spatial_domain.random_points(100000)
-output = model.predict(X)
-u_pred = output[:, 0]
-v_pred = output[:, 1]
-p_pred = output[:, 2]
+output = trainer.predict(X)
 
-u_exact = u_func(X).reshape(-1)
-v_exact = v_func(X).reshape(-1)
-p_exact = p_func(X).reshape(-1)
+u_exact = bc_func(X)
+l2_difference = pinnx.metrics.l2_relative_error(u_exact, output)
 
-f = model.predict(X, operator=pde)
-
-l2_difference_u = pinnx.metrics.l2_relative_error(u_exact, u_pred)
-l2_difference_v = pinnx.metrics.l2_relative_error(v_exact, v_pred)
-l2_difference_p = pinnx.metrics.l2_relative_error(p_exact, p_pred)
-residual = np.mean(np.absolute(f))
-
+f = pde(X, output)
+residual = jax.tree.map(lambda x: np.mean(np.absolute(x)), f)
 print("Mean residual:", residual)
-print("L2 relative error in u:", l2_difference_u)
-print("L2 relative error in v:", l2_difference_v)
-print("L2 relative error in p:", l2_difference_p)
+print("L2 relative error:", l2_difference)

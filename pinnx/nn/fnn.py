@@ -93,8 +93,10 @@ class PFNN(NN):
         input_transform: Optional[Callable] = None,
         output_transform: Optional[Callable] = None,
     ):
-        super().__init__(input_transform=input_transform,
-                         output_transform=output_transform)
+        super().__init__(
+            input_transform=input_transform,
+            output_transform=output_transform
+        )
         self.activation = get_activation(activation)
 
         if len(layer_sizes) <= 1:

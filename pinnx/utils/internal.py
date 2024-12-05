@@ -196,7 +196,9 @@ def list_to_str(nums, precision=2):
 
 
 def tree_repr(tree, precision: int = 2):
-    return repr(jax.tree.map(lambda x: "{:.{}e}".format(x, precision), tree, is_leaf=u.math.is_quantity))
+    with np.printoptions(precision=precision, suppress=True, threshold=5):
+        return repr(tree)
+        # return repr(jax.tree.map(lambda x: repr(x), tree, is_leaf=u.math.is_quantity))
 
 
 def get_num_args(func):

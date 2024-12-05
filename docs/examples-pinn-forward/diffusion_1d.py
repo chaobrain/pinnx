@@ -1,24 +1,32 @@
 import brainstate as bst
 import brainunit as u
-import numpy as np
 
 import pinnx
 
-geom = pinnx.geometry.Interval('x', -1 * u.meter, 1. * u.meter)
-timedomain = pinnx.geometry.TimeDomain('t', 0 * u.second, 1 * u.second)
+geom = pinnx.geometry.Interval(-1, 1)
+timedomain = pinnx.geometry.TimeDomain(0, 1)
 geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
+geomtime = geomtime.to_dict_point('x', 't')
 
 
-bc = pinnx.icbc.DirichletBC(geomtime, func, lambda _, on_boundary: on_boundary)
-ic = pinnx.icbc.IC(geomtime, func, lambda _, on_initial: on_initial)
+def func(x):
+    return {'y': u.math.sin(u.math.pi * x['x']) * u.math.exp(-x['t'])}
 
-# TODO: The units on both sides of the equation are not equal
-def pde(net, x):
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ["y"])
-    x = pinnx.array_to_dict(x, ["x", "t"])
-    jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
-    hessian = pinnx.grad.hessian(approx, x)
 
+bc = pinnx.icbc.DirichletBC(func)
+ic = pinnx.icbc.IC(func)
+
+layer_size = [2] + [32] * 3 + [1]
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=None, t=None),
+    pinnx.nn.FNN(layer_size, 'tanh', bst.init.KaimingUniform()),
+    pinnx.nn.ArrayToDict(y=None)
+)
+
+
+def pde(x, y):
+    jacobian = net.jacobian(x, x='t')
+    hessian = net.hessian(x, xi='x', xj='x')
     dy_t = jacobian["y"]["t"]
     dy_xx = hessian["y"]["x"]["x"]
     return (
@@ -30,16 +38,11 @@ def pde(net, x):
     )
 
 
-def func(x):
-    return np.sin(np.pi * x[:, 0:1]) * np.exp(-x[:, 1:])
-
-
-
-
-data = pinnx.data.TimePDE(
+problem = pinnx.problem.TimePDE(
     geomtime,
     pde,
     [bc, ic],
+    net,
     num_domain=40,
     num_boundary=20,
     num_initial=10,
@@ -47,12 +50,6 @@ data = pinnx.data.TimePDE(
     num_test=10000,
 )
 
-layer_size = [2] + [32] * 3 + [1]
-net = pinnx.nn.FNN(layer_size, 'tanh', bst.init.KaimingUniform())
-
-model = pinnx.Trainer(data, net)
-
-model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"])
-losshistory, train_state = model.train(iterations=10000)
-
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+trainer = pinnx.Trainer(problem)
+trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
+trainer.saveplot(issave=True, isplot=True)

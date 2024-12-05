@@ -19,8 +19,8 @@ from typing import Dict, Sequence
 
 import brainstate as bst
 
+from pinnx.grad import jacobian, hessian, gradient
 from .convert import DictToArray, ArrayToDict
-from .grad import jacobian, hessian
 
 __all__ = [
     'Model',
@@ -43,6 +43,7 @@ class Model(bst.nn.Module):
         input: DictToArray,
         approx: bst.nn.Module,
         output: ArrayToDict,
+        *args,
     ):
         super().__init__()
 
@@ -55,6 +56,7 @@ class Model(bst.nn.Module):
         assert isinstance(output, ArrayToDict), "output must be an instance of Output."
         self.output = output
 
+    @bst.compile.jit(static_argnums=(0,))
     def update(self, x):
         return self.output(self.approx(self.input(x)))
 
@@ -103,7 +105,9 @@ class Model(bst.nn.Module):
     def gradient(
         self,
         inputs: Dict[str, bst.typing.ArrayLike],
-        order: int
+        order: int,
+        y: str | Sequence[str] | None = None,
+        *xi: str | Sequence[str] | None,
     ):
         """
         Compute the gradient of the approximator.
@@ -111,8 +115,11 @@ class Model(bst.nn.Module):
         Args:
             inputs: The input data.
             order: The order of the gradient.
+            y: The output variables.
+            xi: The input variables.
 
         Returns:
             The gradient of the approximator.
         """
         assert isinstance(order, int) and order >= 1, "order must be an integer greater than or equal to 1."
+        return gradient(self, inputs, y, *xi, order=order)
