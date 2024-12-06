@@ -48,7 +48,7 @@ trainer.compile(bst.optim.LBFGS(1e-3)).train(1000)
 
 X = geomtime.random_points(100000)
 err = 1
-while u.get_magnitude(err) > 0.005:
+while u.get_magnitude(err) > 0.012:
     f = trainer.predict(X, operator=pde)
     err_eq = u.math.absolute(f)
     err = u.math.mean(err_eq)
