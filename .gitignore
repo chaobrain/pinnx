@@ -25,3 +25,7 @@ pinnx/_version.py
 .idea/
 
 related-projects.md
+
+# .dat files in the docs folder and it's subfolders
+docs/**/*.dat
+docs/**/*.npz

@@ -4,6 +4,26 @@ import numpy as np
 
 import pinnx
 
+# geom = pinnx.geometry.Rectangle(xmin=[0, 0], xmax=[1, 2 * np.pi])
+# geom = geom.to_dict_point("r", "theta")
+
+geom = pinnx.geometry.Rectangle(
+    xmin=[0, 0],
+    xmax=[1, 2 * np.pi],
+).to_dict_point(r=u.meter, theta=u.radian)
+
+uy = u.volt / u.meter
+bc = pinnx.icbc.DirichletBC(
+    lambda x: {'y': u.math.cos(x['theta']) * uy},
+    lambda x, on_boundary: u.math.logical_and(on_boundary, u.math.allclose(x['r'], 1 * u.meter)),
+)
+
+
+def solution(x):
+    r, theta = x['r'], x['theta']
+    # TODO: Why add more divide u.meter?
+    return {'y': r * u.math.cos(theta) * uy / u.meter}
+
 
 def pde(x, y):
     jacobian = net.jacobian(x)
@@ -15,20 +35,6 @@ def pde(x, y):
     return x['r'] * dy_r + x['r'] ** 2 * dy_rr + dy_thetatheta
 
 
-def solution(x):
-    r, theta = x['r'], x['theta']
-    return {'y': r * u.math.cos(theta)}
-
-
-geom = pinnx.geometry.Rectangle(xmin=[0, 0], xmax=[1, 2 * np.pi])
-geom = geom.to_dict_point("r", "theta")
-
-bc = pinnx.icbc.DirichletBC(
-    lambda x: {'y': u.math.cos(x['theta'])},
-    lambda x, on_boundary: u.math.logical_and(on_boundary, u.math.allclose(x['r'], 1)),
-)
-
-
 # Use [r*sin(theta), r*cos(theta)] as features,
 # so that the network is automatically periodic along the theta coordinate.
 def feature_transform(x):
@@ -38,12 +44,12 @@ def feature_transform(x):
 
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(r=None, theta=None),
-    pinnx.nn.FNN([geom.dim] + [20] * 3 + [1], "tanh", input_transform=feature_transform),
-    pinnx.nn.ArrayToDict(y=None),
+    pinnx.nn.DictToArray(r=u.meter, theta=u.radian),
+    pinnx.nn.FNN([2] + [20] * 3 + [1], "tanh", input_transform=feature_transform),
+    pinnx.nn.ArrayToDict(y=uy),
 )
 
-data = pinnx.problem.PDE(
+problem = pinnx.problem.PDE(
     geom,
     pde,
     bc,
@@ -53,6 +59,6 @@ data = pinnx.problem.PDE(
     solution=solution
 )
 
-trainer = pinnx.Trainer(data)
+trainer = pinnx.Trainer(problem)
 trainer.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"]).train(iterations=15000)
 trainer.saveplot(issave=True, isplot=True)

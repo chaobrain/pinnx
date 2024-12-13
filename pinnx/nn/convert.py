@@ -76,9 +76,10 @@ class DictToArray(bst.nn.Module):
         for key in self.units.keys():
             val = x[key]
             if isinstance(self.units[key], u.Unit):
-                assert isinstance(val, u.Quantity), (f"DictToArray values must be a quantity. "
-                                                     "Please check the input values.")
-                x_dict[key] = val.to_decimal(self.units[key])
+                assert (isinstance(val, u.Quantity) or self.units[key].dim == u.DIMENSIONLESS), (
+                    f"DictToArray values must be a quantity. "
+                    "Please check the input values.")
+                x_dict[key] = val.to_decimal(self.units[key]) if isinstance(val, u.Quantity) else val
             else:
                 x_dict[key] = u.maybe_decimal(val)
 
