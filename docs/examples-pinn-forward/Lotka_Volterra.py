@@ -20,7 +20,6 @@ def func(t, r):
 
 def gen_truedata():
     t = u.math.linspace(0 * u.second, 1 * u.second, 100)
-    # TODO: replace with diffrax
     sol = integrate.solve_ivp(func, (0, 10), (100 / ub, 15 / ub), t_eval=t)
     x_true, y_true = sol.y
     x_true = x_true.reshape(100, 1)
