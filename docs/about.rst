@@ -1,5 +1,5 @@
-More Information about PINNx
-=============================
+About ``PINNx``
+===============
 
 `PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning.
 It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our

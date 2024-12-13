@@ -49,16 +49,16 @@ User guide
 .. toctree::
     :maxdepth: 1
 
+    about.rst
+
+
+.. toctree::
+    :maxdepth: 2
+
     examples-unit.rst
     examples-unitless.rst
 
-About PINNx
-^^^^^^^^^^^
 
-.. toctree::
-    :maxdepth: 1
-
-    about.rst
 
 
 See also the BDP ecosystem
