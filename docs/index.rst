@@ -1,14 +1,14 @@
 ``pinnx`` documentation
 ========================
 
-`PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning.
-It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
-`Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
-For example, it leverages
+`PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning
+in JAX. It enables to define PINN problem with explicit variables (e.g. ``x``, ``y``, ``z``) and physical units
+(e.g. ``meter``, ``second``, ``kelvin``) and to solve the problem with neural networks.
 
-- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
-- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+`PINNx <https://github.com/chaobrain/pinnx>`_ is built on top of our `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+For example, it leverages `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+`brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+`braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
 
 ----
