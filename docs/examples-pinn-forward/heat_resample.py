@@ -98,7 +98,6 @@ def pde(x, y):
     dy_xx = hessian['y']['x']['x']
     return dy_t - a * dy_xx
 
-pde_resampler = pinnx.callbacks.PDEPointResampler(period=10)
 
 # Define the PDE problem and configurations of the network:
 
@@ -127,6 +126,8 @@ trainer = pinnx.Trainer(problem)
 
 # Build and train the trainer:
 trainer.compile(bst.optim.Adam(1e-3))
+
+pde_resampler = pinnx.callbacks.PDEPointResampler(period=10)
 trainer.train(iterations=10000, callbacks=[pde_resampler])
 trainer.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
 # TODO: train method must has iteration param
