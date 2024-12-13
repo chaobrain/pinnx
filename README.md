@@ -2,7 +2,7 @@
 
 
 <p align="center">
-  	<img alt="Header image of pinnx." src="https://github.com/chaobrain/pinnx/blob/main/docs/_static/pinnx.png" width=50%>
+  	<img alt="Header image of pinnx." src="https://github.com/chaobrain/pinnx/blob/main/docs/_static/pinnx.png" width=40%>
 </p> 
 
 
@@ -11,8 +11,8 @@
 [![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://badge.fury.io/py/pinnx)
 [![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/master/LICENSE)
 
-``PINNx`` is a library for scientific machine learning and physics-informed learning. 
-It is rewritten according to [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
+``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
+It is inspired from [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
 [Brain Dynamics Programming (BDP) ecosystem](https://ecosystem-for-brain-dynamics.readthedocs.io/). 
 For example, it leverages 
 
@@ -21,34 +21,70 @@ For example, it leverages
 - [braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
 
 
-## Algorithms
+## Quickstart
 
 
-``PINNx`` implements the following algorithms, but with the flexibility and efficiency of JAX:
+Define a PINN with explicit variables and physical units.
 
-- solving different PINN problems
-    - solving forward/inverse ordinary/partial differential equations (ODEs/PDEs) [[SIAM Rev.](https://doi.org/10.1137/19M1274067)]
-    - solving forward/inverse integro-differential equations (IDEs) [[SIAM Rev.](https://doi.org/10.1137/19M1274067)]
-    - fPINN: solving forward/inverse fractional PDEs (fPDEs) [[SIAM J. Sci. Comput.](https://doi.org/10.1137/18M1229845)]
-    - NN-arbitrary polynomial chaos (NN-aPC): solving forward/inverse stochastic PDEs (sPDEs) [[J. Comput. Phys.](https://doi.org/10.1016/j.jcp.2019.07.048)]
-    - PINN with hard constraints (hPINN): solving inverse design/topology optimization [[SIAM J. Sci. Comput.](https://doi.org/10.1137/21M1397908)]
-- improving PINN accuracy
-    - residual-based adaptive
-      sampling [[SIAM Rev.](https://doi.org/10.1137/19M1274067), [Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2022.115671)]
-    - gradient-enhanced PINN (gPINN) [[Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2022.114823)]
-    - PINN with multi-scale Fourier features [[Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2021.113938)]
-- (physics-informed) deep operator network (DeepONet)
-    - DeepONet: learning operators [[Nat. Mach. Intell.](https://doi.org/10.1038/s42256-021-00302-5)]
-    - DeepONet extensions, e.g., POD-DeepONet [[Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2022.114778)]
-    - MIONet: learning multiple-input operators [[SIAM J. Sci. Comput.](https://doi.org/10.1137/22M1477751)]
-    - Fourier-DeepONet [[Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2023.116300)],
-      Fourier-MIONet [[arXiv](https://arxiv.org/abs/2303.04778)]
-    - physics-informed DeepONet [[Sci. Adv.](https://doi.org/10.1126/sciadv.abi8605)]
-    - multifidelity DeepONet [[Phys. Rev. Research](https://doi.org/10.1103/PhysRevResearch.4.023210)]
-    - DeepM&Mnet: solving multiphysics and multiscale problems [[J. Comput. Phys.](https://doi.org/10.1016/j.jcp.2021.110296), [J. Comput. Phys.](https://doi.org/10.1016/j.jcp.2021.110698)]
-    - Reliable extrapolation [[Comput. Methods Appl. Mech. Eng.](https://doi.org/10.1016/j.cma.2023.116064)]
-- multifidelity neural network (MFNN)
-    - learning from multifidelity data [[J. Comput. Phys.](https://doi.org/10.1016/j.jcp.2019.109020), [PNAS](https://doi.org/10.1073/pnas.1922210117)]
+```python
+import brainstate as bst
+import brainunit as u
+import pinnx
+
+# geometry
+geometry = pinnx.geometry.GeometryXTime(
+    geometry=pinnx.geometry.Interval(-1, 1.),
+    timedomain=pinnx.geometry.TimeDomain(0, 0.99)
+).to_dict_point(x=u.meter, t=u.second)
+
+uy = u.meter / u.second
+v = 0.01 / u.math.pi * u.meter ** 2 / u.second
+
+# boundary conditions
+bc = pinnx.icbc.DirichletBC(lambda x: {'y': 0. * uy})
+ic = pinnx.icbc.IC(lambda x: {'y': -u.math.sin(u.math.pi * x['x'] / u.meter) * uy})
+
+# PDE equation
+def pde(x, y):
+    jacobian = approximator.jacobian(x)
+    hessian = approximator.hessian(x)
+    dy_x = jacobian['y']['x']
+    dy_t = jacobian['y']['t']
+    dy_xx = hessian['y']['x']['x']
+    residual = dy_t + y['y'] * dy_x - v * dy_xx
+    return residual
+
+# neural network
+approximator = pinnx.nn.Model(
+    pinnx.nn.DictToArray(x=u.meter, t=u.second),
+    pinnx.nn.FNN(
+        [geometry.dim] + [20] * 3 + [1],
+        "tanh",
+        bst.init.KaimingUniform()
+    ),
+    pinnx.nn.ArrayToDict(y=uy)
+)
+
+# problem
+problem = pinnx.problem.TimePDE(
+    geometry,
+    pde,
+    [bc, ic],
+    approximator,
+    num_domain=2540,
+    num_boundary=80,
+    num_initial=160,
+)
+
+# training
+trainer = pinnx.Trainer(problem)
+trainer.compile(bst.optim.Adam(1e-3)).train(iterations=15000)
+trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=500)
+trainer.saveplot(issave=True, isplot=True)
+
+```
+
+
 
 ## Installation
 
