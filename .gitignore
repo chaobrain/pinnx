@@ -31,3 +31,4 @@ docs/**/*.dat
 docs/**/*.npz
 
 .DS_Store
+docs/apis/generated/

@@ -66,3 +66,18 @@ See also the BDP ecosystem
 
 We are building the `brain dynamics programming ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
 
+.. toctree::
+   :hidden:
+   :maxdepth: 1
+   :caption: API Documentation
+
+   apis/pinnx.rst
+   apis/pinnx.callbacks.rst
+   apis/pinnx.fnspace.rst
+   apis/pinnx.grad.rst
+   apis/pinnx.geometry.rst
+   apis/pinnx.icbc.rst
+   apis/pinnx.metrics.rst
+   apis/pinnx.nn.rst
+   apis/pinnx.problem.rst
+   apis/pinnx.utils.rst
