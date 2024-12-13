@@ -20,6 +20,7 @@ def _accuracy(y_true, y_pred):
 
 
 def accuracy(y_true, y_pred):
+    """Computes accuracy across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(_accuracy, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
@@ -28,11 +29,11 @@ def _l2_relative_error(y_true, y_pred):
 
 
 def l2_relative_error(y_true, y_pred):
+    """Computes L2 relative error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(_l2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
 def _nanl2_relative_error(y_true, y_pred):
-    """Return the L2 relative error treating Not a Numbers (NaNs) as zero."""
     err = y_true - y_pred
     err = u.math.nan_to_num(err)
     y_true = u.math.nan_to_num(y_true)
@@ -40,11 +41,11 @@ def _nanl2_relative_error(y_true, y_pred):
 
 
 def nanl2_relative_error(y_true, y_pred):
+    """Computes L2 relative error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(_nanl2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
 def _mean_l2_relative_error(y_true, y_pred):
-    """Compute the average of L2 relative error along the first axis."""
     return u.math.mean(
         u.linalg.norm(y_true - y_pred, axis=1) /
         u.linalg.norm(y_true, axis=1)
@@ -52,6 +53,7 @@ def _mean_l2_relative_error(y_true, y_pred):
 
 
 def mean_l2_relative_error(y_true, y_pred):
+    """Computes mean L2 relative error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(_mean_l2_relative_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
@@ -60,6 +62,7 @@ def _absolute_percentage_error(y_true, y_pred):
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
+    """Computes mean absolute percentage error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(lambda x, y: _absolute_percentage_error(x, y).mean(),
                                   y_true,
                                   y_pred,
@@ -74,6 +77,7 @@ def max_absolute_percentage_error(y_true, y_pred):
 
 
 def absolute_percentage_error_std(y_true, y_pred):
+    """Computes standard deviation of absolute percentage error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(lambda x, y: _absolute_percentage_error(x, y).std(),
                                   y_true,
                                   y_pred,
@@ -85,6 +89,7 @@ def _mean_squared_error(y_true, y_pred):
 
 
 def mean_squared_error(y_true, y_pred):
+    """Computes mean squared error across nested structures of labels and predictions."""
     return jax.tree_util.tree_map(_mean_squared_error, y_true, y_pred, is_leaf=u.math.is_quantity)
 
 
