@@ -56,7 +56,6 @@ User guide
     :maxdepth: 2
 
     examples-unit.rst
-    examples-unitless.rst
 
 
 
