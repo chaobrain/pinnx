@@ -5,6 +5,7 @@ import numpy as np
 
 import pinnx
 
+
 Re = 20
 nu = 1 / Re
 l = 1 / (2 * nu) - u.math.sqrt(1 / (4 * nu ** 2) + 4 * u.math.pi ** 2)
@@ -33,7 +34,6 @@ def pde(x, y):
     continuity = u_vel_x + v_vel_y
 
     return momentum_x, momentum_y, continuity
-    # return {'momentum_u': momentum_x, 'momentum_v': momentum_y, 'continuity': continuity}
 
 
 def bc_func(x):

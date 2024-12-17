@@ -3,24 +3,30 @@ import brainunit as u
 
 import pinnx
 
+unit_of_x = u.meter
+unit_of_t = u.second
+unit_of_f = 1 / u.second
+
+c = 1. * u.meter ** 2 / u.second
+
 geom = pinnx.geometry.Interval(-1, 1)
 timedomain = pinnx.geometry.TimeDomain(0, 1)
 geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
-geomtime = geomtime.to_dict_point('x', 't')
+geomtime = geomtime.to_dict_point(x=unit_of_x, t=unit_of_t)
 
 
 def func(x):
-    return {'y': u.math.sin(u.math.pi * x['x']) * u.math.exp(-x['t'])}
+    y = u.math.sin(u.math.pi * x['x'] / unit_of_x) * u.math.exp(-x['t'] / unit_of_t)
+    return {'y': y}
 
 
 bc = pinnx.icbc.DirichletBC(func)
 ic = pinnx.icbc.IC(func)
 
-layer_size = [2] + [32] * 3 + [1]
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, t=None),
-    pinnx.nn.FNN(layer_size, 'tanh', bst.init.KaimingUniform()),
-    pinnx.nn.ArrayToDict(y=None)
+    pinnx.nn.DictToArray(x=unit_of_x, t=unit_of_t),
+    pinnx.nn.FNN([2] + [32] * 3 + [1], "tanh"),
+    pinnx.nn.ArrayToDict(y=None),
 )
 
 
@@ -29,13 +35,13 @@ def pde(x, y):
     hessian = net.hessian(x, xi='x', xj='x')
     dy_t = jacobian["y"]["t"]
     dy_xx = hessian["y"]["x"]["x"]
-    return (
-        dy_t
-        - dy_xx
-        + u.math.exp(-x['t'])
-        * (u.math.sin(u.math.pi * x['x']) -
-           u.math.pi ** 2 * u.math.sin(u.math.pi * x['x']))
+    source = (
+        u.math.exp(-x['t'] / unit_of_t) * (
+        u.math.sin(u.math.pi * x['x'] / unit_of_x) -
+        u.math.pi ** 2 * u.math.sin(u.math.pi * x['x'] / unit_of_x)
     )
+    )
+    return dy_t - c * dy_xx + source * unit_of_f
 
 
 problem = pinnx.problem.TimePDE(
