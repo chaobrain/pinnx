@@ -3,7 +3,11 @@ import brainunit as u
 
 import pinnx as pinnx
 
-C = bst.ParamState(2.0)
+unit_of_x = u.meter
+unit_of_t = u.second
+unit_of_f = 1 / u.second
+
+C = bst.ParamState(2.0 * u.meter ** 2 / u.second)
 
 
 def pde(x, y):
@@ -12,35 +16,36 @@ def pde(x, y):
 
     dy_t = jacobian["y"]["t"]
     dy_xx = hessian["y"]["x"]["x"]
-    return (
-        dy_t
-        - C.value * dy_xx
-        + u.math.exp(-x['t'])
-        * (u.math.sin(u.math.pi * x['x']) -
-           u.math.pi ** 2 * u.math.sin(u.math.pi * x['x']))
+    source = (
+        u.math.exp(-x['t'] / unit_of_t) *
+        (u.math.sin(u.math.pi * x['x'] / unit_of_x) -
+         u.math.pi ** 2 * u.math.sin(u.math.pi * x['x'] / unit_of_x))
     )
 
-
-def func(x):
-    y = u.math.sin(u.math.pi * x['x']) * u.math.exp(-x['t'])
-    return {'y': y}
+    return dy_t - C.value * dy_xx + source * unit_of_f
 
 
 geom = pinnx.geometry.Interval(-1, 1)
 timedomain = pinnx.geometry.TimeDomain(0, 1)
-geomtime = pinnx.geometry.GeometryXTime(geom, timedomain).to_dict_point('x', 't')
+geomtime = pinnx.geometry.GeometryXTime(geom, timedomain).to_dict_point(x=unit_of_x, t=unit_of_t)
+
+
+def func(x):
+    y = u.math.sin(u.math.pi * x['x'] / unit_of_x) * u.math.exp(-x['t'] / unit_of_t)
+    return {'y': y}
+
 
 bc = pinnx.icbc.DirichletBC(func)
 ic = pinnx.icbc.IC(func)
 
 x = {
-    'x': u.math.linspace(-1, 1, num=10),
-    't': u.math.full((10,), 1)
+    'x': u.math.linspace(-1, 1, num=10) * unit_of_x,
+    't': u.math.full((10,), 1) * unit_of_t,
 }
 observe_y = pinnx.icbc.PointSetBC(x, func(x))
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, t=None),
+    pinnx.nn.DictToArray(x=unit_of_x, t=unit_of_t),
     pinnx.nn.FNN([2] + [32] * 3 + [1], "tanh"),
     pinnx.nn.ArrayToDict(y=None),
 )
