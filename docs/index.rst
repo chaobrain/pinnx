@@ -113,6 +113,7 @@ User guide
     :maxdepth: 2
 
     unit-examples-forward.rst
+    unit-examples-inverse.rst
     More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
 
 
