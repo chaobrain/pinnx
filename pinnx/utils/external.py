@@ -208,10 +208,17 @@ def plot_best_state(train_state):
                 plt.plot(train_state.X_train[xkeys[0]], y_train[ykey], "ok", label="Train")
             if y_test is not None:
                 plt.plot(X, y_test[ykey], "-k", label="True")
-            plt.plot(X, best_y[ykey], "--r", label="Prediction")
+            y_val, y_unit = u.split_mantissa_unit(best_y[ykey])
+            plt.plot(
+                X, y_val, "--r",
+                label=(f"{ykey} Prediction"
+                       if y_unit.is_unitless else
+                       f"{ykey} Prediction [{y_unit}]")
+            )
             if best_ystd is not None:
-                plt.plot(X, best_y[ykey] + 1.96 * best_ystd[ykey], "-b", label="95% CI")
-                plt.plot(X, best_y[ykey] - 1.96 * best_ystd[ykey], "-b")
+                ystd_val = u.get_magnitude(best_ystd[ykey].to(y_unit))
+                plt.plot(X, y_val + 1.96 * ystd_val, "-b", label="95% CI")
+                plt.plot(X, y_val - 1.96 * ystd_val, "-b")
         plt.xlabel("x")
         plt.ylabel("y")
         plt.legend()

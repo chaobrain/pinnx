@@ -4,16 +4,12 @@ import numpy as np
 
 import pinnx
 
+unit_of_x = u.meter
+unit_of_t = u.second
+unit_of_c = u.mole / u.meter ** 3
 
-def gen_traindata():
-    data = np.load("../dataset/reaction.npz")
-    t, x, ca, cb = data["t"], data["x"], data["Ca"], data["Cb"]
-    X, T = np.meshgrid(x, t)
-    return {'x': X.flatten(), 't': T.flatten()}, {'ca': ca.flatten(), 'cb': cb.flatten()}
-
-
-kf = bst.ParamState(0.05)
-D = bst.ParamState(1.0)
+kf = bst.ParamState(0.05 * u.meter ** 6 / u.mole ** 2 / u.second)
+D = bst.ParamState(1.0 * u.meter ** 2 / u.second)
 
 
 def pde(x, y):
@@ -30,30 +26,43 @@ def pde(x, y):
 
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, t=None),
+    pinnx.nn.DictToArray(x=unit_of_x, t=unit_of_t),
     pinnx.nn.FNN([2] + [20] * 3 + [2], "tanh"),
-    pinnx.nn.ArrayToDict(ca=None, cb=None),
+    pinnx.nn.ArrayToDict(ca=unit_of_c, cb=unit_of_c),
 )
-
-
-def fun_bc(x):
-    return {'ca': 1 - x['x'], 'cb': 1 - x['x']}
-
-
-def fun_init(x):
-    return {
-        'ca': u.math.exp(-20 * x['x']),
-        'cb': u.math.exp(-20 * x['x']),
-    }
-
 
 geom = pinnx.geometry.Interval(0, 1)
 timedomain = pinnx.geometry.TimeDomain(0, 10)
 geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
-geomtime = geomtime.to_dict_point('x', 't')
+geomtime = geomtime.to_dict_point(x=unit_of_x, t=unit_of_t)
+
+
+def fun_bc(x):
+    c = (1 - x['x'] / unit_of_x) * unit_of_c
+    return {'ca': c, 'cb': c}
+
 
 bc = pinnx.icbc.DirichletBC(fun_bc)
+
+
+def fun_init(x):
+    return {
+        'ca': u.math.exp(-20 * x['x'] / unit_of_x) * unit_of_c,
+        'cb': u.math.exp(-20 * x['x'] / unit_of_x) * unit_of_c,
+    }
+
+
 ic = pinnx.icbc.IC(fun_init)
+
+
+def gen_traindata():
+    data = np.load("../dataset/reaction.npz")
+    t, x, ca, cb = data["t"], data["x"], data["Ca"], data["Cb"]
+    X, T = np.meshgrid(x, t)
+    x = {'x': X.flatten() * unit_of_x, 't': T.flatten() * unit_of_t}
+    y = {'ca': ca.flatten() * unit_of_c, 'cb': cb.flatten() * unit_of_c}
+    return x, y
+
 
 observe_x, observe_y = gen_traindata()
 observe_bc = pinnx.icbc.PointSetBC(observe_x, observe_y)
