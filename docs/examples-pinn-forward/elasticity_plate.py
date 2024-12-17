@@ -86,8 +86,7 @@ def fx(x):
         -lmbd * (
         4 * u.math.pi ** 2 * u.math.cos(2 * u.math.pi * x['x']) * u.math.sin(u.math.pi * x['y'])
         - Q * x['y'] ** 3 * u.math.pi * u.math.cos(u.math.pi * x['x'])
-    )
-        -
+    ) -
         mu * (
             u.math.pi ** 2 * u.math.cos(2 * u.math.pi * x['x']) * u.math.sin(u.math.pi * x['y'])
             - Q * x['y'] ** 3 * u.math.pi * u.math.cos(u.math.pi * x['x'])
@@ -112,7 +111,6 @@ def fy(x):
     )
 
 
-
 def pde(x, y):
     jacobian = net.jacobian(x)
 
@@ -127,7 +125,6 @@ def pde(x, y):
     Sxx_x = jacobian["s"]["x"]
     Syy_y = jacobian["c"]["y"]
     Sxy_x = jacobian["e"]["x"]
-    # Sxy_x = jacobian(f, x, i=4, j=0)
     Sxy_y = jacobian['e']['y']
 
     momentum_x = Sxx_x + Sxy_y - fx(x)
@@ -179,4 +176,3 @@ data = pinnx.problem.PDE(
 trainer = pinnx.Trainer(data)
 trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=1000)
 trainer.saveplot(issave=True, isplot=True)
-

@@ -21,21 +21,38 @@ import numpy as np
 
 import pinnx
 
+unit_of_space = u.meter
+unit_of_speed = u.meter / u.second
+unit_of_t = u.second
+unit_of_pressure = u.pascal
+
 spatial_domain = pinnx.geometry.Cuboid(xmin=[-1, -1, -1], xmax=[1, 1, 1])
 temporal_domain = pinnx.geometry.TimeDomain(0, 1)
 spatio_temporal_domain = pinnx.geometry.GeometryXTime(spatial_domain, temporal_domain)
-spatio_temporal_domain = spatio_temporal_domain.to_dict_point('x', 'y', 'z', 't')
+spatio_temporal_domain = spatio_temporal_domain.to_dict_point(
+    x=unit_of_space,
+    y=unit_of_space,
+    z=unit_of_space,
+    t=unit_of_t,
+)
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, y=None, z=None, t=None),
+    pinnx.nn.DictToArray(x=unit_of_space,
+                         y=unit_of_space,
+                         z=unit_of_space,
+                         t=unit_of_t),
     pinnx.nn.FNN([4] + 4 * [50] + [4], "tanh", bst.init.KaimingUniform()),
-    pinnx.nn.ArrayToDict(u_vel=None, v_vel=None, w_vel=None, p=None),
+    pinnx.nn.ArrayToDict(u_vel=unit_of_speed,
+                         v_vel=unit_of_speed,
+                         w_vel=unit_of_speed,
+                         p=unit_of_pressure),
 )
 
 a = 1
 d = 1
 Re = 1
-
+rho = 1 * u.kilogram / u.meter ** 3
+mu = 1 * u.pascal * u.second
 
 
 @bst.compile.jit
@@ -76,22 +93,16 @@ def pde(x, u):
     dp_dz = jacobian['p']['z']
 
     momentum_x = (
-        du_vel_dt
-        + (u_vel * du_vel_dx + v_vel * du_vel_dy + w_vel * du_vel_dz)
-        + dp_dx
-        - 1 / Re * (du_vel_dx_dx + du_vel_dy_dy + du_vel_dz_dz)
+        rho * (du_vel_dt + (u_vel * du_vel_dx + v_vel * du_vel_dy + w_vel * du_vel_dz))
+        + dp_dx - mu * (du_vel_dx_dx + du_vel_dy_dy + du_vel_dz_dz)
     )
     momentum_y = (
-        dv_vel_dt
-        + (u_vel * dv_vel_dx + v_vel * dv_vel_dy + w_vel * dv_vel_dz)
-        + dp_dy
-        - 1 / Re * (dv_vel_dx_dx + dv_vel_dy_dy + dv_vel_dz_dz)
+        rho * (dv_vel_dt + (u_vel * dv_vel_dx + v_vel * dv_vel_dy + w_vel * dv_vel_dz))
+        + dp_dy - mu * (dv_vel_dx_dx + dv_vel_dy_dy + dv_vel_dz_dz)
     )
     momentum_z = (
-        dw_vel_dt
-        + (u_vel * dw_vel_dx + v_vel * dw_vel_dy + w_vel * dw_vel_dz)
-        + dp_dz
-        - 1 / Re * (dw_vel_dx_dx + dw_vel_dy_dy + dw_vel_dz_dz)
+        rho * (dw_vel_dt + (u_vel * dw_vel_dx + v_vel * dw_vel_dy + w_vel * dw_vel_dz))
+        + dp_dz - mu * (dw_vel_dx_dx + dw_vel_dy_dy + dw_vel_dz_dz)
     )
     continuity = du_vel_dx + dv_vel_dy + dw_vel_dz
 
@@ -100,6 +111,8 @@ def pde(x, u):
 
 @bst.compile.jit(static_argnums=1)
 def icbc_cond_func(x, include_p: bool = False):
+    x = {k: v.mantissa for k, v in x.items()}
+
     u_ = (
         -a
         * (u.math.exp(a * x['x']) * u.math.sin(a * x['y'] + d * x['z'])
@@ -141,9 +154,11 @@ def icbc_cond_func(x, include_p: bool = False):
         * u.math.exp(-2 * d ** 2 * x['t'])
     )
 
-    r = {'u_vel': u_ * 100., 'v_vel': v * 100., 'w_vel': w * 100.}
+    r = {'u_vel': u_ * unit_of_speed,
+         'v_vel': v * unit_of_speed,
+         'w_vel': w * unit_of_speed}
     if include_p:
-        r['p'] = p
+        r['p'] = p * unit_of_pressure
     return r
 
 
@@ -169,8 +184,18 @@ model.compile(bst.optim.LBFGS(1e-3)).train(5000, display_every=200)
 x, y, z = np.meshgrid(np.linspace(-1, 1, 10), np.linspace(-1, 1, 10), np.linspace(-1, 1, 10))
 t_0 = np.zeros(1000)
 t_1 = np.ones(1000)
-X_0 = dict(x=np.ravel(x), y=np.ravel(y), z=np.ravel(z), t=t_0)
-X_1 = dict(x=np.ravel(x), y=np.ravel(y), z=np.ravel(z), t=t_1)
+X_0 = dict(
+    x=np.ravel(x) * unit_of_space,
+    y=np.ravel(y) * unit_of_space,
+    z=np.ravel(z) * unit_of_space,
+    t=t_0 * unit_of_t
+)
+X_1 = dict(
+    x=np.ravel(x) * unit_of_space,
+    y=np.ravel(y) * unit_of_space,
+    z=np.ravel(z) * unit_of_space,
+    t=t_1 * unit_of_t
+)
 output_0 = model.predict(X_0)
 output_1 = model.predict(X_1)
 

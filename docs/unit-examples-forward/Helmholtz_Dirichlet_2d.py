@@ -4,6 +4,12 @@ import numpy as np
 
 import pinnx
 
+unit_of_u = u.UNITLESS
+unit_of_x = u.meter
+unit_of_y = u.meter
+unit_of_k0 = 1 / unit_of_x
+unit_of_f = 1 / u.meter ** 2
+
 # General parameters
 n = 2
 precision_train = 10
@@ -15,18 +21,7 @@ parameters = [1e-3, 3, 150]
 
 learning_rate, num_dense_layers, num_dense_nodes = parameters
 
-
-def pde(x, y):
-    hessian = net.hessian(x)
-
-    dy_xx = hessian["y"]["x"]["x"]
-    dy_yy = hessian["y"]["y"]["y"]
-
-    f = k0 ** 2 * u.math.sin(k0 * x['x']) * u.math.sin(k0 * x['y'])
-    return -dy_xx - dy_yy - k0 ** 2 * y['y'] - f
-
-
-geom = pinnx.geometry.Rectangle([0, 0], [1, 1]).to_dict_point('x', 'y')
+geom = pinnx.geometry.Rectangle([0, 0], [1, 1]).to_dict_point(x=unit_of_x, y=unit_of_y)
 k0 = 2 * np.pi * n
 wave_len = 1 / n
 
@@ -36,17 +31,28 @@ nx_train = int(1 / hx_train)
 hx_test = wave_len / precision_test
 nx_test = int(1 / hx_test)
 
+def pde(x, y):
+    hessian = net.hessian(x)
+
+    dy_xx = hessian["y"]["x"]["x"]
+    dy_yy = hessian["y"]["y"]["y"]
+
+    f = k0 ** 2 * u.math.sin(k0 * x['x'] / unit_of_x) * u.math.sin(k0 * x['y'] / unit_of_y)
+    return -dy_xx - dy_yy - (k0 * unit_of_k0) ** 2 * y['y'] - f * unit_of_f
+
+
+
 if hard_constraint:
     bc = []
 else:
-    bc = pinnx.icbc.DirichletBC(lambda x: {'y': 0})
+    bc = pinnx.icbc.DirichletBC(lambda x: {'y': 0 * unit_of_u})
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, y=None),
+    pinnx.nn.DictToArray(x=unit_of_x, y=unit_of_y),
     pinnx.nn.FNN([2] + [num_dense_nodes] * num_dense_layers + [1],
                  u.math.sin,
                  bst.init.KaimingUniform()),
-    pinnx.nn.ArrayToDict(y=None),
+    pinnx.nn.ArrayToDict(y=unit_of_u),
 )
 
 if hard_constraint:
@@ -65,7 +71,7 @@ problem = pinnx.problem.PDE(
     net,
     num_domain=nx_train ** 2,
     num_boundary=4 * nx_train,
-    solution=lambda x: {'y': u.math.sin(k0 * x['x']) * u.math.sin(k0 * x['y'])},
+    solution=lambda x: {'y': u.math.sin(k0 * x['x'] / unit_of_x) * u.math.sin(k0 * x['y'] / unit_of_y) * unit_of_u},
     num_test=nx_test ** 2,
     loss_weights=None if hard_constraint else [1, weights],
 )
