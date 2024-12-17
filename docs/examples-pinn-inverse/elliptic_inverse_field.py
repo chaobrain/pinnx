@@ -5,12 +5,9 @@ import numpy as np
 
 import pinnx
 
-
-def gen_traindata(num):
-    # generate num equally-spaced points from -1 to 1
-    xvals = np.linspace(-1, 1, num)
-    uvals = np.sin(np.pi * xvals)
-    return {'x': xvals}, {'u': uvals}
+unit_of_x = u.meter
+unit_of_u = u.newton
+unit_of_q = u.newton / unit_of_x ** 2
 
 
 def pde(x, y):
@@ -18,23 +15,35 @@ def pde(x, y):
     return -du_xx + y['q']
 
 
-geom = pinnx.geometry.Interval(-1, 1).to_dict_point('x')
+geom = pinnx.geometry.Interval(-1, 1).to_dict_point(x=unit_of_x)
 
 
 def sol(x):
     # solution is u(x) = sin(pi*x), q(x) = -pi^2 * sin(pi*x)
     # return {'u': u.math.sin(u.math.pi * x['x']), }
-    return {'u': u.math.sin(u.math.pi * x['x']), 'q': -u.math.pi ** 2 * u.math.sin(u.math.pi * x['x'])}
+    return {
+        'u': u.math.sin(u.math.pi * x['x'] / unit_of_x) * unit_of_u,
+        'q': -u.math.pi ** 2 * u.math.sin(u.math.pi * x['x'] / unit_of_x) * unit_of_q
+    }
 
 
 bc = pinnx.icbc.DirichletBC(sol)
+
+
+def gen_traindata(num):
+    # generate num equally-spaced points from -1 to 1
+    xvals = np.linspace(-1, 1, num)
+    uvals = np.sin(np.pi * xvals)
+    return {'x': xvals * unit_of_x}, {'u': uvals * unit_of_u}
+
+
 ob_x, ob_u = gen_traindata(100)
 observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u)
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None),
+    pinnx.nn.DictToArray(x=unit_of_x),
     pinnx.nn.PFNN([1, [20, 20], [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform()),
-    pinnx.nn.ArrayToDict(u=None, q=None),
+    pinnx.nn.ArrayToDict(u=unit_of_u, q=unit_of_q),
 )
 problem = pinnx.problem.PDE(
     geom,
@@ -55,8 +64,9 @@ model.saveplot(issave=True, isplot=True)
 # view results
 x = geom.uniform_points(500)
 yhat = model.predict(x)
-uhat, qhat = yhat['u'], yhat['q']
-x = x['x']
+uhat = yhat['u'] / unit_of_u
+qhat = yhat['q'] / unit_of_q
+x = x['x'] / unit_of_x
 
 utrue = np.sin(np.pi * x)
 print("l2 relative error for u: " + str(pinnx.metrics.l2_relative_error(utrue, uhat)))
