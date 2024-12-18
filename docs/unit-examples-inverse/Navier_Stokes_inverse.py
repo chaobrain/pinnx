@@ -184,9 +184,10 @@ plt.show()
 
 # Plot the velocity distribution of the flow field:
 for t in range(0, 8):
+    t = t * unit_of_t
     [ob_x, ob_y, ob_t, ob_u, ob_v, ob_p] = load_training_data(num=140000)
 
-    xyt_pred = {"x": ob_x, "y": ob_y, "t": t * np.ones((len(ob_x), 1))}
+    xyt_pred = {"x": ob_x, "y": ob_y, "t": t * np.ones((len(ob_x),))}
     uvp_pred = model.predict(xyt_pred)
 
     x_pred, y_pred, t_pred = xyt_pred['x'], xyt_pred['y'], xyt_pred['t']
@@ -195,9 +196,9 @@ for t in range(0, 8):
     y_true = ob_y[ob_t == t]
     u_true = ob_u[ob_t == t]
     fig, ax = plt.subplots(2, 1)
-    cntr0 = ax[0].tricontourf(x_pred, y_pred, u_pred, levels=80, cmap="rainbow")
+    cntr0 = ax[0].tricontourf(x_pred.mantissa, y_pred.mantissa, u_pred.mantissa, levels=80, cmap="rainbow")
     cb0 = plt.colorbar(cntr0, ax=ax[0])
-    cntr1 = ax[1].tricontourf(x_true, y_true, u_true, levels=80, cmap="rainbow")
+    cntr1 = ax[1].tricontourf(x_true.mantissa, y_true.mantissa, u_true.mantissa, levels=80, cmap="rainbow")
     cb1 = plt.colorbar(cntr1, ax=ax[1])
     ax[0].set_title("u-PINN " + "(t=" + str(t) + ")", fontsize=9.5)
     ax[0].axis("scaled")
