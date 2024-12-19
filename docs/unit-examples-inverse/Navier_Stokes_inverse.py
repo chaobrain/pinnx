@@ -11,12 +11,23 @@ import jax.tree
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
+import brainunit as u
 
 import pinnx
 
+unit_of_x = u.meter
+unit_of_y = u.meter
+unit_of_t = u.second
+unit_of_rho = u.kilogram / u.meter**3
+unit_of_c1 = u.UNITLESS
+unit_of_c2 = u.meter2 / u.second
+unit_of_u = u.meter / u.second
+unit_of_v = u.meter / u.second
+unit_of_p = u.pascal
+
 # true values
 C1true = 1.0
-C2true = 0.01
+C2true = 0.01 * unit_of_c2
 
 
 # Load training data
@@ -56,12 +67,14 @@ def load_training_data(num):
     u_train = data_domain[idx, 3]
     v_train = data_domain[idx, 4]
     p_train = data_domain[idx, 5]
-    return [x_train, y_train, t_train, u_train, v_train, p_train]
+    # return [x_train, y_train, t_train, u_train, v_train, p_train]
+    return [x_train * unit_of_x, y_train * unit_of_y, t_train * unit_of_t,
+            u_train * unit_of_u, v_train * unit_of_v, p_train * unit_of_p]
 
 
 # Parameters to be identified
 C1 = bst.ParamState(0.0)
-C2 = bst.ParamState(0.0)
+C2 = bst.ParamState(0.0 * unit_of_c2)
 
 
 # Define Navier Stokes Equations (Time-dependent PDEs)
@@ -86,15 +99,15 @@ def Navier_Stokes_Equation(x, y):
     dv_xx = x_hessian['v']['x']['x']
     dv_yy = y_hessian['v']['y']['y']
     continuity = du_x + dv_y
-    x_momentum = du_t + C1.value * (u * du_x + v * du_y) + dp_x - C2.value * (du_xx + du_yy)
-    y_momentum = dv_t + C1.value * (u * dv_x + v * dv_y) + dp_y - C2.value * (dv_xx + dv_yy)
+    x_momentum = unit_of_rho * du_t + unit_of_rho * C1.value * (u * du_x + v * du_y) + dp_x - unit_of_rho * C2.value * (du_xx + du_yy)
+    y_momentum = unit_of_rho * dv_t + unit_of_rho * C1.value * (u * dv_x + v * dv_y) + dp_y - unit_of_rho * C2.value * (dv_xx + dv_yy)
     return [continuity, x_momentum, y_momentum]
 
 
 net = pinnx.nn.Model(
-    pinnx.nn.DictToArray(x=None, y=None, t=None),
+    pinnx.nn.DictToArray(x=unit_of_x, y=unit_of_y, t=unit_of_t),
     pinnx.nn.FNN([3] + [50] * 6 + [3], "tanh"),
-    pinnx.nn.ArrayToDict(u=None, v=None, p=None),
+    pinnx.nn.ArrayToDict(u=unit_of_u, v=unit_of_v, p=unit_of_p),
 )
 
 # Define Spatio-temporal domain
@@ -107,7 +120,7 @@ space_domain = pinnx.geometry.Rectangle([Lx_min, Ly_min], [Lx_max, Ly_max])
 time_domain = pinnx.geometry.TimeDomain(0, 7)
 # Spatio-temporal domain
 geomtime = pinnx.geometry.GeometryXTime(space_domain, time_domain)
-geomtime = geomtime.to_dict_point("x", "y", "t")
+geomtime = geomtime.to_dict_point(x=unit_of_x, y=unit_of_y, t=unit_of_t)
 
 # Get the training data: num = 7000
 [ob_x, ob_y, ob_t, ob_u, ob_v, ob_p] = load_training_data(num=7000)
@@ -144,7 +157,7 @@ model.saveplot(issave=True, isplot=True)
 
 # trainer.save(save_path = "./NS_inverse_model/trainer")
 f = model.predict(ob_xyt, operator=Navier_Stokes_Equation)
-print("Mean residual:", jax.tree.map(lambda x: np.mean(np.abs(x)), f))
+print("Mean residual:", jax.tree.map(lambda x: u.math.mean(u.math.abs(x)), f))
 
 # Plot Variables:
 # reopen saved data using callbacks in fnamevar
@@ -171,8 +184,10 @@ plt.show()
 
 # Plot the velocity distribution of the flow field:
 for t in range(0, 8):
+    t = t * unit_of_t
     [ob_x, ob_y, ob_t, ob_u, ob_v, ob_p] = load_training_data(num=140000)
-    xyt_pred = {"x": ob_x, "y": ob_y, "t": t * np.ones((len(ob_x), 1))}
+
+    xyt_pred = {"x": ob_x, "y": ob_y, "t": t * np.ones((len(ob_x),))}
     uvp_pred = model.predict(xyt_pred)
 
     x_pred, y_pred, t_pred = xyt_pred['x'], xyt_pred['y'], xyt_pred['t']
@@ -181,9 +196,9 @@ for t in range(0, 8):
     y_true = ob_y[ob_t == t]
     u_true = ob_u[ob_t == t]
     fig, ax = plt.subplots(2, 1)
-    cntr0 = ax[0].tricontourf(x_pred, y_pred, u_pred, levels=80, cmap="rainbow")
+    cntr0 = ax[0].tricontourf(x_pred.mantissa, y_pred.mantissa, u_pred.mantissa, levels=80, cmap="rainbow")
     cb0 = plt.colorbar(cntr0, ax=ax[0])
-    cntr1 = ax[1].tricontourf(x_true, y_true, u_true, levels=80, cmap="rainbow")
+    cntr1 = ax[1].tricontourf(x_true.mantissa, y_true.mantissa, u_true.mantissa, levels=80, cmap="rainbow")
     cb1 = plt.colorbar(cntr1, ax=ax[1])
     ax[0].set_title("u-PINN " + "(t=" + str(t) + ")", fontsize=9.5)
     ax[0].axis("scaled")
