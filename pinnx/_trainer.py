@@ -1,3 +1,4 @@
+import time
 from typing import Union, Sequence, Callable, Optional
 
 import brainstate as bst
@@ -74,6 +75,7 @@ class Trainer:
         self,
         optimizer: bst.optim.Optimizer,
         metrics: Union[str, Sequence[str]] = None,
+        measture_train_step_compile_time: bool = False,
     ):
         """
         Configures the trainer for training.
@@ -138,6 +140,12 @@ class Trainer:
         self.fn_outputs_losses_test = bst.compile.jit(fn_outputs_losses_test)
         self.fn_train_step = bst.compile.jit(fn_train_step)
 
+        if measture_train_step_compile_time:
+            t0 = time.time()
+            self._compile_training_step(self.batch_size)
+            t1 = time.time()
+            return self, t1 - t0
+
         return self
 
     @utils.timing
@@ -150,6 +158,7 @@ class Trainer:
         callbacks: Union[Callback, Sequence[Callback]] = None,
         model_restore_path: str = None,
         model_save_path: str = None,
+        measture_train_step_time: bool = False,
     ):
         """
         Trains the trainer.
@@ -176,6 +185,9 @@ class Trainer:
             model_restore_path (String): Path where parameters were previously saved.
             model_save_path (String): Prefix of filenames created for the checkpoint.
         """
+
+        if measture_train_step_time:
+            t0 = time.time()
 
         if self.metrics is None:
             raise ValueError("Compile the trainer before training.")
@@ -210,7 +222,20 @@ class Trainer:
         training_display.summary(self.train_state)
         if model_save_path is not None:
             self.save(model_save_path, verbose=1)
+
+        if measture_train_step_time:
+            t1 = time.time()
+            return self, t1 - t0
         return self
+
+    def _compile_training_step(self, batch_size=None):
+        # get data
+        self.train_state.set_data_train(*self.problem.train_next_batch(batch_size))
+
+        # train one batch
+        self.fn_train_step.compile(self.train_state.X_train,
+                                   self.train_state.y_train,
+                                   **self.train_state.Aux_train)
 
     def _train(self, iterations, display_every, batch_size, callbacks):
         for i in range(iterations):

@@ -154,9 +154,11 @@ def icbc_cond_func(x, include_p: bool = False):
         * u.math.exp(-2 * d ** 2 * x['t'])
     )
 
-    r = {'u_vel': u_ * unit_of_speed,
-         'v_vel': v * unit_of_speed,
-         'w_vel': w * unit_of_speed}
+    r = {
+        'u_vel': u_ * unit_of_speed,
+        'v_vel': v * unit_of_speed,
+        'w_vel': w * unit_of_speed
+    }
     if include_p:
         r['p'] = p * unit_of_pressure
     return r

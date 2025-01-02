@@ -17,15 +17,14 @@ __all__ = ["Disk", "Ellipse", "Polygon", "Rectangle", "StarShaped", "Triangle"]
 from typing import Union, Literal
 
 import brainstate as bst
-import jax.numpy as jnp
 import numpy as np
 from scipy import spatial
 
+from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
 from .geometry_nd import Hypercube, Hypersphere
 from ..utils import isclose, vectorize
-from pinnx import utils
 
 
 class Disk(Hypersphere):
