@@ -4,6 +4,7 @@ from typing import Union, Sequence, Callable, Optional
 import brainstate as bst
 import brainunit as u
 import jax.tree
+import jax.numpy as jnp
 import numpy as np
 
 from pinnx.utils._display import training_display
@@ -306,8 +307,8 @@ class Trainer:
 
         # check NaN
         if (
-            np.isnan(np.asarray(jax.tree.leaves(self.train_state.loss_train))).any()
-            or np.isnan(np.asarray(jax.tree.leaves(self.train_state.loss_test))).any()
+            jnp.isnan(jnp.asarray(jax.tree.leaves(self.train_state.loss_train))).any()
+            or jnp.isnan(jnp.asarray(jax.tree.leaves(self.train_state.loss_test))).any()
         ):
             self.stop_training = True
 
@@ -472,11 +473,11 @@ class TrainState:
             self.Aux_test = args[0]
 
     def update_best(self):
-        current_loss_train = np.sum(jax.tree.leaves(self.loss_train))
+        current_loss_train = jnp.sum(jnp.asarray(jax.tree.leaves(self.loss_train)))
         if self.best_loss_train > current_loss_train:
             self.best_step = self.step
             self.best_loss_train = current_loss_train
-            self.best_loss_test = np.sum(jax.tree.leaves(self.loss_test))
+            self.best_loss_test = jnp.sum(jnp.asarray(jax.tree.leaves(self.loss_test)))
             self.best_y = self.y_pred_test
             self.best_ystd = self.y_std_test
             self.best_metrics = self.metrics_test
