@@ -8,7 +8,7 @@ import braintools
 import brainunit as u
 import jax
 import matplotlib.pyplot as plt
-import numpy as np
+import jax.numpy as jnp
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import preprocessing
 
@@ -131,8 +131,8 @@ def plot_loss_history(loss_history, fname=None):
     """
     # np.sum(loss_history.loss_train, axis=1) is error-prone for arrays of varying lengths.
     # Handle irregular array sizes.
-    loss_train = np.array([np.sum(jax.tree.leaves(loss)) for loss in loss_history.loss_train])
-    loss_test = np.array([np.sum(jax.tree.leaves(loss)) for loss in loss_history.loss_test])
+    loss_train = jnp.array([jnp.sum(jnp.asarray(jax.tree.leaves(loss))) for loss in loss_history.loss_train])
+    loss_test = jnp.array([jnp.sum(jnp.asarray(jax.tree.leaves(loss))) for loss in loss_history.loss_test])
 
     plt.figure()
     plt.semilogy(loss_history.steps, loss_train, label="Train loss")
@@ -164,7 +164,7 @@ def _pack_data(train_state):
     def merge_values(values):
         if values is None:
             return None
-        return np.hstack(values) if isinstance(values, (list, tuple)) else values
+        return jnp.hstack(values) if isinstance(values, (list, tuple)) else values
 
     # y_train = merge_values(train_state.y_train)
     # y_test = merge_values(train_state.y_test)
@@ -340,9 +340,9 @@ def isclose(a, b):
     pack = smart_numpy(a)
     a_dtype = a.dtype
     a_unit = u.get_unit(a)
-    if a_dtype == np.float32:
+    if a_dtype == jnp.float32:
         atol = u.maybe_decimal(u.Quantity(1e-6, unit=a_unit))
-    elif a_dtype == np.float16:
+    elif a_dtype == jnp.float16:
         atol = u.maybe_decimal(u.Quantity(1e-4, unit=a_unit))
     else:
         atol = u.maybe_decimal(u.Quantity(1e-8, unit=a_unit))
@@ -350,8 +350,8 @@ def isclose(a, b):
 
 
 def smart_numpy(x):
-    if isinstance(x, np.ndarray):
-        return np
+    if isinstance(x, jnp.ndarray):
+        return jnp
     elif isinstance(x, jax.Array):
         return jax.numpy
     elif isinstance(x, u.Quantity):
