@@ -18,7 +18,7 @@ from typing import Literal
 
 import brainstate as bst
 import jax
-import numpy as np
+import jax.numpy as jnp
 from scipy import stats
 from sklearn import preprocessing
 
@@ -33,18 +33,18 @@ class Hypercube(Geometry):
         if len(xmin) != len(xmax):
             raise ValueError("Dimensions of xmin and xmax do not match.")
 
-        self.xmin = np.array(xmin, dtype=bst.environ.dftype())
-        self.xmax = np.array(xmax, dtype=bst.environ.dftype())
-        if np.any(self.xmin >= self.xmax):
+        self.xmin = jnp.array(xmin, dtype=bst.environ.dftype())
+        self.xmax = jnp.array(xmax, dtype=bst.environ.dftype())
+        if jnp.any(self.xmin >= self.xmax):
             raise ValueError("xmin >= xmax")
 
         self.side_length = self.xmax - self.xmin
         super().__init__(
             len(xmin),
             (self.xmin, self.xmax),
-            np.linalg.norm(self.side_length)
+            jnp.linalg.norm(self.side_length)
         )
-        self.volume = np.prod(self.side_length)
+        self.volume = jnp.prod(self.side_length)
 
     def inside(self, x):
         mod = utils.smart_numpy(x)
@@ -75,16 +75,16 @@ class Hypercube(Geometry):
         dx = (self.volume / n) ** (1 / self.dim)
         xi = []
         for i in range(self.dim):
-            ni = int(np.ceil(self.side_length[i] / dx))
+            ni = int(jnp.ceil(self.side_length[i] / dx))
             if boundary:
                 xi.append(
-                    np.linspace(
+                    jnp.linspace(
                         self.xmin[i], self.xmax[i], num=ni, dtype=bst.environ.dftype()
                     )
                 )
             else:
                 xi.append(
-                    np.linspace(
+                    jnp.linspace(
                         self.xmin[i],
                         self.xmax[i],
                         num=ni + 1,
@@ -92,7 +92,7 @@ class Hypercube(Geometry):
                         dtype=bst.environ.dftype(),
                     )[1:]
                 )
-        x = np.array(list(itertools.product(*xi)))
+        x = jnp.array(list(itertools.product(*xi)))
         if n != len(x):
             print(
                 "Warning: {} points required, but {} points sampled.".format(n, len(x))
@@ -107,11 +107,11 @@ class Hypercube(Geometry):
                 xi = []
                 for i in range(self.dim):
                     if i == d:
-                        xi.append(np.array([boundary], dtype=bst.environ.dftype()))
+                        xi.append(jnp.array([boundary], dtype=bst.environ.dftype()))
                     else:
-                        ni = int(np.ceil(points_per_face ** (1 / (self.dim - 1))))
+                        ni = int(jnp.ceil(points_per_face ** (1 / (self.dim - 1))))
                         xi.append(
-                            np.linspace(
+                            jnp.linspace(
                                 self.xmin[i],
                                 self.xmax[i],
                                 num=ni + 1,
@@ -119,9 +119,9 @@ class Hypercube(Geometry):
                                 dtype=bst.environ.dftype(),
                             )[1:]
                         )
-                face_points = np.array(list(itertools.product(*xi)))
+                face_points = jnp.array(list(itertools.product(*xi)))
                 points.append(face_points)
-        points = np.vstack(points)
+        points = jnp.vstack(points)
         if n != len(points):
             print(
                 "Warning: {} points required, but {} points sampled.".format(
@@ -137,13 +137,13 @@ class Hypercube(Geometry):
     def random_boundary_points(self, n, random="pseudo"):
         x = sample(n, self.dim, random)
         # Randomly pick a dimension
-        rand_dim = np.random.randint(self.dim, size=n)
+        rand_dim = bst.random.randint(self.dim, size=n)
         # Replace value of the randomly picked dimension with the nearest boundary value (0 or 1)
-        x[np.arange(n), rand_dim] = np.round(x[np.arange(n), rand_dim])
+        x[jnp.arange(n), rand_dim] = jnp.round(x[jnp.arange(n), rand_dim])
         return (self.xmax - self.xmin) * x + self.xmin
 
     def periodic_point(self, x, component):
-        y = np.copy(x)
+        y = jnp.copy(x)
         _on_xmin = isclose(y[:, component], self.xmin[component])
         _on_xmax = isclose(y[:, component], self.xmax[component])
         y[:, component][_on_xmin] = self.xmax[component]
@@ -213,28 +213,28 @@ class Hypercube(Geometry):
             raise ValueError("inside=False is not supported for Hypercube")
 
         if not hasattr(self, "self.xmin_tensor"):
-            self.xmin_tensor = np.asarray(self.xmin)
-            self.xmax_tensor = np.asarray(self.xmax)
+            self.xmin_tensor = jnp.asarray(self.xmin)
+            self.xmax_tensor = jnp.asarray(self.xmax)
 
-        dist_l = np.abs(
+        dist_l = jnp.abs(
             (x - self.xmin_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
         )
-        dist_r = np.abs(
+        dist_r = jnp.abs(
             (x - self.xmax_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
         )
         if smoothness == "C0":
-            dist_l = np.min(dist_l, dim=-1, keepdims=True)
-            dist_r = np.min(dist_r, dim=-1, keepdims=True)
-            return np.minimum(dist_l, dist_r)
+            dist_l = jnp.min(dist_l, axis=-1, keepdims=True)
+            dist_r = jnp.min(dist_r, axis=-1, keepdims=True)
+            return jnp.minimum(dist_l, dist_r)
         # TODO: fix potential numerical underflow
-        dist_l = np.prod(dist_l, dim=-1, keepdims=True)
-        dist_r = np.prod(dist_r, dim=-1, keepdims=True)
+        dist_l = jnp.prod(dist_l, axis=-1, keepdims=True)
+        dist_r = jnp.prod(dist_r, dim=-1, keepdims=True)
         return dist_l * dist_r
 
 
 class Hypersphere(Geometry):
     def __init__(self, center, radius):
-        self.center = np.array(center, dtype=bst.environ.dftype())
+        self.center = jnp.array(center, dtype=bst.environ.dftype())
         self.radius = radius
         super().__init__(
             len(center), (self.center - radius, self.center + radius), 2 * radius
@@ -243,24 +243,24 @@ class Hypersphere(Geometry):
         self._r2 = radius ** 2
 
     def inside(self, x):
-        return np.linalg.norm(x - self.center, axis=-1) <= self.radius
+        return jnp.linalg.norm(x - self.center, axis=-1) <= self.radius
 
     def on_boundary(self, x):
-        return isclose(np.linalg.norm(x - self.center, axis=-1), self.radius)
+        return isclose(jnp.linalg.norm(x - self.center, axis=-1), self.radius)
 
     def distance2boundary_unitdirn(self, x, dirn):
         # https://en.wikipedia.org/wiki/Line%E2%80%93sphere_intersection
         xc = x - self.center
-        ad = np.dot(xc, dirn)
-        return (-ad + (ad ** 2 - np.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(
+        ad = jnp.dot(xc, dirn)
+        return (-ad + (ad ** 2 - jnp.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(
             bst.environ.dftype()
         )
 
     def distance2boundary(self, x, dirn):
-        return self.distance2boundary_unitdirn(x, dirn / np.linalg.norm(dirn))
+        return self.distance2boundary_unitdirn(x, dirn / jnp.linalg.norm(dirn))
 
     def mindist2boundary(self, x):
-        return np.amin(self.radius - np.linalg.norm(x - self.center, axis=-1))
+        return jnp.amin(self.radius - jnp.linalg.norm(x - self.center, axis=-1))
 
     def boundary_constraint_factor(
         self, x, smoothness: Literal["C0", "C0+", "Cinf"] = "C0+"
@@ -269,27 +269,27 @@ class Hypersphere(Geometry):
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
 
         if not hasattr(self, "self.center_tensor"):
-            self.center_tensor = np.asarray(self.center)
-            self.radius_tensor = np.asarray(self.radius)
+            self.center_tensor = jnp.asarray(self.center)
+            self.radius_tensor = jnp.asarray(self.radius)
 
-        dist = np.linalg.norm(x - self.center_tensor, axis=-1, keepdims=True) - self.radius
+        dist = jnp.linalg.norm(x - self.center_tensor, axis=-1, keepdims=True) - self.radius
         if smoothness == "Cinf":
-            dist = np.square(dist)
+            dist = jnp.square(dist)
         else:
-            dist = np.abs(dist)
+            dist = jnp.abs(dist)
         return dist
 
     def boundary_normal(self, x):
         _n = x - self.center
-        l = np.linalg.norm(_n, axis=-1, keepdims=True)
+        l = jnp.linalg.norm(_n, axis=-1, keepdims=True)
         _n = _n / l * isclose(l, self.radius)
         return _n
 
     def random_points(self, n, random="pseudo"):
         # https://math.stackexchange.com/questions/87230/picking-random-points-in-the-volume-of-sphere-with-uniform-probability
         if random == "pseudo":
-            U = np.random.rand(n, 1).astype(bst.environ.dftype())
-            X = np.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
+            U = bst.random.rand(n, 1).astype(bst.environ.dftype())
+            X = bst.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
         else:
             rng = sample(n, self.dim + 1, random)
             U, X = rng[:, 0:1], rng[:, 1:]  # Error if X = [0, 0, ...]
@@ -301,7 +301,7 @@ class Hypersphere(Geometry):
     def random_boundary_points(self, n, random="pseudo"):
         # http://mathworld.wolfram.com/HyperspherePointPicking.html
         if random == "pseudo":
-            X = np.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
+            X = bst.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
         else:
             U = sample(n, self.dim, random)  # Error for [0, 0, ...] or [0.5, 0.5, ...]
             X = stats.norm.ppf(U).astype(bst.environ.dftype())
@@ -309,13 +309,13 @@ class Hypersphere(Geometry):
         return self.radius * X + self.center
 
     def background_points(self, x, dirn, dist2npt, shift):
-        dirn = dirn / np.linalg.norm(dirn)
+        dirn = dirn / jnp.linalg.norm(dirn)
         dx = self.distance2boundary_unitdirn(x, -dirn)
         n = max(dist2npt(dx), 1)
         h = dx / n
         pts = (
             x
-            - np.arange(-shift, n - shift + 1, dtype=bst.environ.dftype())[:, None]
+            - jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype())[:, None]
             * h
             * dirn
         )

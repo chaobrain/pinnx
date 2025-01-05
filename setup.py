@@ -32,7 +32,8 @@ version = re.search('__version__ = "(.*)"', init_py).groups()[0]
 if len(sys.argv) > 2 and sys.argv[2] == '--python-tag=py3':
     version = version
 else:
-    version += '.post{}'.format(time.strftime("%Y%m%d", time.localtime()))
+    # version += '.post{}'.format(time.strftime("%Y%m%d", time.localtime()))
+    version += 'post20250106'
 
 # obtain long description from README
 with io.open(os.path.join(here, 'README.md'), 'r', encoding='utf-8') as f:

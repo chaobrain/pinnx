@@ -70,10 +70,10 @@ class TrainingDisplay:
         )
 
     def summary(self, train_state):
-        print("Best trainer at step {:d}:".format(train_state.best_step))
-        print("  train loss: {:.2e}".format(train_state.best_loss_train))
-        print("  test loss: {:.2e}".format(train_state.best_loss_test))
-        print("  test metric: {:s}".format(tree_repr(train_state.best_metrics)))
+        print("Best trainer at step {}:".format(train_state.best_step))
+        print("  train loss: {}".format(train_state.best_loss_train))
+        print("  test loss: {}".format(train_state.best_loss_test))
+        print("  test metric: {}".format(tree_repr(train_state.best_metrics)))
         if train_state.best_ystd is not None:
             print("  Uncertainty:")
             print(

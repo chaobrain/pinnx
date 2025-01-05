@@ -16,7 +16,7 @@
 from typing import Literal, Union
 
 import brainstate as bst
-import numpy as np
+import jax.numpy as jnp
 
 from pinnx import utils
 from pinnx.utils.sampling import sample
@@ -25,7 +25,12 @@ from .base import Geometry
 
 class Interval(Geometry):
     def __init__(self, l, r):
-        super().__init__(1, (np.array([l]), np.array([r])), r - l)
+        super().__init__(
+            1,
+            (jnp.array([l], dtype=bst.environ.dftype()),
+             jnp.array([r], dtype=bst.environ.dftype())),
+            r - l
+        )
         self.l, self.r = l, r
 
     def inside(self, x):
@@ -34,7 +39,7 @@ class Interval(Geometry):
 
     def on_boundary(self, x):
         mod = utils.smart_numpy(x)
-        return mod.any(mod.isclose(x, np.array([self.l, self.r])), axis=-1)
+        return mod.any(mod.isclose(x, jnp.array([self.l, self.r], dtype=bst.environ.dftype())), axis=-1)
 
     def distance2boundary(self, x, dirn):
         return x - self.l if dirn < 0 else self.r - x
@@ -99,27 +104,27 @@ class Interval(Geometry):
         # To convert self.l and self.r to tensor,
         # and avoid repeated conversion in the loop
         if not hasattr(self, "self.l_tensor"):
-            self.l_tensor = np.asarray(self.l)
-            self.r_tensor = np.asarray(self.r)
+            self.l_tensor = jnp.asarray(self.l)
+            self.r_tensor = jnp.asarray(self.r)
 
         dist_l = dist_r = None
         if where != "right":
-            dist_l = np.abs((x - self.l_tensor) / (self.r_tensor - self.l_tensor) * 2)
+            dist_l = jnp.abs((x - self.l_tensor) / (self.r_tensor - self.l_tensor) * 2)
         if where != "left":
-            dist_r = np.abs((x - self.r_tensor) / (self.r_tensor - self.l_tensor) * 2)
+            dist_r = jnp.abs((x - self.r_tensor) / (self.r_tensor - self.l_tensor) * 2)
 
         if where is None:
             if smoothness == "C0":
-                return np.minimum(dist_l, dist_r)
+                return jnp.minimum(dist_l, dist_r)
             if smoothness == "C0+":
                 return dist_l * dist_r
-            return np.square(dist_l * dist_r)
+            return jnp.square(dist_l * dist_r)
         if where == "left":
             if smoothness == "Cinf":
-                dist_l = np.square(dist_l)
+                dist_l = jnp.square(dist_l)
             return dist_l
         if smoothness == "Cinf":
-            dist_r = np.square(dist_r)
+            dist_r = jnp.square(dist_r)
         return dist_r
 
     def boundary_normal(self, x):
@@ -128,22 +133,22 @@ class Interval(Geometry):
 
     def uniform_points(self, n, boundary=True):
         if boundary:
-            return np.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())[:, None]
-        return np.linspace(
+            return jnp.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())[:, None]
+        return jnp.linspace(
             self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype()
         )[1:, None]
 
     def log_uniform_points(self, n, boundary=True):
-        eps = 0 if self.l > 0 else np.finfo(bst.environ.dftype()).eps
-        l = np.log(self.l + eps)
-        r = np.log(self.r + eps)
+        eps = 0 if self.l > 0 else jnp.finfo(bst.environ.dftype()).eps
+        l = jnp.log(self.l + eps)
+        r = jnp.log(self.r + eps)
         if boundary:
-            x = np.linspace(l, r, num=n, dtype=bst.environ.dftype())[:, None]
+            x = jnp.linspace(l, r, num=n, dtype=bst.environ.dftype())[:, None]
         else:
-            x = np.linspace(l, r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[
+            x = jnp.linspace(l, r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[
                 1:, None
                 ]
-        return np.exp(x) - eps
+        return jnp.exp(x) - eps
 
     def random_points(self, n, random="pseudo"):
         x = sample(n, 1, random)
@@ -151,18 +156,18 @@ class Interval(Geometry):
 
     def uniform_boundary_points(self, n):
         if n == 1:
-            return np.array([[self.l]]).astype(bst.environ.dftype())
-        xl = np.full((n // 2, 1), self.l).astype(bst.environ.dftype())
-        xr = np.full((n - n // 2, 1), self.r).astype(bst.environ.dftype())
-        return np.vstack((xl, xr))
+            return jnp.array([[self.l]]).astype(bst.environ.dftype())
+        xl = jnp.full((n // 2, 1), self.l).astype(bst.environ.dftype())
+        xr = jnp.full((n - n // 2, 1), self.r).astype(bst.environ.dftype())
+        return jnp.vstack((xl, xr))
 
     def random_boundary_points(self, n, random="pseudo"):
         if n == 2:
-            return np.array([[self.l], [self.r]]).astype(bst.environ.dftype())
-        return np.random.choice([self.l, self.r], n)[:, None].astype(bst.environ.dftype())
+            return jnp.array([[self.l], [self.r]]).astype(bst.environ.dftype())
+        return bst.random.choice([self.l, self.r], n)[:, None].astype(bst.environ.dftype())
 
     def periodic_point(self, x, component=0):
-        tmp = np.copy(x)
+        tmp = jnp.copy(x)
         tmp[utils.isclose(x, self.l)] = self.r
         tmp[utils.isclose(x, self.r)] = self.l
         return tmp
@@ -180,14 +185,14 @@ class Interval(Geometry):
             dx = x[0] - self.l
             n = max(dist2npt(dx), 1)
             h = dx / n
-            pts = x[0] - np.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
+            pts = x[0] - jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
             return pts[:, None]
 
         def background_points_right():
             dx = self.r - x[0]
             n = max(dist2npt(dx), 1)
             h = dx / n
-            pts = x[0] + np.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
+            pts = x[0] + jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
             return pts[:, None]
 
         return (
@@ -195,5 +200,5 @@ class Interval(Geometry):
             if dirn < 0
             else background_points_right()
             if dirn > 0
-            else np.vstack((background_points_left(), background_points_right()))
+            else jnp.vstack((background_points_left(), background_points_right()))
         )

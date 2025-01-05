@@ -15,7 +15,8 @@
 import itertools
 from typing import Union, Literal
 
-import numpy as np
+import jax.numpy as jnp
+import brainstate as bst
 
 from .geometry_2d import Rectangle
 from .geometry_nd import Hypercube, Hypersphere
@@ -31,48 +32,48 @@ class Cuboid(Hypercube):
     def __init__(self, xmin, xmax):
         super().__init__(xmin, xmax)
         dx = self.xmax - self.xmin
-        self.area = 2 * np.sum(dx * np.roll(dx, 2))
+        self.area = 2 * jnp.sum(dx * jnp.roll(dx, 2))
 
     def random_boundary_points(self, n, random="pseudo"):
         pts = []
         density = n / self.area
         rect = Rectangle(self.xmin[:-1], self.xmax[:-1])
         for z in [self.xmin[-1], self.xmax[-1]]:
-            u = rect.random_points(int(np.ceil(density * rect.area)), random=random)
-            pts.append(np.hstack((u, np.full((len(u), 1), z))))
+            u = rect.random_points(int(jnp.ceil(density * rect.area)), random=random)
+            pts.append(jnp.hstack((u, jnp.full((len(u), 1), z))))
         rect = Rectangle(self.xmin[::2], self.xmax[::2])
         for y in [self.xmin[1], self.xmax[1]]:
-            u = rect.random_points(int(np.ceil(density * rect.area)), random=random)
-            pts.append(np.hstack((u[:, 0:1], np.full((len(u), 1), y), u[:, 1:])))
+            u = rect.random_points(int(jnp.ceil(density * rect.area)), random=random)
+            pts.append(jnp.hstack((u[:, 0:1], jnp.full((len(u), 1), y), u[:, 1:])))
         rect = Rectangle(self.xmin[1:], self.xmax[1:])
         for x in [self.xmin[0], self.xmax[0]]:
-            u = rect.random_points(int(np.ceil(density * rect.area)), random=random)
-            pts.append(np.hstack((np.full((len(u), 1), x), u)))
-        pts = np.vstack(pts)
+            u = rect.random_points(int(jnp.ceil(density * rect.area)), random=random)
+            pts.append(jnp.hstack((jnp.full((len(u), 1), x), u)))
+        pts = jnp.vstack(pts)
         if len(pts) > n:
-            return pts[np.random.choice(len(pts), size=n, replace=False)]
+            return pts[bst.random.choice(len(pts), size=n, replace=False)]
         return pts
 
     def uniform_boundary_points(self, n):
         h = (self.area / n) ** 0.5
-        nx, ny, nz = np.ceil((self.xmax - self.xmin) / h).astype(int) + 1
-        x = np.linspace(self.xmin[0], self.xmax[0], num=nx)
-        y = np.linspace(self.xmin[1], self.xmax[1], num=ny)
-        z = np.linspace(self.xmin[2], self.xmax[2], num=nz)
+        nx, ny, nz = jnp.ceil((self.xmax - self.xmin) / h).astype(int) + 1
+        x = jnp.linspace(self.xmin[0], self.xmax[0], num=nx)
+        y = jnp.linspace(self.xmin[1], self.xmax[1], num=ny)
+        z = jnp.linspace(self.xmin[2], self.xmax[2], num=nz)
 
         pts = []
         for v in [self.xmin[-1], self.xmax[-1]]:
             u = list(itertools.product(x, y))
-            pts.append(np.hstack((u, np.full((len(u), 1), v))))
+            pts.append(jnp.hstack((u, jnp.full((len(u), 1), v))))
         if nz > 2:
             for v in [self.xmin[1], self.xmax[1]]:
-                u = np.array(list(itertools.product(x, z[1:-1])))
-                pts.append(np.hstack((u[:, 0:1], np.full((len(u), 1), v), u[:, 1:])))
+                u = jnp.array(list(itertools.product(x, z[1:-1])))
+                pts.append(jnp.hstack((u[:, 0:1], jnp.full((len(u), 1), v), u[:, 1:])))
         if ny > 2 and nz > 2:
             for v in [self.xmin[0], self.xmax[0]]:
                 u = list(itertools.product(y[1:-1], z[1:-1]))
-                pts.append(np.hstack((np.full((len(u), 1), v), u)))
-        pts = np.vstack(pts)
+                pts.append(jnp.hstack((jnp.full((len(u), 1), v), u)))
+        pts = jnp.vstack(pts)
         if n != len(pts):
             print(
                 "Warning: {} points required, but {} points sampled.".format(
@@ -148,16 +149,16 @@ class Cuboid(Hypercube):
             raise ValueError("inside=False is not supported for Cuboid")
 
         if not hasattr(self, "self.xmin_tensor"):
-            self.xmin_tensor = np.asarray(self.xmin)
-            self.xmax_tensor = np.asarray(self.xmax)
+            self.xmin_tensor = jnp.asarray(self.xmin)
+            self.xmax_tensor = jnp.asarray(self.xmax)
 
         dist_l = dist_r = None
         if where not in ["front", "right", "top"]:
-            dist_l = np.abs(
+            dist_l = jnp.abs(
                 (x - self.xmin_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
             )
         if where not in ["back", "left", "bottom"]:
-            dist_r = np.abs(
+            dist_r = jnp.abs(
                 (x - self.xmax_tensor) / (self.xmax_tensor - self.xmin_tensor) * 2
             )
 
@@ -175,11 +176,11 @@ class Cuboid(Hypercube):
             return dist_r[:, 2:]
 
         if smoothness == "C0":
-            dist_l = np.min(dist_l, dim=-1, keepdims=True)
-            dist_r = np.min(dist_r, dim=-1, keepdims=True)
-            return np.minimum(dist_l, dist_r)
-        dist_l = np.prod(dist_l, dim=-1, keepdims=True)
-        dist_r = np.prod(dist_r, dim=-1, keepdims=True)
+            dist_l = jnp.min(dist_l, axis=-1, keepdims=True)
+            dist_r = jnp.min(dist_r, axis=-1, keepdims=True)
+            return jnp.minimum(dist_l, dist_r)
+        dist_l = jnp.prod(dist_l, axis=-1, keepdims=True)
+        dist_r = jnp.prod(dist_r, axis=-1, keepdims=True)
         return dist_l * dist_r
 
 
