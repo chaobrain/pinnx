@@ -1,3 +1,7 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 from typing import Optional, Callable
 
 import brainstate as bst

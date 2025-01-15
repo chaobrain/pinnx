@@ -1,9 +1,11 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
 import sys
 from pprint import pformat
 
 import brainunit as u
 import jax.tree
-import numpy as np
 
 from pinnx.utils import tree_repr
 

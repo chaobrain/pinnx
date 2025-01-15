@@ -12,7 +12,7 @@
 [![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/master/LICENSE)
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
-It is inspired from [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
+It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
 [Brain Dynamics Programming (BDP) ecosystem](https://ecosystem-for-brain-dynamics.readthedocs.io/). 
 For example, it leverages 
 

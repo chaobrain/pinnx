@@ -1,3 +1,7 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 from __future__ import annotations
 
 from typing import Callable, Sequence, Union, Optional, Dict, List

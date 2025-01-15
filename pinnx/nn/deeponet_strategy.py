@@ -1,3 +1,6 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
 from abc import ABC, abstractmethod
 
 
