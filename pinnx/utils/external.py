@@ -1,3 +1,7 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 """External utilities."""
 
 import csv
@@ -7,8 +11,8 @@ from multiprocessing import Pool
 import braintools
 import brainunit as u
 import jax
-import matplotlib.pyplot as plt
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn import preprocessing
 

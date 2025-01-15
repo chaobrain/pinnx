@@ -1,17 +1,21 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 import time
 from typing import Union, Sequence, Callable, Optional
 
 import brainstate as bst
 import brainunit as u
-import jax.tree
 import jax.numpy as jnp
+import jax.tree
 import numpy as np
 
-from pinnx.utils._display import training_display
 from . import metrics as metrics_module
 from . import utils
 from .callbacks import CallbackList, Callback
 from .problem.base import Problem
+from .utils._display import training_display
 
 __all__ = [
     "Trainer",

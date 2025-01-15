@@ -1,6 +1,9 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 import brainunit as u
 import jax
-
 
 __all__ = [
     'accuracy',

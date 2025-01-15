@@ -2,7 +2,10 @@
 ========================
 
 `PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning
-in JAX. It enables to define PINN problem with explicit variables (e.g. ``x``, ``y``, ``z``) and physical units
+in JAX. It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
+`Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+
+`PINNx` enables to define PINN problem with explicit variables (e.g. ``x``, ``y``, ``z``) and physical units
 (e.g. ``meter``, ``second``, ``kelvin``) and to solve the problem with neural networks.
 
 `PINNx <https://github.com/chaobrain/pinnx>`_ is built on top of our `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.

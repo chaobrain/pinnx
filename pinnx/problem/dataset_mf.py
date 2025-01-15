@@ -1,3 +1,7 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 import numpy as np
 
 from pinnx.utils import run_if_any_none, standardize

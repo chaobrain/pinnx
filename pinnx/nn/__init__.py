@@ -27,8 +27,8 @@ __all__ = [
 ]
 
 from .base import NN
+from .convert import DictToArray, ArrayToDict
 from .deeponet import DeepONet, DeepONetCartesianProd, PODDeepONet
 from .fnn import FNN, PFNN
-from .convert import DictToArray, ArrayToDict
 from .mionet import MIONetCartesianProd, PODMIONet
 from .model import Model

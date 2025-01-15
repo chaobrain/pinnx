@@ -1,10 +1,14 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 """Internal utilities."""
 import inspect
 import sys
 import timeit
 from functools import wraps
 from typing import Callable, Union
-import jax
+
 import brainstate as bst
 import brainunit as u
 import matplotlib.pyplot as plt

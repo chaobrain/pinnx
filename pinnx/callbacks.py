@@ -1,3 +1,6 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
 import sys
 import time
 from typing import Dict, Callable
@@ -8,7 +11,6 @@ import jax.tree
 import numpy as np
 
 from . import utils
-
 
 __all__ = [
     'Callback',

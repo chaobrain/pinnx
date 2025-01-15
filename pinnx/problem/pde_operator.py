@@ -1,10 +1,14 @@
+# Rewrite of the original file in DeepXDE: https://github.com/lululxvi/deepxde
+# ==============================================================================
+
+
 from __future__ import annotations
 
 from typing import Callable, Sequence, Union, Optional, Any, Dict
 
-import jax
-import brainunit as u
 import brainstate as bst
+import brainunit as u
+import jax
 import numpy as np
 
 from pinnx.fnspace import FunctionSpace
@@ -261,7 +265,7 @@ class PDEOperatorCartesianProd(TimePDE):
         num_domain: int = 0,  # for space PDE
         num_boundary: int = 0,  # for space PDE
         num_initial: int = 0,  # for time PDE
-        num_fn_test: int = None, # for function space
+        num_fn_test: int = None,  # for function space
         train_distribution: str = "Hammersley",
         anchors: Optional[bst.typing.ArrayLike] = None,
         exclusions=None,
@@ -348,7 +352,6 @@ class PDEOperatorCartesianProd(TimePDE):
             # append to losses
             losses.append({f'ibc{i}': bc_loss})
         return losses
-
 
     # def _losses(self, inputs, outputs, num_fn):
     #     bcs_start = np.cumsum([0] + self.num_bcs)
