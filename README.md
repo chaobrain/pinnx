@@ -10,6 +10,7 @@
 [![Documentation Status](https://readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/en/latest/?badge=latest)
 [![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://badge.fury.io/py/pinnx)
 [![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/master/LICENSE)
+[![DOI](https://zenodo.org/badge/890937840.svg)](https://doi.org/10.5281/zenodo.14970037)
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
 It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
