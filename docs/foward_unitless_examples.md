@@ -1,5 +1,83 @@
 # PINN Forward Unitless Examples
 
+This section contains examples demonstrating how to solve forward problems using Physics-Informed Neural Networks (PINNs) **without explicit physical units**. These examples work with dimensionless or normalized equations, following the traditional PINN approach.
+
+## What are Unitless Examples?
+
+Unitless (or dimensionless) examples use normalized variables and equations where:
+
+- All quantities are scaled to be of order unity (O(1))
+- Physical dimensions are removed through non-dimensionalization
+- Equations are expressed in terms of dimensionless parameters (e.g., Reynolds number, Mach number)
+- Results require post-processing to convert back to physical units
+
+This approach is widely used in traditional computational physics and can be beneficial when:
+- Working with multi-scale problems
+- Comparing solutions across different parameter regimes
+- Simplifying complex equations
+- Following established non-dimensional formulations
+
+## Comparison with Unit-Aware Examples
+
+While PINNx supports **both** unit-aware and unitless formulations, each has its advantages:
+
+| **Unitless (this section)** | **Unit-Aware** (see PINN Forward Examples) |
+|------------------------------|---------------------------------------------|
+| Traditional approach | PINNx's innovative feature |
+| Requires manual non-dimensionalization | Automatic dimensional handling |
+| Results need scaling back | Results in physical units directly |
+| Better for classical benchmarks | Better for real-world applications |
+| More examples available | Growing collection |
+
+## Comprehensive Example Collection
+
+This section features an extensive collection of over 30 examples covering:
+
+### Elliptic PDEs
+- **Poisson Equation**: Various boundary conditions (Dirichlet, Neumann, Robin, Periodic)
+- **Helmholtz Equation**: Multiple geometries including domains with holes
+- **Laplace Equation**: Complex domain shapes
+
+### Parabolic PDEs
+- **Diffusion Equation**: Standard, with exact BC, with resampling
+- **Heat Equation**: Time-dependent problems
+- **Diffusion-Reaction**: Coupled equations
+
+### Hyperbolic PDEs
+- **Klein-Gordon Equation**: Wave propagation
+- **Schrodinger Equation**: Quantum mechanics
+
+### Nonlinear PDEs
+- **Allen-Cahn Equation**: Phase field modeling
+- **Burgers Equation**: Nonlinear advection-diffusion
+- **Navier-Stokes**: Fluid dynamics (Kovasznay flow, Beltrami flow)
+
+### Fractional PDEs
+- **Fractional Poisson**: 1D, 2D, and 3D formulations
+- **Fractional Diffusion**: Time-fractional derivatives
+
+### Structural Mechanics
+- **Euler Beam**: Classical beam theory
+- **Linear Elasticity**: 2D plate problems
+
+### Ordinary Differential Equations (ODEs)
+- **Second-order ODEs**: Various boundary conditions
+- **ODE Systems**: Coupled equations
+- **Lotka-Volterra**: Population dynamics
+- **Volterra Integro-Differential Equations (IDE)**: Memory effects
+
+### Advanced Features Demonstrated
+- **Hyperparameter Optimization (HPO)**: Automated tuning
+- **Hard Constraints**: Exact boundary condition enforcement
+- **Residual-based Adaptive Refinement (RAR)**: Dynamic point resampling
+- **Point Set Operators**: Custom boundary operators
+
+Each example includes detailed implementations showing:
+- Problem formulation and non-dimensionalization
+- Neural network architecture selection
+- Training configuration and loss functions
+- Result visualization and validation
+- Comparison with analytical/numerical solutions (when available)
 
 ```{toctree}
 :maxdepth: 1
