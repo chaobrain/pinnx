@@ -52,7 +52,7 @@
 
 #### Documentation Structure
 - Added `forward_examples.md` for forward problem examples
-- Added `foward_unitless_examples.md` for unitless examples
+- Added `forward_unitless_examples.md` for unitless examples
 - Added `inverse_examples.md` for inverse problem examples
 - Removed deprecated documentation files:
   - `docs/examples-unitless.rst`
