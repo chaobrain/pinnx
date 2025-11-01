@@ -38,3 +38,4 @@ docs/apis/
 !docs/apis/pinnx.grad.rst
 !docs/apis/pinnx.metrics.rst
 /dev/
+/.claude/

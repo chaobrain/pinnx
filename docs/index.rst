@@ -46,7 +46,7 @@ Quick Start
 
 .. code-block:: python
 
-    import brainstate
+    import braintools
     import brainunit as u
     import pinnx
 
@@ -103,25 +103,50 @@ Quick Start
 
 
 
-User guide
-^^^^^^^^^^
 
-.. toctree::
-    :maxdepth: 1
-
-    about.rst
 
 
 .. toctree::
     :maxdepth: 2
+    :caption: PINN Forward Examples
 
-    unit-examples-forward.rst
-    unit-examples-inverse.rst
+    unit-examples-forward/Beltrami_flow.ipynb
+    unit-examples-forward/diffusion_1d.ipynb
+    unit-examples-forward/Euler_beam.ipynb
+    unit-examples-forward/Helmholtz_Dirichlet_2d.ipynb
+    unit-examples-forward/burgers.ipynb
+    unit-examples-forward/Burgers_RAR.ipynb
+    unit-examples-forward/heat.ipynb
+    unit-examples-forward/heat_resample.ipynb
+    unit-examples-forward/Laplace_disk.ipynb
+
+
+
+.. toctree::
+    :maxdepth: 2
+    :caption: PINN Inverse Examples
+
+    unit-examples-inverse/elliptic_inverse_filed.ipynb
+    unit-examples-inverse/brinkman_forchheimer.ipynb
+    unit-examples-inverse/diffusion_reaction_rate.ipynb
+    unit-examples-inverse/reaction_inverse.ipynb
+    unit-examples-inverse/diffusion_1d_inverse.ipynb
+    unit-examples-inverse/Navier_Stokes_inverse.ipynb
+
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: FQA
+
+    about.rst
     More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
 
 
-See also the BDP ecosystem
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+See also the ecosystem
+^^^^^^^^^^^^^^^^^^^^^^
 
 We are building the `brain dynamics programming ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
 

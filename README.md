@@ -13,7 +13,7 @@
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
 It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
-[Brain Dynamics Programming (BDP) ecosystem](https://ecosystem-for-brain-dynamics.readthedocs.io/). 
+[brain modeling ecosystem](https://brainmodeling.readthedocs.io/). 
 For example, it leverages 
 
 - [brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
@@ -27,7 +27,7 @@ For example, it leverages
 Define a PINN with explicit variables and physical units.
 
 ```python
-import brainstate
+import braintools
 import brainunit as u
 import pinnx
 
@@ -95,12 +95,26 @@ pip install pinnx --upgrade
 ```
 
 
+- Install ``pinnx`` on CPU or GPU with JAX following the instructions on
+
+```shell
+pip install pinnx[cpu]  # for CPU
+
+pip install pinnx[cuda12]  # for NVIDIA GPUs with CUDA 12
+
+pip install pinnx[cuda13]  # for NVIDIA GPUs with CUDA 13
+
+pip install pinnx[tpu]  # for Google TPUs
+
+```
+
+
 ## Documentation
 
 The official documentation is hosted on Read the Docs: [https://pinnx.readthedocs.io/](https://pinnx.readthedocs.io/)
 
 
-## See also the BDP ecosystem
+## See also the ecosystem
 
-We are building the Brain Dynamics Programming ecosystem: https://ecosystem-for-brain-dynamics.readthedocs.io/
+``pinnx`` is one part of our brain modeling ecosystem: https://brainmodeling.readthedocs.io/
 

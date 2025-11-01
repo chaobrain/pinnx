@@ -33,8 +33,6 @@ sys.path.insert(0, os.path.abspath(os.path.curdir))
 sys.path.insert(0, os.path.abspath('../'))
 
 import pinnx
-import auto_generater
-auto_generater.main()
 
 os.makedirs('apis/', exist_ok=True)
 
