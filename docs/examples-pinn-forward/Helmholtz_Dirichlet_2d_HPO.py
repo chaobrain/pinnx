@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 from skopt import gp_minimize
@@ -52,7 +52,7 @@ def create_model(config):
         pinnx.nn.FNN(
             [d] + [num_dense_nodes] * num_dense_layers + [1],
             activation,
-            bst.init.KaimingUniform(),
+            braintools.init.KaimingUniform(),
             output_transform=transform,
         ),
         pinnx.nn.ArrayToDict(y=None),
@@ -70,7 +70,7 @@ def create_model(config):
     )
 
     trainer = pinnx.Trainer(problem)
-    trainer.compile(bst.optim.Adam(learning_rate), metrics=["l2 relative error"])
+    trainer.compile(braintools.optim.Adam(learning_rate), metrics=["l2 relative error"])
     return trainer
 
 

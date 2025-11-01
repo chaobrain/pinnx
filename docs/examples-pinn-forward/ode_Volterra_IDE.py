@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 
@@ -43,7 +43,7 @@ data = pinnx.problem.IDE(
 )
 
 model = pinnx.Trainer(data)
-model.compile(bst.optim.LBFGS(1e-3)).train(5000, display_every=200)
+model.compile(braintools.optim.LBFGS(1e-3)).train(5000, display_every=200)
 
 X = geom.uniform_points(100)
 y_true = func(X)

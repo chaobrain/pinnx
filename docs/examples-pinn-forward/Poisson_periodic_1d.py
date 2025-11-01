@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 import pinnx
@@ -37,5 +37,5 @@ data = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
 trainer.saveplot(issave=True, isplot=True)

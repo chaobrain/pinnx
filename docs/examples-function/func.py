@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 import pinnx
@@ -29,7 +29,7 @@ num_test = 100
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None),
-    pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh", bst.init.LecunUniform()),
+    pinnx.nn.FNN([1] + [20] * 3 + [1], "tanh", braintools.init.LecunUniform()),
     pinnx.nn.ArrayToDict(y=None),
 )
 
@@ -39,5 +39,5 @@ data = pinnx.problem.Function(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
 trainer.saveplot(issave=False, isplot=True)

@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 from typing import Dict
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 __all__ = [
@@ -25,7 +25,7 @@ __all__ = [
 
 
 def dict_to_array(
-    d: Dict[str, bst.typing.ArrayLike],
+    d: Dict[str, brainstate.typing.ArrayLike],
     axis: int = 1
 ):
     """
@@ -42,7 +42,7 @@ def dict_to_array(
     return u.math.stack([d[key] for key in keys], axis=axis)
 
 
-class DictToArray(bst.nn.Module):
+class DictToArray(brainstate.nn.Module):
     """
     DictToArray layer, scaling the input data according to the given units, and merging them into an array.
 
@@ -67,7 +67,7 @@ class DictToArray(bst.nn.Module):
         self.in_size = len(units)
         self.out_size = len(units)
 
-    def update(self, x: Dict[str, bst.typing.ArrayLike]):
+    def update(self, x: Dict[str, brainstate.typing.ArrayLike]):
         assert set(x.keys()) == set(self.units.keys()), (f"DictToArray keys mismatch. "
                                                          f"{set(x.keys())} != {set(self.units.keys())}.")
 
@@ -88,7 +88,7 @@ class DictToArray(bst.nn.Module):
         return arr
 
 
-class ArrayToDict(bst.nn.Module):
+class ArrayToDict(brainstate.nn.Module):
     """
     Output layer, splitting the output data into a dict and assign the corresponding units.
 
@@ -110,7 +110,7 @@ class ArrayToDict(bst.nn.Module):
         self.in_size = len(units)
         self.out_size = len(units)
 
-    def update(self, arr: bst.typing.ArrayLike) -> Dict[str, bst.typing.ArrayLike]:
+    def update(self, arr: brainstate.typing.ArrayLike) -> Dict[str, brainstate.typing.ArrayLike]:
         assert arr.shape[self.axis] == len(self.units), (f"The number of columns of x must be "
                                                          f"equal to the number of units. "
                                                          f"Got {arr.shape[self.axis]} != {len(self.units)}. "

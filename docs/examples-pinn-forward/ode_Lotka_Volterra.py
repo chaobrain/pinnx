@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -70,8 +70,8 @@ problem = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(0.001)).train(iterations=50000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(1000)
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=50000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(1000)
 trainer.saveplot(issave=True, isplot=True)
 
 

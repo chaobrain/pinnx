@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 
@@ -35,7 +35,7 @@ def pde(x, y):
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None, t=None),
     pinnx.nn.FNN(
-        [2] + [32] * 3 + [1], 'tanh', bst.init.KaimingUniform()
+        [2] + [32] * 3 + [1], 'tanh', braintools.init.KaimingUniform()
     ),
     pinnx.nn.ArrayToDict(y=None)
 )
@@ -55,5 +55,5 @@ problem = pinnx.problem.TimePDE(
 
 trainer = pinnx.Trainer(problem)
 resampler = pinnx.callbacks.PDEPointResampler(period=100)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=2000, callbacks=[resampler])
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=2000, callbacks=[resampler])
 trainer.saveplot(issave=True, isplot=True)

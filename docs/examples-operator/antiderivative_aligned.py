@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -34,7 +34,7 @@ problem = pinnx.problem.TripleCartesianProd(
 model = pinnx.Trainer(problem)
 
 # Compile and Train
-model.compile(bst.optim.Adam(0.001), metrics=["mean l2 relative error"]).train(iterations=10000)
+model.compile(braintools.optim.Adam(0.001), metrics=["mean l2 relative error"]).train(iterations=10000)
 
 # Plot the loss trajectory
 pinnx.utils.plot_loss_history(model.loss_history)

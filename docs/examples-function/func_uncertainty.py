@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 # ==============================================================================
 
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 import pinnx
@@ -27,7 +27,7 @@ def func(x):
 layer_size = [1] + [50] * 3 + [1]
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None),
-    pinnx.nn.FNN(layer_size, "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.FNN(layer_size, "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(y=None),
 )
 
@@ -41,5 +41,5 @@ data = pinnx.problem.Function(
 
 trainer = pinnx.Trainer(data)
 uncertainty = pinnx.callbacks.DropoutUncertainty(period=1000)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=uncertainty)
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=uncertainty)
 trainer.saveplot(issave=True, isplot=True)

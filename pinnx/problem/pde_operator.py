@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Callable, Sequence, Union, Optional, Any, Dict
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -61,14 +61,14 @@ class PDEOperator(TimePDE):
         num_function: int,
         function_variables: Optional[Sequence[int]] = None,
         num_test: int = None,
-        approximator: Optional[bst.nn.Module] = None,
-        solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
+        solution: Callable[[brainstate.typing.PyTree], brainstate.typing.PyTree] = None,
         num_domain: int = 0,  # for space PDE
         num_boundary: int = 0,  # for space PDE
         num_initial: int = 0,  # for time PDE
         num_fn_test: int = None,
         train_distribution: str = "Hammersley",
-        anchors: Optional[bst.typing.ArrayLike] = None,
+        anchors: Optional[brainstate.typing.ArrayLike] = None,
         exclusions=None,
         loss_fn: str | Callable = 'MSE',
         loss_weights: Sequence[float] = None,
@@ -193,9 +193,9 @@ class PDEOperator(TimePDE):
     def bc_inputs(self, func_feats, func_vals):
         if len(self.constraints) == 0:
             self.train_bc = (
-                np.empty((0, len(self.eval_pts)), dtype=bst.environ.dftype()),
-                np.empty((0, self.geometry.dim), dtype=bst.environ.dftype()),
-                np.empty((0, 1), dtype=bst.environ.dftype()),
+                np.empty((0, len(self.eval_pts)), dtype=brainstate.environ.dftype()),
+                np.empty((0, self.geometry.dim), dtype=brainstate.environ.dftype()),
+                np.empty((0, 1), dtype=brainstate.environ.dftype()),
             )
             return self.train_bc
 
@@ -260,14 +260,14 @@ class PDEOperatorCartesianProd(TimePDE):
         num_function: int,
         function_variables: Optional[Sequence[int]] = None,
         num_test: int = None,
-        approximator: Optional[bst.nn.Module] = None,
-        solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
+        solution: Callable[[brainstate.typing.PyTree], brainstate.typing.PyTree] = None,
         num_domain: int = 0,  # for space PDE
         num_boundary: int = 0,  # for space PDE
         num_initial: int = 0,  # for time PDE
         num_fn_test: int = None,  # for function space
         train_distribution: str = "Hammersley",
-        anchors: Optional[bst.typing.ArrayLike] = None,
+        anchors: Optional[brainstate.typing.ArrayLike] = None,
         exclusions=None,
         loss_fn: str | Callable = 'MSE',
         loss_weights: Sequence[float] = None,

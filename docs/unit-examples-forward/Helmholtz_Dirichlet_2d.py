@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 
@@ -51,7 +51,7 @@ net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=unit_of_x, y=unit_of_y),
     pinnx.nn.FNN([2] + [num_dense_nodes] * num_dense_layers + [1],
                  u.math.sin,
-                 bst.init.KaimingUniform()),
+                 braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(y=unit_of_u),
 )
 
@@ -77,5 +77,5 @@ problem = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
+trainer.compile(braintools.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
 trainer.saveplot(issave=True, isplot=True)

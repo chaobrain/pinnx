@@ -1,6 +1,6 @@
 import os
 
-import brainstate as bst
+import brainstate
 import numpy as np
 import optax
 import brainunit as u
@@ -81,7 +81,7 @@ ic = pinnx.icbc.IC(
 )
 
 
-@bst.compile.jit
+@brainstate.transform.jit
 def pde(x, y):
     """
     Expresses the PDE residual of the heat equation.
@@ -97,7 +97,7 @@ approximator = pinnx.nn.Model(
     pinnx.nn.FNN(
         [2] + [20] * 3 + [1],
         "tanh",
-        bst.init.KaimingUniform()
+        braintools.init.KaimingUniform()
     ),
     pinnx.nn.ArrayToDict(y=uy)
 )
@@ -117,9 +117,9 @@ problem = pinnx.problem.TimePDE(
 trainer = pinnx.Trainer(problem)
 
 # Build and train the trainer:
-trainer.compile(bst.optim.Adam(1e-3))
+trainer.compile(braintools.optim.Adam(1e-3))
 trainer.train(iterations=10000)
-trainer.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
+trainer.compile(braintools.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
 
 # Plot/print the results
 trainer.saveplot(issave=True, isplot=True)

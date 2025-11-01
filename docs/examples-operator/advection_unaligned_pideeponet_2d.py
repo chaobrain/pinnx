@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,7 +52,7 @@ def periodic(x):
     )
 
 
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONet(
         [50, 128, 128, 128],
         [dim_x, 128, 128, 128],
@@ -78,7 +78,7 @@ data = pinnx.problem.PDEOperator(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.0005)).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.0005)).train(iterations=10000)
 trainer.saveplot()
 
 x = np.linspace(0, 1, num=100)

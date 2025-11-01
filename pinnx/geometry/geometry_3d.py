@@ -4,7 +4,7 @@
 import itertools
 from typing import Union, Literal
 
-import brainstate as bst
+import brainstate
 import jax.numpy as jnp
 
 from .geometry_2d import Rectangle
@@ -40,7 +40,7 @@ class Cuboid(Hypercube):
             pts.append(jnp.hstack((jnp.full((len(u), 1), x), u)))
         pts = jnp.vstack(pts)
         if len(pts) > n:
-            return pts[bst.random.choice(len(pts), size=n, replace=False)]
+            return pts[brainstate.random.choice(len(pts), size=n, replace=False)]
         return pts
 
     def uniform_boundary_points(self, n):

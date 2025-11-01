@@ -3,7 +3,7 @@
 
 from typing import Literal, Union
 
-import brainstate as bst
+import brainstate
 import jax.numpy as jnp
 
 from pinnx import utils
@@ -15,8 +15,8 @@ class Interval(Geometry):
     def __init__(self, l, r):
         super().__init__(
             1,
-            (jnp.array([l], dtype=bst.environ.dftype()),
-             jnp.array([r], dtype=bst.environ.dftype())),
+            (jnp.array([l], dtype=brainstate.environ.dftype()),
+             jnp.array([r], dtype=brainstate.environ.dftype())),
             r - l
         )
         self.l, self.r = l, r
@@ -27,7 +27,7 @@ class Interval(Geometry):
 
     def on_boundary(self, x):
         mod = utils.smart_numpy(x)
-        return mod.any(mod.isclose(x, jnp.array([self.l, self.r], dtype=bst.environ.dftype())), axis=-1)
+        return mod.any(mod.isclose(x, jnp.array([self.l, self.r], dtype=brainstate.environ.dftype())), axis=-1)
 
     def distance2boundary(self, x, dirn):
         return x - self.l if dirn < 0 else self.r - x
@@ -117,42 +117,42 @@ class Interval(Geometry):
 
     def boundary_normal(self, x):
         mod = utils.smart_numpy(x)
-        return -mod.isclose(x, self.l).astype(bst.environ.dftype()) + mod.isclose(x, self.r)
+        return -mod.isclose(x, self.l).astype(brainstate.environ.dftype()) + mod.isclose(x, self.r)
 
     def uniform_points(self, n, boundary=True):
         if boundary:
-            return jnp.linspace(self.l, self.r, num=n, dtype=bst.environ.dftype())[:, None]
+            return jnp.linspace(self.l, self.r, num=n, dtype=brainstate.environ.dftype())[:, None]
         return jnp.linspace(
-            self.l, self.r, num=n + 1, endpoint=False, dtype=bst.environ.dftype()
+            self.l, self.r, num=n + 1, endpoint=False, dtype=brainstate.environ.dftype()
         )[1:, None]
 
     def log_uniform_points(self, n, boundary=True):
-        eps = 0 if self.l > 0 else jnp.finfo(bst.environ.dftype()).eps
+        eps = 0 if self.l > 0 else jnp.finfo(brainstate.environ.dftype()).eps
         l = jnp.log(self.l + eps)
         r = jnp.log(self.r + eps)
         if boundary:
-            x = jnp.linspace(l, r, num=n, dtype=bst.environ.dftype())[:, None]
+            x = jnp.linspace(l, r, num=n, dtype=brainstate.environ.dftype())[:, None]
         else:
-            x = jnp.linspace(l, r, num=n + 1, endpoint=False, dtype=bst.environ.dftype())[
+            x = jnp.linspace(l, r, num=n + 1, endpoint=False, dtype=brainstate.environ.dftype())[
                 1:, None
                 ]
         return jnp.exp(x) - eps
 
     def random_points(self, n, random="pseudo"):
         x = sample(n, 1, random)
-        return (self.diam * x + self.l).astype(bst.environ.dftype())
+        return (self.diam * x + self.l).astype(brainstate.environ.dftype())
 
     def uniform_boundary_points(self, n):
         if n == 1:
-            return jnp.array([[self.l]]).astype(bst.environ.dftype())
-        xl = jnp.full((n // 2, 1), self.l).astype(bst.environ.dftype())
-        xr = jnp.full((n - n // 2, 1), self.r).astype(bst.environ.dftype())
+            return jnp.array([[self.l]]).astype(brainstate.environ.dftype())
+        xl = jnp.full((n // 2, 1), self.l).astype(brainstate.environ.dftype())
+        xr = jnp.full((n - n // 2, 1), self.r).astype(brainstate.environ.dftype())
         return jnp.vstack((xl, xr))
 
     def random_boundary_points(self, n, random="pseudo"):
         if n == 2:
-            return jnp.array([[self.l], [self.r]]).astype(bst.environ.dftype())
-        return bst.random.choice([self.l, self.r], n)[:, None].astype(bst.environ.dftype())
+            return jnp.array([[self.l], [self.r]]).astype(brainstate.environ.dftype())
+        return brainstate.random.choice([self.l, self.r], n)[:, None].astype(brainstate.environ.dftype())
 
     def periodic_point(self, x, component=0):
         tmp = jnp.copy(x)
@@ -173,14 +173,14 @@ class Interval(Geometry):
             dx = x[0] - self.l
             n = max(dist2npt(dx), 1)
             h = dx / n
-            pts = x[0] - jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
+            pts = x[0] - jnp.arange(-shift, n - shift + 1, dtype=brainstate.environ.dftype()) * h
             return pts[:, None]
 
         def background_points_right():
             dx = self.r - x[0]
             n = max(dist2npt(dx), 1)
             h = dx / n
-            pts = x[0] + jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype()) * h
+            pts = x[0] + jnp.arange(-shift, n - shift + 1, dtype=brainstate.environ.dftype()) * h
             return pts[:, None]
 
         return (

@@ -4,7 +4,7 @@
 
 from typing import Sequence
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -22,16 +22,16 @@ def convert_to_array(value: Sequence):
     """Convert a list of numpy arrays or tensors to a numpy array or a tensor."""
     if istensorlist(value):
         return np.stack(value, axis=0)
-    return np.array(value, dtype=bst.environ.dftype())
+    return np.array(value, dtype=brainstate.environ.dftype())
 
 
 def hstack(tup):
     if not is_tensor(tup[0]) and isinstance(tup[0], list) and tup[0] == []:
         tup = list(tup)
         if istensorlist(tup[1:]):
-            tup[0] = np.asarray([], dtype=bst.environ.dftype())
+            tup[0] = np.asarray([], dtype=brainstate.environ.dftype())
         else:
-            tup[0] = np.array([], dtype=bst.environ.dftype())
+            tup[0] = np.array([], dtype=brainstate.environ.dftype())
     return np.concatenate(tup, 0) if is_tensor(tup[0]) else np.hstack(tup)
 
 

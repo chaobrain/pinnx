@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -95,7 +95,7 @@ data = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
+trainer.compile(braintools.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
 trainer.saveplot(issave=True, isplot=True)
 
 # Plot the solution over a square grid with 100 points per wavelength in each direction

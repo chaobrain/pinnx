@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 from scipy.special import jv, hankel1
@@ -123,5 +123,5 @@ problem = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
+trainer.compile(braintools.optim.Adam(learning_rate), metrics=["l2 relative error"]).train(iterations=iterations)
 trainer.saveplot(issave=True, isplot=True)

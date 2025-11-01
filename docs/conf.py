@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ os.makedirs('apis/', exist_ok=True)
 
 project = 'PINNx'
 copyright = '2024, PINNx'
-author = 'BDP Ecosystem'
+author = 'BrainX Ecosystem'
 
 # The full version, including alpha/beta/rc tags
 release = pinnx.__version__

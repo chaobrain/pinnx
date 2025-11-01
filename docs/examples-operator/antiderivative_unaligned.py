@@ -8,7 +8,7 @@
 
 
 
-import brainstate as bst
+import brainstate
 import numpy as np
 
 import pinnx
@@ -42,6 +42,6 @@ problem = pinnx.problem.TripleDataset(
 # Define a Trainer
 trainer = pinnx.Trainer(problem)
 # Compile and Train
-trainer.compile(bst.optim.Adam(0.001)).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=10000)
 # Plot the loss trajectory
 trainer.saveplot(issave=True, isplot=True)

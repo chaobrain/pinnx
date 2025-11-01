@@ -5,7 +5,7 @@ Identification of the parameters of the modified Lorenz attractor (with exogenou
 
 import re
 
-import brainstate as bst
+import brainstate
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
@@ -57,9 +57,9 @@ plt.show()
 
 # Perform identification
 # parameters to be identified
-C1 = bst.ParamState(1.0)
-C2 = bst.ParamState(1.0)
-C3 = bst.ParamState(1.0)
+C1 = brainstate.ParamState(1.0)
+C2 = brainstate.ParamState(1.0)
+C3 = brainstate.ParamState(1.0)
 
 
 # interpolate time / lift vectors (for using exogenous variable without fixed time stamps)
@@ -130,7 +130,7 @@ variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=100, filename=fnam
 
 # train the model
 trainer = pinnx.Trainer(data, external_trainable_variables=[C1, C2, C3])
-trainer.compile(bst.optim.Adam(0.001)).train(iterations=60000, callbacks=[variable])
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=60000, callbacks=[variable])
 
 # Plots
 # reopen saved data using callbacks in fnamevar

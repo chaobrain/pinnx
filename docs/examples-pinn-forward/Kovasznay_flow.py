@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax.tree
 import numpy as np
@@ -69,8 +69,8 @@ data = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=30000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(iterations=2000)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=30000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(iterations=2000)
 
 X = spatial_domain.random_points(100000)
 output = trainer.predict(X)

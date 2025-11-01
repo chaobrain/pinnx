@@ -13,13 +13,17 @@ __all__ = [
 ]
 
 import abc
+import importlib.util
 
-import brainstate as bst
+import brainstate
 import numpy as np
 from scipy import linalg, interpolate
-from sklearn import gaussian_process as gp
 
 from pinnx.utils import isclose
+
+sklearn_installed = importlib.util.find_spec("sklearn")
+if sklearn_installed:
+    from sklearn import gaussian_process as gp
 
 
 class FunctionSpace(abc.ABC):
@@ -90,13 +94,13 @@ class PowerSeries(FunctionSpace):
         self.M = M
 
     def random(self, size):
-        return 2 * self.M * np.random.rand(size, self.N).astype(bst.environ.dftype()) - self.M
+        return 2 * self.M * np.random.rand(size, self.N).astype(brainstate.environ.dftype()) - self.M
 
     def eval_one(self, feature, x):
         return np.dot(feature, x ** np.arange(self.N))
 
     def eval_batch(self, features, xs):
-        mat = np.ones((self.N, len(xs)), dtype=bst.environ.dftype())
+        mat = np.ones((self.N, len(xs)), dtype=brainstate.environ.dftype())
         for i in range(1, self.N):
             mat[i] = np.ravel(xs ** i)
         return np.dot(features, mat)
@@ -126,7 +130,7 @@ class Chebyshev(FunctionSpace):
         return np.polynomial.chebyshev.chebval(2 * x - 1, feature)
 
     def eval_batch(self, features, xs):
-        return np.polynomial.chebyshev.chebval(2 * np.ravel(xs) - 1, features.T).astype(bst.environ.dftype())
+        return np.polynomial.chebyshev.chebval(2 * np.ravel(xs) - 1, features.T).astype(brainstate.environ.dftype())
 
 
 class GRF(FunctionSpace):
@@ -156,6 +160,9 @@ class GRF(FunctionSpace):
         N: int = 1000,
         interp: str = "cubic"
     ):
+        if not sklearn_installed:
+            raise ImportError("scikit-learn is required to use GRF. "
+                              "Please install it via 'pip install scikit-learn'.")
         self.N = N
         self.interp = interp
         self.x = np.linspace(0, T, num=N)[:, None]
@@ -193,7 +200,7 @@ class GRF(FunctionSpace):
                                            assume_sorted=True)(xs).T,
             features,
         )
-        return np.vstack(list(res)).astype(bst.environ.dftype())
+        return np.vstack(list(res)).astype(brainstate.environ.dftype())
 
 
 class GRF_KL(FunctionSpace):
@@ -221,6 +228,10 @@ class GRF_KL(FunctionSpace):
         N: int = 100,
         interp: str = "cubic"
     ):
+        if not sklearn_installed:
+            raise ImportError("scikit-learn is required to use GRF_KL. "
+                              "Please install it via 'pip install scikit-learn'.")
+
         if not isclose(T, 1):
             raise ValueError("GRF_KL only supports T = 1.")
 
@@ -242,7 +253,7 @@ class GRF_KL(FunctionSpace):
         return np.array([np.ravel(f(sensors)) for f in self.eigfun])
 
     def random(self, size):
-        return np.random.randn(size, self.num_eig).astype(bst.environ.dftype())
+        return np.random.randn(size, self.num_eig).astype(brainstate.environ.dftype())
 
     def eval_one(self, feature, x):
         eigfun = [f(x) for f in self.eigfun]
@@ -250,7 +261,7 @@ class GRF_KL(FunctionSpace):
 
     def eval_batch(self, features, xs):
         eigfun = np.array([np.ravel(f(xs)) for f in self.eigfun],
-                          dtype=bst.environ.dftype())
+                          dtype=brainstate.environ.dftype())
         return np.dot(features, eigfun)
 
 
@@ -293,6 +304,10 @@ class GRF2D(FunctionSpace):
         N: int = 100,
         interp: str = "splinef2d"
     ):
+        if not sklearn_installed:
+            raise ImportError("scikit-learn is required to use GRF2D. "
+                              "Please install it via 'pip install scikit-learn'.")
+
         self.N = N
         self.interp = interp
         self.x = np.linspace(0, 1, num=N)
@@ -318,7 +333,7 @@ class GRF2D(FunctionSpace):
         points = (self.x, self.y)
         ys = np.reshape(features, (-1, self.N, self.N))
         res = map(lambda y: interpolate.interpn(points, y, xs, method=self.interp), ys)
-        return np.vstack(list(res)).astype(bst.environ.dftype())
+        return np.vstack(list(res)).astype(brainstate.environ.dftype())
 
 
 def wasserstein2(space1, space2):

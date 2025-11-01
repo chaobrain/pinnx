@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import numpy as np
 
 import pinnx
@@ -9,9 +9,9 @@ def gen_traindata():
     return data["t"], data["y"]
 
 
-C1 = bst.ParamState(8.0)
-C2 = bst.ParamState(20.0)
-C3 = bst.ParamState(-3.0)
+C1 = brainstate.ParamState(8.0)
+C2 = brainstate.ParamState(20.0)
+C3 = brainstate.ParamState(-3.0)
 
 
 def Lorenz_system(x, y):
@@ -66,6 +66,6 @@ data = pinnx.problem.PDE(
 variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=600, filename="../../examples/pinn_inverse/variables.dat")
 
 trainer = pinnx.Trainer(data, external_trainable_variables=[C1, C2, C3])
-trainer.compile(bst.optim.Adam(0.001)).train(iterations=50000, callbacks=[variable])
-# trainer.compile(bst.optim.LBFGS(1e-3)).train(10000, callbacks=[variable])
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=50000, callbacks=[variable])
+# trainer.compile(braintools.optim.LBFGS(1e-3)).train(10000, callbacks=[variable])
 trainer.saveplot(issave=True, isplot=True)

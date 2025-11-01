@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 
@@ -46,7 +46,7 @@ net = pinnx.nn.Model(
     pinnx.nn.FNN(
         [2] + [30] * 6 + [1],
         "tanh",
-        bst.init.KaimingUniform(),
+        braintools.init.KaimingUniform(),
         output_transform=output_transform
     ),
     pinnx.nn.ArrayToDict(y=None)
@@ -71,5 +71,5 @@ data = pinnx.problem.TimePDE(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(1e-3), metrics=["l2 relative error"]).train(iterations=20000)
+trainer.compile(braintools.optim.Adam(1e-3), metrics=["l2 relative error"]).train(iterations=20000)
 trainer.saveplot(issave=True, isplot=True)

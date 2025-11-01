@@ -4,7 +4,7 @@
 
 from typing import Callable, Sequence
 
-import brainstate as bst
+import brainstate
 
 from pinnx.geometry.base import AbstractGeometry
 from pinnx.utils import run_if_any_none
@@ -40,7 +40,7 @@ class Function(Problem):
         num_test: int,
         train_distribution: str = "uniform",
         online: bool = False,
-        approximator: bst.nn.Module = None,
+        approximator: brainstate.nn.Module = None,
         loss_fn: str = 'MSE',
         loss_weights: Sequence[float] = None,
     ):

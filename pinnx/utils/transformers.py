@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 
+import importlib.util
+
 import numpy as np
-from sklearn.preprocessing import LabelBinarizer
+
+sklearn_installed = importlib.util.find_spec("sklearn")
+
+if sklearn_installed:
+    from sklearn.preprocessing import LabelBinarizer
 
 
 class Transformer:
@@ -112,6 +118,12 @@ class CategoricalEncoder(Transformer):
 
     def __init__(self):
         """Convert labeled categories into one-hot encoded features."""
+
+        if not sklearn_installed:
+            raise ImportError(
+                "scikit-learn is required to use CategoricalEncoder. "
+                "Please install it via 'pip install scikit-learn'."
+            )
         self._lb = LabelBinarizer()
 
     def fit(self, X):

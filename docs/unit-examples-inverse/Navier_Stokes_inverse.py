@@ -6,7 +6,7 @@ References: https://doi.org/10.1016/j.jcp.2018.10.045 Section 4.1.1
 
 import re
 
-import brainstate as bst
+import brainstate
 import jax.tree
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,8 +73,8 @@ def load_training_data(num):
 
 
 # Parameters to be identified
-C1 = bst.ParamState(0.0)
-C2 = bst.ParamState(0.0 * unit_of_c2)
+C1 = brainstate.ParamState(0.0)
+C2 = brainstate.ParamState(0.0 * unit_of_c2)
 
 
 # Define Navier Stokes Equations (Time-dependent PDEs)
@@ -148,10 +148,10 @@ fnamevar = "variables.dat"
 variable = pinnx.callbacks.VariableValue([C1, C2], period=100, filename=fnamevar)
 
 # Compile, train and save trainer
-model.compile(bst.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable],
+model.compile(braintools.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable],
                                           display_every=1000, disregard_previous_best=True)
 model.saveplot(issave=True, isplot=True)
-model.compile(bst.optim.Adam(1e-4)).train(iterations=10000, callbacks=[variable],
+model.compile(braintools.optim.Adam(1e-4)).train(iterations=10000, callbacks=[variable],
                                           display_every=1000, disregard_previous_best=True)
 model.saveplot(issave=True, isplot=True)
 

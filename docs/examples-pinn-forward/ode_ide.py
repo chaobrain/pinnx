@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +42,7 @@ data = pinnx.problem.IDE(
 
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.001)).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=10000)
 
 X = geom.uniform_points(100, True)
 y_true = func(X)

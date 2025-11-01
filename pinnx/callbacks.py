@@ -5,7 +5,7 @@ import sys
 import time
 from typing import Dict, Callable
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax.tree
 import numpy as np
@@ -348,7 +348,7 @@ class VariableValue(Callback):
         super().__init__()
         self.var_list = var_list if isinstance(var_list, (tuple, list)) else [var_list]
         for v in self.var_list:
-            if not isinstance(v, bst.State):
+            if not isinstance(v, brainstate.State):
                 raise ValueError("The variable must be a brainstate.State object.")
 
         self.period = period
@@ -442,9 +442,9 @@ class OperatorPredictor(Callback):
         self.value = self._eval()
         # self.value = jax.tree.map(np.asarray, self._eval())
 
-    @bst.compile.jit(static_argnums=0)
+    @brainstate.transform.jit(static_argnums=0)
     def _eval(self):
-        with bst.environ.context(fit=False):
+        with brainstate.environ.context(fit=False):
             outputs = self.model.problem.approximator(self.x)
             return self.op(self.x, outputs)
 
@@ -476,7 +476,7 @@ class MovieDumper(Callback):
         x2 = np.array(x2)
         self.x = (
             x1 + (x2 - x1) / (num_points - 1) * np.arange(num_points)[:, None]
-        ).astype(dtype=bst.environ.dftype())
+        ).astype(dtype=brainstate.environ.dftype())
         self.period = period
         self.component = component
         self.save_spectrum = save_spectrum

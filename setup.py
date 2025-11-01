@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,11 +63,8 @@ setup(
         'jax',
         'brainunit>=0.0.3',
         'matplotlib',
-        'scipy',
-        'scikit-learn',
         'brainstate',
         'braintools',
-        'optax',
     ],
     url='https://github.com/chaobrain/pinnx',
     project_urls={

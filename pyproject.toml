@@ -10,15 +10,10 @@ exclude = [
 ]
 
 
-[tool.distutils.bdist_wheel]
-universal = true
-
-
 [project]
 name = "pinnx"
 description = "Physics-informed."
 readme = 'README.md'
-license = { text = 'Apache-2.0 license' }
 requires-python = '>=3.9'
 authors = [{ name = 'PINNx Developers', email = 'chao.brain@qq.com' }]
 classifiers = [
@@ -32,7 +27,6 @@ classifiers = [
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
-    'License :: OSI Approved :: Apache Software License',
     'Programming Language :: Python',
     'Topic :: Scientific/Engineering :: Bio-Informatics',
     'Topic :: Scientific/Engineering :: Mathematics',

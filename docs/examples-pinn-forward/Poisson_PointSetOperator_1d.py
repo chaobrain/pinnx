@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax.tree
 
@@ -71,8 +71,8 @@ second_derivative = pinnx.callbacks.OperatorPredictor(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(
     iterations=10000, callbacks=[first_derivative, second_derivative]
 )
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=10000)
 trainer.saveplot(issave=True, isplot=True)

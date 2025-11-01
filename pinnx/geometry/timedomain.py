@@ -4,7 +4,7 @@
 
 import itertools
 
-import brainstate as bst
+import brainstate
 import jax.numpy as jnp
 
 from .base import AbstractGeometry
@@ -18,8 +18,8 @@ from ..utils import isclose
 class TimeDomain(Interval):
     def __init__(self, t0, t1):
         super().__init__(t0, t1)
-        self.t0 = jnp.asarray(t0, dtype=bst.environ.dftype())
-        self.t1 = jnp.asarray(t1, dtype=bst.environ.dftype())
+        self.t0 = jnp.asarray(t0, dtype=brainstate.environ.dftype())
+        self.t1 = jnp.asarray(t1, dtype=brainstate.environ.dftype())
 
     def on_initial(self, t):
         return isclose(t, self.t0).flatten()
@@ -73,7 +73,7 @@ class GeometryXTime(AbstractGeometry):
                 self.timedomain.t0,
                 num=nt,
                 endpoint=False,
-                dtype=bst.environ.dftype(),
+                dtype=brainstate.environ.dftype(),
             )[:, None]
         xt = []
         for ti in t:
@@ -109,7 +109,7 @@ class GeometryXTime(AbstractGeometry):
 
         x = self.geometry.random_points(n, random=random)
         t = self.timedomain.random_points(n, random=random)
-        t = bst.random.permutation(t)
+        t = brainstate.random.permutation(t)
         return jnp.hstack((x, t))
 
     def uniform_boundary_points(self, n):
@@ -138,7 +138,7 @@ class GeometryXTime(AbstractGeometry):
             self.timedomain.t0,
             num=nt,
             endpoint=False,
-            dtype=bst.environ.dftype(),
+            dtype=brainstate.environ.dftype(),
         )
         xt = []
         for ti in t:
@@ -153,7 +153,7 @@ class GeometryXTime(AbstractGeometry):
     def random_boundary_points(self, n, random="pseudo"):
         x = self.geometry.random_boundary_points(n, random=random)
         t = self.timedomain.random_points(n, random=random)
-        t = bst.random.permutation(t)
+        t = brainstate.random.permutation(t)
         return jnp.hstack((x, t))
 
     def uniform_initial_points(self, n):
@@ -163,12 +163,12 @@ class GeometryXTime(AbstractGeometry):
             print(
                 "Warning: {} points required, but {} points sampled.".format(n, len(x))
             )
-        return jnp.hstack((x, jnp.full([len(x), 1], t, dtype=bst.environ.dftype())))
+        return jnp.hstack((x, jnp.full([len(x), 1], t, dtype=brainstate.environ.dftype())))
 
     def random_initial_points(self, n, random="pseudo"):
         x = self.geometry.random_points(n, random=random)
         t = self.timedomain.t0
-        return jnp.hstack((x, jnp.full([n, 1], t, dtype=bst.environ.dftype())))
+        return jnp.hstack((x, jnp.full([n, 1], t, dtype=brainstate.environ.dftype())))
 
     def periodic_point(self, x, component):
         xp = self.geometry.periodic_point(x[:, :-1], component)

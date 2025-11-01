@@ -5,7 +5,7 @@ References:
     https://github.com/sciann/sciann-applications/blob/master/SciANN-Elasticity/Elasticity-Forward.ipynb.
 """
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 import pinnx
@@ -142,7 +142,7 @@ net = pinnx.nn.Model(
     pinnx.nn.PFNN(
         [2, [40] * 5, [40] * 5, [40] * 5, [40] * 5, 5],
         "tanh",
-        bst.init.KaimingUniform(),
+        braintools.init.KaimingUniform(),
         output_transform=hard_BC if BC_type == "hard" else None,
     ),
     pinnx.nn.ArrayToDict(u=None, v=None, s=None, c=None, e=None),
@@ -174,5 +174,5 @@ data = pinnx.problem.PDE(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=1000)
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=1000)
 trainer.saveplot(issave=True, isplot=True)

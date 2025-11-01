@@ -30,7 +30,7 @@ The reference solution is $y(x, t)=x \cos (t)$.
 
 """
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -89,11 +89,11 @@ data = pinnx.problem.TimePDE(
 
 model = pinnx.Trainer(data)
 model.compile(
-    bst.optim.Adam(bst.optim.InverseTimeDecayLR(1e-3, 3000, 0.9)),
+    braintools.optim.Adam(braintools.optim.InverseTimeDecayLR(1e-3, 3000, 0.9)),
     metrics=["l2 relative error"],
 ).train(iterations=20000)
 model.compile(
-    bst.optim.LBFGS(1e-3), metrics=["l2 relative error"]
+    braintools.optim.LBFGS(1e-3), metrics=["l2 relative error"]
 ).train(2000, display_every=200)
 
 model.saveplot(issave=True, isplot=True)

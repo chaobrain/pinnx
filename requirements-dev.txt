@@ -1,0 +1,8 @@
+-r requirements.txt
+
+scikit-learn
+scikit-optimize
+scipy
+optax
+msgpack
+

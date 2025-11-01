@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -8,7 +8,7 @@ from scipy.special import gamma
 import pinnx
 
 alpha0 = 1.8
-alpha = bst.ParamState(1.5)
+alpha = brainstate.ParamState(1.5)
 
 
 def fpde(x, y, int_mat):
@@ -39,7 +39,7 @@ def fpde(x, y, int_mat):
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x1=None, x2=None),
-    pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform(),
+    pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", braintools.init.KaimingUniform(),
                  output_transform=lambda x, y: (1 - u.math.sum(x ** 2, axis=1, keepdims=True)) * y),
     pinnx.nn.ArrayToDict(y=None),
 )
@@ -70,5 +70,5 @@ problem = pinnx.problem.FPDE(
 
 variable = pinnx.callbacks.VariableValue(alpha, period=1000)
 model = pinnx.Trainer(problem, external_trainable_variables=[alpha])
-model.compile(bst.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable])
+model.compile(braintools.optim.Adam(1e-3)).train(iterations=10000, callbacks=[variable])
 model.saveplot(issave=True, isplot=True)

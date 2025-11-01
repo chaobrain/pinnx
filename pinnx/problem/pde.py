@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Callable, Sequence, Union, Optional, Dict, List
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax.tree
 import numpy as np
@@ -87,14 +87,14 @@ class PDE(Problem):
         geometry: DictPointGeometry,
         pde: Callable,
         constraints: Union[ICBC, Sequence[ICBC]],
-        approximator: Optional[bst.nn.Module] = None,
-        solution: Callable[[bst.typing.PyTree], bst.typing.PyTree] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
+        solution: Callable[[brainstate.typing.PyTree], brainstate.typing.PyTree] = None,
         loss_fn: str | Callable = 'MSE',
         num_domain: int = 0,
         num_boundary: int = 0,
         num_test: int = None,
         train_distribution: str = "Hammersley",
-        anchors: Optional[bst.typing.ArrayLike] = None,
+        anchors: Optional[brainstate.typing.ArrayLike] = None,
         exclusions=None,
         loss_weights: Sequence[float] = None,
     ):
@@ -123,7 +123,7 @@ class PDE(Problem):
         # anchors
         self.anchors = (None
                         if anchors is None else
-                        jax.tree.map(lambda x: x.astype(bst.environ.dftype()), anchors))
+                        jax.tree.map(lambda x: x.astype(brainstate.environ.dftype()), anchors))
 
         # solution
         if solution is not None:
@@ -140,15 +140,15 @@ class PDE(Problem):
         self.train_distribution = train_distribution
 
         # training data
-        self.train_x_all: Dict[str, bst.typing.ArrayLike] = None
-        self.train_x_bc: Dict[str, bst.typing.ArrayLike] = None
+        self.train_x_all: Dict[str, brainstate.typing.ArrayLike] = None
+        self.train_x_bc: Dict[str, brainstate.typing.ArrayLike] = None
         self.num_bcs: List[int] = None
 
         # these include both BC and PDE points
-        self.train_x: Dict[str, bst.typing.ArrayLike] = None
-        self.train_y: Dict[str, bst.typing.ArrayLike] = None
-        self.test_x: Dict[str, bst.typing.ArrayLike] = None
-        self.test_y: Dict[str, bst.typing.ArrayLike] = None
+        self.train_x: Dict[str, brainstate.typing.ArrayLike] = None
+        self.train_y: Dict[str, brainstate.typing.ArrayLike] = None
+        self.test_x: Dict[str, brainstate.typing.ArrayLike] = None
+        self.test_y: Dict[str, brainstate.typing.ArrayLike] = None
 
         # generate training data and testing data
         self.train_next_batch()
@@ -283,13 +283,13 @@ class PDE(Problem):
         self.train_x, self.train_y = None, None
         self.train_next_batch()
 
-    def add_anchors(self, anchors: bst.typing.PyTree):
+    def add_anchors(self, anchors: brainstate.typing.PyTree):
         """
         Add new points for training PDE losses.
 
         The BC points will not be updated.
         """
-        anchors = jax.tree.map(lambda x: x.astype(bst.environ.dftype()), anchors)
+        anchors = jax.tree.map(lambda x: x.astype(brainstate.environ.dftype()), anchors)
         if self.anchors is None:
             self.anchors = anchors
         else:
@@ -320,7 +320,7 @@ class PDE(Problem):
 
         The BC points will not be changed.
         """
-        self.anchors = jax.tree.map(lambda x: x.astype(bst.environ.dftype()), anchors)
+        self.anchors = jax.tree.map(lambda x: x.astype(brainstate.environ.dftype()), anchors)
         self.train_x_all = self.anchors
 
         if self.pde is not None:
@@ -421,7 +421,7 @@ class TimePDE(PDE):
         geometry: DictPointGeometry,
         pde: Callable,
         constraints: Union[ICBC, Sequence[ICBC]],
-        approximator: Optional[bst.nn.Module] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
         num_domain: int = 0,
         num_boundary: int = 0,
         num_initial: int = 0,
