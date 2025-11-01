@@ -140,13 +140,12 @@ Define a PINN with explicit variables and physical units.
 
 .. toctree::
     :maxdepth: 1
-    :caption: FQA
 
     forward_examples.md
     foward_unitless_examples.md
     inverse_examples.md
-    about.rst
     More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
+    about.rst
 
 
 
