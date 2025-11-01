@@ -161,6 +161,7 @@ See also the ecosystem
    :maxdepth: 1
    :caption: API Documentation
 
+   changelog.md
    apis/pinnx.rst
    apis/pinnx.callbacks.rst
    apis/pinnx.fnspace.rst

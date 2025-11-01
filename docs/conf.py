@@ -28,6 +28,7 @@
 
 import os
 import sys
+import shutil
 
 sys.path.insert(0, os.path.abspath(os.path.curdir))
 sys.path.insert(0, os.path.abspath('../'))
@@ -44,6 +45,9 @@ author = 'BrainX Ecosystem'
 
 # The full version, including alpha/beta/rc tags
 release = pinnx.__version__
+
+shutil.copy('../changelog.md', './changelog.md')
+
 
 # -- General configuration ---------------------------------------------------
 
