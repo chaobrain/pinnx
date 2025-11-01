@@ -1,17 +1,32 @@
-``pinnx`` documentation
-========================
+PINNx: Physics-Informed Neural Networks for Scientific Machine Learning in JAX
+================================================================================
 
-`PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning
-in JAX. It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
-`Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+.. image:: https://github.com/chaobrain/pinnx/actions/workflows/build.yml/badge.svg
+   :target: https://github.com/chaobrain/pinnx/actions/workflows/build.yml
+   :alt: Build Status
 
-`PINNx` enables to define PINN problem with explicit variables (e.g. ``x``, ``y``, ``z``) and physical units
-(e.g. ``meter``, ``second``, ``kelvin``) and to solve the problem with neural networks.
+.. image:: https://readthedocs.org/projects/pinnx/badge/?version=latest
+   :target: https://pinnx.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
-`PINNx <https://github.com/chaobrain/pinnx>`_ is built on top of our `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
-For example, it leverages `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-`brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
-`braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+.. image:: https://badge.fury.io/py/pinnx.svg
+   :target: https://badge.fury.io/py/pinnx
+   :alt: PyPI Version
+
+.. image:: https://img.shields.io/github/license/chaobrain/pinnx
+   :target: https://github.com/chaobrain/pinnx/blob/master/LICENSE
+   :alt: License
+
+
+``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX.
+It is a rewrite of `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
+`brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
+
+For example, it leverages
+
+- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
 
 ----
@@ -20,29 +35,46 @@ For example, it leverages `brainstate <https://brainstate.readthedocs.io/>`_ for
 Installation
 ^^^^^^^^^^^^
 
+Install the stable version with ``pip``:
+
+.. code-block:: bash
+
+   pip install pinnx --upgrade
+
+
+Install ``pinnx`` on CPU or GPU with JAX:
+
 .. tab-set::
 
     .. tab-item:: CPU
 
         .. code-block:: bash
 
-            pip install -U pinnx[cpu]
+            pip install pinnx[cpu]
 
-    .. tab-item:: GPU (CUDA 12.0)
+    .. tab-item:: CUDA 12
 
         .. code-block:: bash
 
-            pip install -U pinnx[cuda12]
+            pip install pinnx[cuda12]
+
+    .. tab-item:: CUDA 13
+
+        .. code-block:: bash
+
+            pip install pinnx[cuda13]
 
     .. tab-item:: TPU
 
         .. code-block:: bash
 
-            pip install -U pinnx[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+            pip install pinnx[tpu]
+
 
 Quick Start
 ^^^^^^^^^^^
 
+Define a PINN with explicit variables and physical units.
 
 .. code-block:: python
 
@@ -102,36 +134,7 @@ Quick Start
     trainer.saveplot(issave=True, isplot=True)
 
 
-
-
-
-
-.. toctree::
-    :maxdepth: 2
-    :caption: PINN Forward Examples
-
-    unit-examples-forward/Beltrami_flow.ipynb
-    unit-examples-forward/diffusion_1d.ipynb
-    unit-examples-forward/Euler_beam.ipynb
-    unit-examples-forward/Helmholtz_Dirichlet_2d.ipynb
-    unit-examples-forward/burgers.ipynb
-    unit-examples-forward/Burgers_RAR.ipynb
-    unit-examples-forward/heat.ipynb
-    unit-examples-forward/heat_resample.ipynb
-    unit-examples-forward/Laplace_disk.ipynb
-
-
-
-.. toctree::
-    :maxdepth: 2
-    :caption: PINN Inverse Examples
-
-    unit-examples-inverse/elliptic_inverse_filed.ipynb
-    unit-examples-inverse/brinkman_forchheimer.ipynb
-    unit-examples-inverse/diffusion_reaction_rate.ipynb
-    unit-examples-inverse/reaction_inverse.ipynb
-    unit-examples-inverse/diffusion_1d_inverse.ipynb
-    unit-examples-inverse/Navier_Stokes_inverse.ipynb
+----
 
 
 
@@ -139,6 +142,9 @@ Quick Start
     :maxdepth: 1
     :caption: FQA
 
+    forward_examples.md
+    foward_unitless_examples.md
+    inverse_examples.md
     about.rst
     More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
 
@@ -148,7 +154,7 @@ Quick Start
 See also the ecosystem
 ^^^^^^^^^^^^^^^^^^^^^^
 
-We are building the `brain dynamics programming ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+``pinnx`` is one part of our `brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
 
 .. toctree::
    :hidden:
