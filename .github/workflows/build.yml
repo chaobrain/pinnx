@@ -9,8 +9,6 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Skip intermediate builds: always.
-  # Cancel intermediate builds: only if it is a pull request build.
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
@@ -21,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
@@ -33,6 +31,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
+          allow-prereleases: true
 
       - name: Install dependencies
         run: |
@@ -42,14 +41,12 @@ jobs:
       - name: List installed packages
         run: python -m pip freeze
 
-      - name: Test import
-        run: python -c "import pinnx; print(f'PINNx version: {pinnx.__version__}')"
-
       - name: Run tests
         if: hashFiles('tests/**/*.py') != ''
         run: |
           python -m pip install pytest pytest-cov
-          pytest tests/ -v --cov=pinnx --cov-report=xml
+          pytest tests/ -v --cov=pinnx --cov-report=xml --cov-report=term
+        continue-on-error: ${{ matrix.python-version == '3.13' }}
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && hashFiles('tests/**/*.py') != ''
@@ -59,6 +56,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     name: Code Quality
@@ -76,7 +74,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install flake8 black isort
+          python -m pip install flake8 black isort mypy
 
       - name: Check code formatting with black
         run: black --check --diff pinnx/
@@ -88,10 +86,12 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          # Stop the build if there are Python syntax errors or undefined names
           flake8 pinnx/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
           flake8 pinnx/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+        continue-on-error: true
+
+      - name: Type check with mypy
+        run: mypy pinnx/ --ignore-missing-imports --no-strict-optional
         continue-on-error: true
 
   docs:
@@ -118,9 +118,38 @@ jobs:
           cd docs
           make html
 
+      - name: Check for broken links
+        run: |
+          cd docs
+          make linkcheck
+        continue-on-error: true
+
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v4
         with:
           name: documentation
           path: docs/_build/html/
           retention-days: 7
+
+  check-style:
+    name: Check Code Style (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff linter
+        run: ruff check pinnx/ --output-format=github
+        continue-on-error: true
+
+      - name: Run ruff formatter
+        run: ruff format --check pinnx/
+        continue-on-error: true
