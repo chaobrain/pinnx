@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 0.1.0)'
+        description: 'Version to release'
         required: false
         type: string
   release:
@@ -27,7 +27,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install build dependencies
         run: |
@@ -58,8 +58,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.9", "3.12"]
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.12"]
 
     steps:
       - name: Set up Python ${{ matrix.python-version }}
