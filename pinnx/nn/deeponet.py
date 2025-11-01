@@ -3,17 +3,20 @@
 
 from typing import Union, Callable, Sequence, Dict, Optional
 
-import brainstate as bst
+import brainstate
+import braintools
 import brainunit as u
 
 from pinnx.utils import get_activation
 from .base import NN
-from .deeponet_strategy import (DeepONetStrategy,
-                                SingleOutputStrategy,
-                                IndependentStrategy,
-                                SplitBothStrategy,
-                                SplitBranchStrategy,
-                                SplitTrunkStrategy)
+from .deeponet_strategy import (
+    DeepONetStrategy,
+    SingleOutputStrategy,
+    IndependentStrategy,
+    SplitBothStrategy,
+    SplitBranchStrategy,
+    SplitTrunkStrategy
+)
 from .fnn import FNN
 
 strategies = {
@@ -79,7 +82,7 @@ class DeepONet(NN):
         layer_sizes_branch: Sequence[int],
         layer_sizes_trunk: Sequence[int],
         activation: Union[str, Callable, Dict[str, str], Dict[str, Callable]],
-        kernel_initializer: bst.init.Initializer = bst.init.KaimingUniform(),
+        kernel_initializer: braintools.init.Initializer = braintools.init.KaimingUniform(),
         num_outputs: int = 1,
         multi_output_strategy=None,
         input_transform: Optional[Callable] = None,
@@ -110,7 +113,7 @@ class DeepONet(NN):
 
         self.branch, self.trunk = self.multi_output_strategy.build(layer_sizes_branch,
                                                                    layer_sizes_trunk)
-        self.b = bst.ParamState([0.0 for _ in range(self.num_outputs)])
+        self.b = brainstate.ParamState([0.0 for _ in range(self.num_outputs)])
 
     def build_branch_net(self, layer_sizes_branch) -> FNN:
         # User-defined network
@@ -195,7 +198,7 @@ class DeepONetCartesianProd(NN):
         layer_sizes_branch: Sequence[int],
         layer_sizes_trunk: Sequence[int],
         activation: Union[str, Callable, Dict[str, str], Dict[str, Callable]],
-        kernel_initializer: bst.init.Initializer = bst.init.KaimingUniform(),
+        kernel_initializer: braintools.init.Initializer = braintools.init.KaimingUniform(),
         num_outputs: int = 1,
         multi_output_strategy=None,
         input_transform: Optional[Callable] = None,
@@ -222,7 +225,7 @@ class DeepONetCartesianProd(NN):
 
         self.branch, self.trunk = self.multi_output_strategy.build(layer_sizes_branch,
                                                                    layer_sizes_trunk)
-        self.b = bst.ParamState([0.0 for _ in range(self.num_outputs)])
+        self.b = brainstate.ParamState([0.0 for _ in range(self.num_outputs)])
 
     def build_branch_net(self, layer_sizes_branch):
         # User-defined network
@@ -285,7 +288,7 @@ class PODDeepONet(NN):
         pod_basis,
         layer_sizes_branch: Sequence[int],
         activation: Union[str, Callable, Dict[str, str], Dict[str, Callable]],
-        kernel_initializer: bst.init.Initializer = bst.init.KaimingUniform(),
+        kernel_initializer: braintools.init.Initializer = braintools.init.KaimingUniform(),
         layer_sizes_trunk: Sequence[int] = None,
         regularization=None,
         input_transform: Optional[Callable] = None,
@@ -311,7 +314,7 @@ class PODDeepONet(NN):
         self.trunk = None
         if layer_sizes_trunk is not None:
             self.trunk = FNN(layer_sizes_trunk, self.activation_trunk, kernel_initializer)
-            self.b = bst.ParamState(0.0)
+            self.b = brainstate.ParamState(0.0)
 
     def forward(self, inputs):
         x_func = inputs[0]

@@ -9,7 +9,7 @@ import timeit
 from functools import wraps
 from typing import Callable, Union
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -123,7 +123,7 @@ def return_tensor(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        return u.math.asarray(func(*args, **kwargs), dtype=bst.environ.dftype())
+        return u.math.asarray(func(*args, **kwargs), dtype=brainstate.environ.dftype())
 
     return wrapper
 
@@ -250,6 +250,6 @@ def get_num_args(func):
 def get_activation(activation: Union[str, Callable]):
     """Get the activation function."""
     if isinstance(activation, str):
-        return getattr(bst.functional, activation)
+        return getattr(brainstate.functional, activation)
     else:
         return activation

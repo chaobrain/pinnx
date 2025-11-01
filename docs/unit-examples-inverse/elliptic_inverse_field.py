@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +42,7 @@ observe_u = pinnx.icbc.PointSetBC(ob_x, ob_u)
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=unit_of_x),
-    pinnx.nn.PFNN([1, [20, 20], [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.PFNN([1, [20, 20], [20, 20], [20, 20], 2], "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(u=unit_of_u, q=unit_of_q),
 )
 problem = pinnx.problem.PDE(
@@ -58,7 +58,7 @@ problem = pinnx.problem.PDE(
 )
 
 model = pinnx.Trainer(problem)
-model.compile(bst.optim.Adam(0.0001)).train(iterations=20000)
+model.compile(braintools.optim.Adam(0.0001)).train(iterations=20000)
 model.saveplot(issave=True, isplot=True)
 
 # view results

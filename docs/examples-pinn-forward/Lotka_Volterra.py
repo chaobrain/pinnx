@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -77,11 +77,11 @@ net.apply_feature_transform(input_transform)
 net.apply_output_transform(output_transform)
 model = pinnx.Trainer(data, net)
 
-model.compile(bst.optim.Adam(0.001))
+model.compile(braintools.optim.Adam(0.001))
 losshistory, train_state = model.train(iterations=50000)
 
 # Most backends except jax can have a second fine-tuning of the solution
-model.compile(bst.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
+model.compile(braintools.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
 losshistory, train_state = model.train(1000)
 pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
 

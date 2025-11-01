@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import numpy as np
 from jax.experimental.sparse import COO
@@ -36,7 +36,7 @@ def fpde(x, y, int_mat):
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x1=None, x2=None),
-    pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform(),
+    pinnx.nn.FNN([2] + [20] * 4 + [1], "tanh", braintools.init.KaimingUniform(),
                  output_transform=lambda x, y: (1 - u.math.sum(x ** 2, axis=1, keepdims=True)) * y),
     pinnx.nn.ArrayToDict(y=None),
 )
@@ -65,7 +65,7 @@ data = pinnx.problem.FPDE(
 )
 
 model = pinnx.Trainer(data)
-model.compile(bst.optim.Adam(1e-3)).train(iterations=20000)
+model.compile(braintools.optim.Adam(1e-3)).train(iterations=20000)
 model.saveplot(issave=True, isplot=True)
 
 X = geom.random_points(1000)

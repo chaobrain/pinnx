@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import numpy as np
 
@@ -31,7 +31,7 @@ approximator = pinnx.nn.Model(
     pinnx.nn.FNN(
         [geometry.dim] + [20] * 3 + [1],
         "tanh",
-        bst.init.KaimingUniform()
+        braintools.init.KaimingUniform()
     ),
     pinnx.nn.ArrayToDict(y=uy)
 )
@@ -47,8 +47,8 @@ problem = pinnx.problem.TimePDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=15000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=500)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=15000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(2000, display_every=500)
 trainer.saveplot(issave=True, isplot=True)
 
 

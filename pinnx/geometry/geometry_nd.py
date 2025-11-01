@@ -2,19 +2,23 @@
 # ==============================================================================
 
 
+import importlib.util
 import itertools
 from typing import Literal
 
-import brainstate as bst
+import brainstate
 import jax
 import jax.numpy as jnp
 from scipy import stats
-from sklearn import preprocessing
 
 from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
 from ..utils import isclose
+
+sklearn_installed = importlib.util.find_spec("sklearn")
+if sklearn_installed:
+    from sklearn import preprocessing
 
 
 class Hypercube(Geometry):
@@ -22,8 +26,8 @@ class Hypercube(Geometry):
         if len(xmin) != len(xmax):
             raise ValueError("Dimensions of xmin and xmax do not match.")
 
-        self.xmin = jnp.array(xmin, dtype=bst.environ.dftype())
-        self.xmax = jnp.array(xmax, dtype=bst.environ.dftype())
+        self.xmin = jnp.array(xmin, dtype=brainstate.environ.dftype())
+        self.xmax = jnp.array(xmax, dtype=brainstate.environ.dftype())
         if jnp.any(self.xmin >= self.xmax):
             raise ValueError("xmin >= xmax")
 
@@ -54,7 +58,7 @@ class Hypercube(Geometry):
 
     def boundary_normal(self, x):
         mod = utils.smart_numpy(x)
-        _n = -mod.isclose(x, self.xmin).astype(bst.environ.dftype()) + mod.isclose(x, self.xmax)
+        _n = -mod.isclose(x, self.xmin).astype(brainstate.environ.dftype()) + mod.isclose(x, self.xmax)
         # For vertices, the normal is averaged for all directions
         idx = mod.count_nonzero(_n, axis=-1) > 1
         _n = jax.vmap(lambda idx_, n_: jax.numpy.where(idx_, n_ / mod.linalg.norm(n_, keepdims=True), n_))(idx, _n)
@@ -68,7 +72,7 @@ class Hypercube(Geometry):
             if boundary:
                 xi.append(
                     jnp.linspace(
-                        self.xmin[i], self.xmax[i], num=ni, dtype=bst.environ.dftype()
+                        self.xmin[i], self.xmax[i], num=ni, dtype=brainstate.environ.dftype()
                     )
                 )
             else:
@@ -78,7 +82,7 @@ class Hypercube(Geometry):
                         self.xmax[i],
                         num=ni + 1,
                         endpoint=False,
-                        dtype=bst.environ.dftype(),
+                        dtype=brainstate.environ.dftype(),
                     )[1:]
                 )
         x = jnp.array(list(itertools.product(*xi)))
@@ -96,7 +100,7 @@ class Hypercube(Geometry):
                 xi = []
                 for i in range(self.dim):
                     if i == d:
-                        xi.append(jnp.array([boundary], dtype=bst.environ.dftype()))
+                        xi.append(jnp.array([boundary], dtype=brainstate.environ.dftype()))
                     else:
                         ni = int(jnp.ceil(points_per_face ** (1 / (self.dim - 1))))
                         xi.append(
@@ -105,7 +109,7 @@ class Hypercube(Geometry):
                                 self.xmax[i],
                                 num=ni + 1,
                                 endpoint=False,
-                                dtype=bst.environ.dftype(),
+                                dtype=brainstate.environ.dftype(),
                             )[1:]
                         )
                 face_points = jnp.array(list(itertools.product(*xi)))
@@ -126,7 +130,7 @@ class Hypercube(Geometry):
     def random_boundary_points(self, n, random="pseudo"):
         x = sample(n, self.dim, random)
         # Randomly pick a dimension
-        rand_dim = bst.random.randint(self.dim, size=n)
+        rand_dim = brainstate.random.randint(self.dim, size=n)
         # Replace value of the randomly picked dimension with the nearest boundary value (0 or 1)
         x[jnp.arange(n), rand_dim] = jnp.round(x[jnp.arange(n), rand_dim])
         return (self.xmax - self.xmin) * x + self.xmin
@@ -223,7 +227,7 @@ class Hypercube(Geometry):
 
 class Hypersphere(Geometry):
     def __init__(self, center, radius):
-        self.center = jnp.array(center, dtype=bst.environ.dftype())
+        self.center = jnp.array(center, dtype=brainstate.environ.dftype())
         self.radius = radius
         super().__init__(
             len(center), (self.center - radius, self.center + radius), 2 * radius
@@ -242,7 +246,7 @@ class Hypersphere(Geometry):
         xc = x - self.center
         ad = jnp.dot(xc, dirn)
         return (-ad + (ad ** 2 - jnp.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(
-            bst.environ.dftype()
+            brainstate.environ.dftype()
         )
 
     def distance2boundary(self, x, dirn):
@@ -276,24 +280,31 @@ class Hypersphere(Geometry):
 
     def random_points(self, n, random="pseudo"):
         # https://math.stackexchange.com/questions/87230/picking-random-points-in-the-volume-of-sphere-with-uniform-probability
+        if not sklearn_installed:
+            raise ImportError("sklearn is required for random point sampling in Hypersphere. Please install sklearn.")
+
         if random == "pseudo":
-            U = bst.random.rand(n, 1).astype(bst.environ.dftype())
-            X = bst.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
+            U = brainstate.random.rand(n, 1).astype(brainstate.environ.dftype())
+            X = brainstate.random.normal(size=(n, self.dim)).astype(brainstate.environ.dftype())
         else:
             rng = sample(n, self.dim + 1, random)
             U, X = rng[:, 0:1], rng[:, 1:]  # Error if X = [0, 0, ...]
-            X = stats.norm.ppf(X).astype(bst.environ.dftype())
+            X = stats.norm.ppf(X).astype(brainstate.environ.dftype())
         X = preprocessing.normalize(X)
         X = U ** (1 / self.dim) * X
         return self.radius * X + self.center
 
     def random_boundary_points(self, n, random="pseudo"):
         # http://mathworld.wolfram.com/HyperspherePointPicking.html
+        if not sklearn_installed:
+            raise ImportError("sklearn is required for random boundary point sampling "
+                              "in Hypersphere. Please install sklearn.")
+
         if random == "pseudo":
-            X = bst.random.normal(size=(n, self.dim)).astype(bst.environ.dftype())
+            X = brainstate.random.normal(size=(n, self.dim)).astype(brainstate.environ.dftype())
         else:
             U = sample(n, self.dim, random)  # Error for [0, 0, ...] or [0.5, 0.5, ...]
-            X = stats.norm.ppf(U).astype(bst.environ.dftype())
+            X = stats.norm.ppf(U).astype(brainstate.environ.dftype())
         X = preprocessing.normalize(X)
         return self.radius * X + self.center
 
@@ -304,7 +315,7 @@ class Hypersphere(Geometry):
         h = dx / n
         pts = (
             x
-            - jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype())[:, None]
+            - jnp.arange(-shift, n - shift + 1, dtype=brainstate.environ.dftype())[:, None]
             * h
             * dirn
         )

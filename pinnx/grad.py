@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import Dict, Callable, Sequence, Union, Optional, Tuple, Any, Iterator
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 TransformFn = Callable
@@ -29,7 +29,7 @@ __all__ = [
 ]
 
 
-class GradientTransform(bst.util.PrettyRepr):
+class GradientTransform(brainstate.util.PrettyRepr):
 
     def __init__(
         self,
@@ -46,23 +46,23 @@ class GradientTransform(bst.util.PrettyRepr):
         self.target = target
 
         # transform
-        self._states_to_be_written: Tuple[bst.State, ...] = None
+        self._states_to_be_written: Tuple[brainstate.State, ...] = None
         _grad_setting = dict() if transform_params is None else transform_params
         if self._has_aux:
             self._transform = transform(self._fun_with_aux, has_aux=True, **_grad_setting)
         else:
             self._transform = transform(self._fun_without_aux, has_aux=True, **_grad_setting)
 
-    def __pretty_repr__(self) -> Iterator[Union[bst.util.PrettyType, bst.util.PrettyAttr]]:
-        yield bst.util.PrettyType(self.__class__.__name__)
-        yield bst.util.PrettyAttr("target", self.target)
-        yield bst.util.PrettyAttr("return_value", self._return_value)
-        yield bst.util.PrettyAttr("has_aux", self._has_aux)
-        yield bst.util.PrettyAttr("transform", self._transform)
+    def __pretty_repr__(self) -> Iterator[Union[brainstate.util.PrettyType, brainstate.util.PrettyAttr]]:
+        yield brainstate.util.PrettyType(self.__class__.__name__)
+        yield brainstate.util.PrettyAttr("target", self.target)
+        yield brainstate.util.PrettyAttr("return_value", self._return_value)
+        yield brainstate.util.PrettyAttr("has_aux", self._has_aux)
+        yield brainstate.util.PrettyAttr("transform", self._transform)
 
     def _call_target(self, *args, **kwargs):
         if self._states_to_be_written is None:
-            with bst.StateTraceStack() as stack:
+            with brainstate.StateTraceStack() as stack:
                 output = self.target(*args, **kwargs)
                 self._states_to_be_written = [st for st in stack.get_write_states()]
         else:
@@ -282,7 +282,7 @@ def jacobian(
     else:
         raise ValueError('Invalid mode. Choose between backward and forward.')
     if vmap:
-        return bst.augment.vmap(transform)(xs)
+        return brainstate.transform.vmap(transform)(xs)
     else:
         return transform(xs)
 
@@ -314,7 +314,7 @@ def hessian(
     # assert isinstance(xs, dict), 'xs must be a dictionary.'
     transform = GradientTransform(fn, _raw_hessian, transform_params={'y': y, 'xi': xi, 'xj': xj})
     if vmap:
-        return bst.augment.vmap(transform)(xs)
+        return brainstate.transform.vmap(transform)(xs)
     else:
         return transform(xs)
 
@@ -367,4 +367,4 @@ def gradient(
             fn = _raw_jacrev(fn, y=y, x=x)
         else:
             fn = _raw_jacfwd(fn, y=None, x=x)
-    return bst.augment.vmap(fn)(xs)
+    return brainstate.transform.vmap(fn)(xs)

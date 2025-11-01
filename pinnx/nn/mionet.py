@@ -4,7 +4,7 @@
 
 from typing import Optional, Callable
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 
 from pinnx.utils import get_activation
@@ -79,7 +79,7 @@ class MIONetCartesianProd(NN):
         else:
             self.output_merger = None
         self.trunk = FNN(layer_sizes_trunk, self.activation_trunk, kernel_initializer)
-        self.b = bst.ParamState(0.0)
+        self.b = brainstate.ParamState(0.0)
         self.regularizer = regularization
         self.trunk_last_activation = trunk_last_activation
         self.merge_operation = merge_operation
@@ -199,7 +199,7 @@ class PODMIONet(NN):
         self.trunk = None
         if layer_sizes_trunk is not None:
             self.trunk = FNN(layer_sizes_trunk, self.activation_trunk, kernel_initializer)
-            self.b = bst.ParamState(0.0)
+            self.b = brainstate.ParamState(0.0)
         self.regularizer = regularization
         self.trunk_last_activation = trunk_last_activation
         self.merge_operation = merge_operation

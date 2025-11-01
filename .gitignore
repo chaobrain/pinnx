@@ -31,9 +31,5 @@ docs/**/*.dat
 docs/**/*.npz
 
 .DS_Store
-docs/apis/
-!docs/apis/pinnx.rst
-!docs/apis/pinnx.callbacks.rst
-!docs/apis/pinnx.fnspace.rst
-!docs/apis/pinnx.grad.rst
-!docs/apis/pinnx.metrics.rst
+/dev/
+/.claude/

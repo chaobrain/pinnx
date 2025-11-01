@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Dict, Sequence
 
-import brainstate as bst
+import brainstate
 
 from pinnx.grad import jacobian, hessian, gradient
 from .convert import DictToArray, ArrayToDict
@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-class Model(bst.nn.Module):
+class Model(brainstate.nn.Module):
     """
     A neural network approximator.
 
@@ -30,7 +30,7 @@ class Model(bst.nn.Module):
     def __init__(
         self,
         input: DictToArray,
-        approx: bst.nn.Module,
+        approx: brainstate.nn.Module,
         output: ArrayToDict,
         *args,
     ):
@@ -39,19 +39,19 @@ class Model(bst.nn.Module):
         assert isinstance(input, DictToArray), "input must be an instance of DictToArray."
         self.input = input
 
-        assert isinstance(approx, bst.nn.Module), "approx must be an instance of nn.Module."
+        assert isinstance(approx, brainstate.nn.Module), "approx must be an instance of nn.Module."
         self.approx = approx
 
         assert isinstance(output, ArrayToDict), "output must be an instance of Output."
         self.output = output
 
-    @bst.compile.jit(static_argnums=(0,))
+    @brainstate.transform.jit(static_argnums=(0,))
     def update(self, x):
         return self.output(self.approx(self.input(x)))
 
     def jacobian(
         self,
-        inputs: Dict[str, bst.typing.ArrayLike],
+        inputs: Dict[str, brainstate.typing.ArrayLike],
         y: str | Sequence[str] | None = None,
         x: str | Sequence[str] | None = None,
     ):
@@ -70,7 +70,7 @@ class Model(bst.nn.Module):
 
     def hessian(
         self,
-        inputs: Dict[str, bst.typing.ArrayLike],
+        inputs: Dict[str, brainstate.typing.ArrayLike],
         y: str | Sequence[str] | None = None,
         xi: str | Sequence[str] | None = None,
         xj: str | Sequence[str] | None = None,
@@ -93,7 +93,7 @@ class Model(bst.nn.Module):
 
     def gradient(
         self,
-        inputs: Dict[str, bst.typing.ArrayLike],
+        inputs: Dict[str, brainstate.typing.ArrayLike],
         order: int,
         y: str | Sequence[str] | None = None,
         *xi: str | Sequence[str] | None,

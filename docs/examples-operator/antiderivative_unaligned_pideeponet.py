@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,7 +21,7 @@ def transform(inputs, outputs):
     return outputs * inputs[1]
 
 # Net
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONet(
         [50, 128, 128, 128],
         [1, 128, 128, 128],
@@ -55,7 +55,7 @@ data = pinnx.problem.PDEOperator(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.0005)).train(iterations=40000)
+trainer.compile(braintools.optim.Adam(0.0005)).train(iterations=40000)
 trainer.saveplot()
 
 x = np.linspace(0, 1, num=50)

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -28,10 +28,10 @@ __all__ = [
     "RobinBC",
 ]
 
-X = Dict[str, bst.typing.ArrayLike]
-Y = Dict[str, bst.typing.ArrayLike]
-F = Dict[str, bst.typing.ArrayLike]
-Boundary = Dict[str, bst.typing.ArrayLike]
+X = Dict[str, brainstate.typing.ArrayLike]
+Y = Dict[str, brainstate.typing.ArrayLike]
+F = Dict[str, brainstate.typing.ArrayLike]
+Boundary = Dict[str, brainstate.typing.ArrayLike]
 
 
 class BC(ICBC):
@@ -74,7 +74,7 @@ class BC(ICBC):
         """
         return self.filter(X)
 
-    def normal_derivative(self, inputs) -> Dict[str, bst.typing.ArrayLike]:
+    def normal_derivative(self, inputs) -> Dict[str, brainstate.typing.ArrayLike]:
         """
         Compute the normal derivative of the output.
         """
@@ -275,8 +275,8 @@ class PointSetBC(BC):
 
     def __init__(
         self,
-        points: Dict[str, bst.typing.ArrayLike],
-        values: Dict[str, bst.typing.ArrayLike],
+        points: Dict[str, brainstate.typing.ArrayLike],
+        values: Dict[str, brainstate.typing.ArrayLike],
         batch_size: int = None,
         shuffle: bool = True
     ):
@@ -332,8 +332,8 @@ class PointSetOperatorBC(BC):
 
     def __init__(
         self,
-        points: Dict[str, bst.typing.ArrayLike],
-        values: Dict[str, bst.typing.ArrayLike],
+        points: Dict[str, brainstate.typing.ArrayLike],
+        values: Dict[str, brainstate.typing.ArrayLike],
         func: Callable[[X, Y], F]
     ):
         super().__init__(lambda x, on: on)

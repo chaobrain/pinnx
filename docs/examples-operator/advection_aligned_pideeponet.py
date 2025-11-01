@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import matplotlib.pyplot as plt
@@ -39,7 +39,7 @@ def periodic(x):
 
 
 dim_x = 5
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONetCartesianProd(
         [50, 128, 128, 128],
         [dim_x, 128, 128, 128],
@@ -73,7 +73,7 @@ problem = pinnx.problem.PDEOperatorCartesianProd(
 )
 
 model = pinnx.Trainer(problem)
-model.compile(bst.optim.Adam(0.0005)).train(iterations=50000)
+model.compile(braintools.optim.Adam(0.0005)).train(iterations=50000)
 model.saveplot(issave=True, isplot=True)
 
 x = np.linspace(0, 1, num=100)

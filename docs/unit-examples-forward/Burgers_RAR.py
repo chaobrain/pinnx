@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import jax.tree
 import numpy as np
@@ -12,7 +12,7 @@ geomtime = geomtime.to_dict_point(x=u.meter, t=u.second)
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=u.meter, t=u.second),
-    pinnx.nn.FNN([2] + [20] * 3 + [1], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.FNN([2] + [20] * 3 + [1], "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(y=u.meter / u.second),
 )
 v = 0.01 / u.math.pi * u.meter ** 2 / u.second
@@ -43,8 +43,8 @@ problem = pinnx.problem.TimePDE(
 
 trainer = pinnx.Trainer(problem)
 
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=10000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(1000)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=10000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(1000)
 
 X = geomtime.random_points(100000)
 err = 1
@@ -59,10 +59,10 @@ while u.get_magnitude(err) > 0.012:
     print("Adding new point:", new_xs, "\n")
     problem.add_anchors(new_xs)
     early_stopping = pinnx.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)
-    trainer.compile(bst.optim.Adam(1e-3)).train(iterations=10000,
+    trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=10000,
                                                 disregard_previous_best=True,
                                                 callbacks=[early_stopping])
-    trainer.compile(bst.optim.LBFGS(1e-3)).train(1000, display_every=100)
+    trainer.compile(braintools.optim.LBFGS(1e-3)).train(1000, display_every=100)
 
 trainer.saveplot(issave=True, isplot=True)
 

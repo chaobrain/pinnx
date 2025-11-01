@@ -10,11 +10,10 @@
 [![Documentation Status](https://readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/en/latest/?badge=latest)
 [![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://badge.fury.io/py/pinnx)
 [![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/master/LICENSE)
-[![DOI](https://zenodo.org/badge/890937840.svg)](https://doi.org/10.5281/zenodo.14970037)
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
 It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
-[Brain Dynamics Programming (BDP) ecosystem](https://ecosystem-for-brain-dynamics.readthedocs.io/). 
+[brain modeling ecosystem](https://brainmodeling.readthedocs.io/). 
 For example, it leverages 
 
 - [brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
@@ -28,7 +27,7 @@ For example, it leverages
 Define a PINN with explicit variables and physical units.
 
 ```python
-import brainstate as bst
+import braintools
 import brainunit as u
 import pinnx
 
@@ -61,7 +60,7 @@ approximator = pinnx.nn.Model(
     pinnx.nn.FNN(
         [geometry.dim] + [20] * 3 + [1],
         "tanh",
-        bst.init.KaimingUniform()
+        braintools.init.KaimingUniform()
     ),
     pinnx.nn.ArrayToDict(y=uy)
 )
@@ -79,8 +78,8 @@ problem = pinnx.problem.TimePDE(
 
 # training
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=15000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=500)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=15000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(2000, display_every=500)
 trainer.saveplot(issave=True, isplot=True)
 
 ```
@@ -96,12 +95,26 @@ pip install pinnx --upgrade
 ```
 
 
+- Install ``pinnx`` on CPU or GPU with JAX following the instructions on
+
+```shell
+pip install pinnx[cpu]  # for CPU
+
+pip install pinnx[cuda12]  # for NVIDIA GPUs with CUDA 12
+
+pip install pinnx[cuda13]  # for NVIDIA GPUs with CUDA 13
+
+pip install pinnx[tpu]  # for Google TPUs
+
+```
+
+
 ## Documentation
 
 The official documentation is hosted on Read the Docs: [https://pinnx.readthedocs.io/](https://pinnx.readthedocs.io/)
 
 
-## See also the BDP ecosystem
+## See also the ecosystem
 
-We are building the Brain Dynamics Programming ecosystem: https://ecosystem-for-brain-dynamics.readthedocs.io/
+``pinnx`` is one part of our brain modeling ecosystem: https://brainmodeling.readthedocs.io/
 

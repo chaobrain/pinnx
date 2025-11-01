@@ -4,7 +4,7 @@
 
 from typing import Sequence, Dict
 
-import brainstate as bst
+import brainstate
 import jax
 import numpy as np
 
@@ -29,12 +29,12 @@ class DataSet(Problem):
 
     def __init__(
         self,
-        X_train: Dict[str, bst.typing.ArrayLike],
-        y_train: Dict[str, bst.typing.ArrayLike],
-        X_test: Dict[str, bst.typing.ArrayLike],
-        y_test: Dict[str, bst.typing.ArrayLike],
+        X_train: Dict[str, brainstate.typing.ArrayLike],
+        y_train: Dict[str, brainstate.typing.ArrayLike],
+        X_test: Dict[str, brainstate.typing.ArrayLike],
+        y_test: Dict[str, brainstate.typing.ArrayLike],
         standardize: bool = False,
-        approximator: bst.nn.Module = None,
+        approximator: brainstate.nn.Module = None,
         loss_fn: str = 'MSE',
         loss_weights: Sequence[float] = None,
     ):

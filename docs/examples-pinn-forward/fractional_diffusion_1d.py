@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import numpy as np
 from jax.experimental.sparse import COO
@@ -53,7 +53,7 @@ def out_transform(x, y):
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None, t=None),
     pinnx.nn.FNN(
-        [2] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform(),
+        [2] + [20] * 4 + [1], "tanh", braintools.init.KaimingUniform(),
         output_transform=out_transform
     ),
     pinnx.nn.ArrayToDict(y=None),
@@ -95,7 +95,7 @@ else:
     )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=10000)
 trainer.saveplot(issave=False, isplot=True)
 
 X = geomtime.random_points(1000)

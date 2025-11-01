@@ -2,15 +2,15 @@
 # ==============================================================================
 
 
+import importlib.util
 import numbers
 import warnings
 from collections.abc import Iterable
 
-import brainstate as bst
+import brainstate
 import numpy as np
 from scipy import spatial
 from scipy.stats.distributions import randint, rv_discrete, uniform
-from sklearn.utils import check_random_state
 
 from .transformers import (
     CategoricalEncoder,
@@ -22,7 +22,19 @@ from .transformers import (
     StringEncoder,
 )
 
+sklearn_installed = importlib.util.find_spec("sklearn")
+
 __all__ = ["sample"]
+
+
+def check_random_state(*args, **kwargs):
+    if not sklearn_installed:
+        raise ImportError(
+            "scikit-learn must be installed to use "
+            "the `check_random_state` function."
+        )
+    from sklearn.utils import check_random_state
+    return check_random_state(*args, **kwargs)
 
 
 def sample(n_samples, dimension, sampler="pseudo"):
@@ -46,7 +58,7 @@ def pseudorandom(n_samples, dimension):
     """Pseudo random."""
     # If random seed is set, then the rng based code always returns the same random
     # number, which may not be what we expect.
-    return np.random.random(size=(n_samples, dimension)).astype(bst.environ.dftype())
+    return np.random.random(size=(n_samples, dimension)).astype(brainstate.environ.dftype())
 
 
 def quasirandom(n_samples, dimension, sampler):
@@ -77,7 +89,7 @@ def quasirandom(n_samples, dimension, sampler):
         else:
             skip = 2
     space = [(0.0, 1.0)] * dimension
-    return np.asarray(sampler.generate(space, n_samples + skip)[skip:], dtype=bst.environ.dftype())
+    return np.asarray(sampler.generate(space, n_samples + skip)[skip:], dtype=brainstate.environ.dftype())
 
 
 class InitialPointGenerator:
@@ -106,6 +118,11 @@ class InitialPointGenerator:
 
 
 def _random_permute_matrix(h, random_state=None):
+    if not sklearn_installed:
+        raise ImportError(
+            "scikit-learn must be installed to use "
+            "the `random_state` parameter."
+        )
     rng = check_random_state(random_state)
     h_rand_perm = np.zeros_like(h)
     samples, n = h.shape

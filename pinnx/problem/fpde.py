@@ -8,7 +8,7 @@ import math
 import warnings
 from typing import Callable, Sequence, Optional, Dict, Any
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -23,9 +23,9 @@ __all__ = [
     "TimeFPDE"
 ]
 
-X = Dict[str, bst.typing.ArrayLike]
-Y = Dict[str, bst.typing.ArrayLike]
-InitMat = bst.typing.ArrayLike
+X = Dict[str, brainstate.typing.ArrayLike]
+Y = Dict[str, brainstate.typing.ArrayLike]
+InitMat = brainstate.typing.ArrayLike
 
 
 class FPDE(PDE):
@@ -54,10 +54,10 @@ class FPDE(PDE):
         self,
         geometry: DictPointGeometry,
         pde: Callable[[X, Y, InitMat], Any],
-        alpha: float | bst.State[float],
+        alpha: float | brainstate.State[float],
         constraints: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
-        approximator: Optional[bst.nn.Module] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
         meshtype: str = "dynamic",
         num_domain: int = 0,
         num_boundary: int = 0,
@@ -96,10 +96,10 @@ class FPDE(PDE):
         # pde_outputs = jax.tree.map(lambda x: x[bcs_start[-1]:], outputs)
 
         # do not cache int_mat when alpha is a learnable parameter
-        fit = bst.environ.get('fit')
+        fit = brainstate.environ.get('fit')
 
         if fit:
-            if isinstance(self.alpha, bst.State):
+            if isinstance(self.alpha, brainstate.State):
                 int_mat = self.get_int_matrix(True)
             else:
                 if self.int_mat_train is not None:
@@ -120,15 +120,15 @@ class FPDE(PDE):
 
     def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
         return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
-        # fit = bst.environ.get('fit')
+        # fit = brainstate.environ.get('fit')
         # if fit:
         #     return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
         # else:
-        #     return [u.math.zeros((), dtype=bst.environ.dftype()) for _ in self.constraints]
+        #     return [u.math.zeros((), dtype=brainstate.environ.dftype()) for _ in self.constraints]
 
     @run_if_all_none("train_x", "train_y")
     def train_next_batch(self, batch_size=None):
-        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+        alpha = self.alpha.value if isinstance(self.alpha, brainstate.State) else self.alpha
 
         # do not cache train data when alpha is a learnable parameter
         if self.disc.meshtype == "static":
@@ -180,7 +180,7 @@ class FPDE(PDE):
             self.test_x = jax.tree_map(lambda x: x[num_bc:], self.train_x)
             self.frac_test = self.frac_train
         else:
-            alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+            alpha = self.alpha.value if isinstance(self.alpha, brainstate.State) else self.alpha
 
             # Generate `self.test_x`, resampling the test points
             self.test_x = self.test_points()
@@ -236,10 +236,10 @@ class TimeFPDE(FPDE):
         self,
         geometry: DictPointGeometry,
         pde: Callable[[X, Y, InitMat], Any],
-        alpha: float | bst.State[float],
+        alpha: float | brainstate.State[float],
         constraints: ICBC | Sequence[ICBC],
         resolution: Sequence[int],
-        approximator: Optional[bst.nn.Module] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
         meshtype: str = "dynamic",
         num_domain: int = 0,
         num_boundary: int = 0,
@@ -275,7 +275,7 @@ class TimeFPDE(FPDE):
     def train_next_batch(self, batch_size=None):
         assert isinstance(self.geometry.geom, GeometryXTime), "GeometryXTime is required."
         geometry = self.geometry.geom
-        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+        alpha = self.alpha.value if isinstance(self.alpha, brainstate.State) else self.alpha
 
         if self.disc.meshtype == "static":
             if geometry.geometry.idstr != "Interval":
@@ -334,7 +334,7 @@ class TimeFPDE(FPDE):
 
     @run_if_all_none("test_x", "test_y")
     def test(self):
-        alpha = self.alpha.value if isinstance(self.alpha, bst.State) else self.alpha
+        alpha = self.alpha.value if isinstance(self.alpha, brainstate.State) else self.alpha
         assert isinstance(self.geometry.geom, GeometryXTime), "GeometryXTime is required."
         geometry = self.geometry.geom
         if self.disc.meshtype == "static" and self.num_test is not None:
@@ -496,7 +496,7 @@ class Fractional:
             dirns, dirn_w = [-1, 1], [1, 1]
         elif self.geom.dim == 2:
             gauss_x, gauss_w = np.polynomial.legendre.leggauss(self.disc.resolution[0])
-            gauss_x, gauss_w = gauss_x.astype(bst.environ.dftype()), gauss_w.astype(bst.environ.dftype())
+            gauss_x, gauss_w = gauss_x.astype(brainstate.environ.dftype()), gauss_w.astype(brainstate.environ.dftype())
             thetas = np.pi * gauss_x + np.pi
             dirns = np.vstack((np.cos(thetas), np.sin(thetas))).T
             dirn_w = np.pi * gauss_w
@@ -504,7 +504,7 @@ class Fractional:
             gauss_x, gauss_w = np.polynomial.legendre.leggauss(
                 max(self.disc.resolution[:2])
             )
-            gauss_x, gauss_w = gauss_x.astype(bst.environ.dftype()), gauss_w.astype(bst.environ.dftype())
+            gauss_x, gauss_w = gauss_x.astype(brainstate.environ.dftype()), gauss_w.astype(brainstate.environ.dftype())
             thetas = (np.pi * gauss_x[: self.disc.resolution[0]] + np.pi) / 2
             phis = np.pi * gauss_x[: self.disc.resolution[1]] + np.pi
             dirns, dirn_w = [], []
@@ -554,8 +554,8 @@ class Fractional:
         return x, w
 
     def modify_second_order(self, x=None, w=None):
-        w0 = np.hstack(([bst.environ.dftype()(0)], w))
-        w1 = np.hstack((w, [bst.environ.dftype()(0)]))
+        w0 = np.hstack(([brainstate.environ.dftype()(0)], w))
+        w1 = np.hstack((w, [brainstate.environ.dftype()(0)]))
         beta = 1 - self.alpha / 2
         w = beta * w0 + (1 - beta) * w1
         if x is None:
@@ -566,9 +566,9 @@ class Fractional:
         return x, w
 
     def modify_third_order(self, x=None, w=None):
-        w0 = np.hstack(([bst.environ.dftype()(0)], w))
-        w1 = np.hstack((w, [bst.environ.dftype()(0)]))
-        w2 = np.hstack(([bst.environ.dftype()(0)] * 2, w[:-1]))
+        w0 = np.hstack(([brainstate.environ.dftype()(0)], w))
+        w1 = np.hstack((w, [brainstate.environ.dftype()(0)]))
+        w2 = np.hstack(([brainstate.environ.dftype()(0)] * 2, w[:-1]))
         beta = 1 - self.alpha / 2
         w = (
             (-6 * beta ** 2 + 11 * beta + 1) / 6 * w0
@@ -589,7 +589,7 @@ class Fractional:
         if not isinstance(self.alpha, (np.ndarray, jax.Array)):
             int_mat = np.zeros(
                 (self.disc.resolution[0], self.disc.resolution[0]),
-                dtype=bst.environ.dftype(),
+                dtype=brainstate.environ.dftype(),
             )
             h = self.geom.diam / (self.disc.resolution[0] - 1)
             for i in range(1, self.disc.resolution[0] - 1):
@@ -605,29 +605,29 @@ class Fractional:
                 # int_mat[i, 0:i+2] = np.flipud(self.modify_third_order(w=self.get_weight(i)))
                 # int_mat[i, i-1:] += self.modify_third_order(w=self.get_weight(self.disc.resolution[0]-1-i))
             return h ** (-self.alpha) * int_mat
-        int_mat = np.zeros((1, self.disc.resolution[0]), dtype=bst.environ.dftype())
+        int_mat = np.zeros((1, self.disc.resolution[0]), dtype=brainstate.environ.dftype())
         for i in range(1, self.disc.resolution[0] - 1):
             # shifted
             row = np.concatenate(
                 [
-                    np.zeros(1, dtype=bst.environ.dftype()),
+                    np.zeros(1, dtype=brainstate.environ.dftype()),
                     np.flip(self.get_weight(i), (0,)),
-                    np.zeros(self.disc.resolution[0] - i - 2, dtype=bst.environ.dftype()),
+                    np.zeros(self.disc.resolution[0] - i - 2, dtype=brainstate.environ.dftype()),
                 ],
                 0,
             )
             row += np.concatenate(
                 [
-                    np.zeros(i - 1, dtype=bst.environ.dftype()),
+                    np.zeros(i - 1, dtype=brainstate.environ.dftype()),
                     self.get_weight(self.disc.resolution[0] - 1 - i),
-                    np.zeros(1, dtype=bst.environ.dftype()),
+                    np.zeros(1, dtype=brainstate.environ.dftype()),
                 ],
                 0,
             )
             row = np.expand_dims(row, 0)
             int_mat = np.concatenate([int_mat, row], 0)
         int_mat = np.concatenate(
-            [int_mat, np.zeros([1, self.disc.resolution[0]], dtype=bst.environ.dftype())], 0
+            [int_mat, np.zeros([1, self.disc.resolution[0]], dtype=brainstate.environ.dftype())], 0
         )
         h = self.geom.diam / (self.disc.resolution[0] - 1)
         return h ** (-self.alpha) * int_mat
@@ -649,7 +649,7 @@ class Fractional:
             return indices, values, dense_shape
 
         print("Generating dense fractional matrix...")
-        int_mat = np.zeros((self.x0.shape[0], self.x.shape[0]), dtype=bst.environ.dftype())
+        int_mat = np.zeros((self.x0.shape[0], self.x.shape[0]), dtype=brainstate.environ.dftype())
         beg = self.x0.shape[0]
         for i in range(self.x0.shape[0]):
             int_mat[i, beg: beg + self.w[i].size] = self.w[i]
@@ -729,7 +729,7 @@ class FractionalTime:
         # Only consider the inside points
         print("Warning: assume zero boundary condition.")
         n = (self.disc.resolution[0] - 2) * (self.nt - 1)
-        int_mat = np.zeros((n, n), dtype=bst.environ.dftype())
+        int_mat = np.zeros((n, n), dtype=brainstate.environ.dftype())
         self.fracx = Fractional(self.alpha, self.geom, self.disc, None)
         int_mat_one = self.fracx.get_matrix()
         beg = 0

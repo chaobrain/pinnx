@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import jax
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,7 +42,7 @@ geomtime = pinnx.geometry.GeometryXTime(geom, timedomain)
 geomtime = geomtime.to_dict_point('x', 't')
 
 # Net
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONetCartesianProd(
         [50, 128, 128, 128],
         [2, 128, 128, 128],
@@ -77,7 +77,7 @@ data = pinnx.problem.PDEOperatorCartesianProd(
 )
 
 model = pinnx.Trainer(data)
-model.compile(bst.optim.Adam(0.0005)).train(iterations=20000)
+model.compile(braintools.optim.Adam(0.0005)).train(iterations=20000)
 model.saveplot(isplot=True)
 
 func_feats = func_space.random(1)

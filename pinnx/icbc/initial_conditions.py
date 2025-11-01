@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict
 
-import brainstate as bst
+import brainstate
 import jax
 import numpy as np
 
@@ -69,7 +69,7 @@ class IC(ICBC):
         """
         return self.filter(X)
 
-    def error(self, inputs, outputs, **kwargs) -> Dict[str, bst.typing.ArrayLike]:
+    def error(self, inputs, outputs, **kwargs) -> Dict[str, brainstate.typing.ArrayLike]:
         """
         Error for initial conditions.
 

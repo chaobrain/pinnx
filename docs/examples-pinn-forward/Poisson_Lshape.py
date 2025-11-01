@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 
 import pinnx
 
@@ -23,6 +23,6 @@ net = pinnx.nn.Model(
 data = pinnx.problem.PDE(geom, pde, bc, net, num_domain=1200, num_boundary=120, num_test=1500)
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=50000)
-trainer.compile(bst.optim.LBFGS(1e-3)).train(10000)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=50000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(10000)
 trainer.saveplot(issave=True, isplot=True)

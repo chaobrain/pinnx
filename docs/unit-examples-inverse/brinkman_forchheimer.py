@@ -2,7 +2,8 @@
 Implementation of Brinkman-Forchheimer equation example in paper https://arxiv.org/pdf/2111.02801.pdf.
 """
 
-import brainstate as bst
+import brainstate
+import braintools
 import brainunit as u
 import numpy as np
 
@@ -14,8 +15,8 @@ e = 0.4
 H = 1 * u.meter
 
 
-v_e = bst.ParamState(0.1 * u.meter ** 2 / u.second)
-K = bst.ParamState(0.001 * u.meter ** 2)
+v_e = brainstate.ParamState(0.1 * u.meter ** 2 / u.second)
+K = brainstate.ParamState(0.001 * u.meter ** 2)
 
 
 def sol(x):
@@ -68,5 +69,5 @@ problem = pinnx.problem.PDE(
 
 variable = pinnx.callbacks.VariableValue([v_e, K], period=200, filename="./variables1.dat")
 trainer = pinnx.Trainer(problem, external_trainable_variables=[v_e, K])
-trainer.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=[variable])
+trainer.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=30000, callbacks=[variable])
 trainer.saveplot(issave=True, isplot=True)

@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 
 from typing import Sequence, Dict
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 
@@ -26,7 +26,7 @@ __all__ = [
 
 
 def array_to_dict(
-    x: bst.typing.ArrayLike,
+    x: brainstate.typing.ArrayLike,
     names: Sequence[str],
     keep_dim: bool = False
 ):
@@ -44,7 +44,7 @@ def array_to_dict(
 
 
 def dict_to_array(
-    d: Dict[str, bst.typing.ArrayLike],
+    d: Dict[str, brainstate.typing.ArrayLike],
     keep_dim: bool = False
 ):
     """

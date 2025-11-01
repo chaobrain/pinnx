@@ -2,7 +2,7 @@
 Implementation of Allen-Cahn equation example in paper https://arxiv.org/abs/2111.02801.
 """
 
-import brainstate as bst
+import brainstate
 import braintools
 import brainunit as u
 import numpy as np
@@ -17,7 +17,7 @@ geomtime = pinnx.geometry.GeometryXTime(geom, timedomain).to_dict_point('x', 't'
 d = 0.001
 
 
-@bst.compile.jit
+@brainstate.transform.jit
 def pde(x, out):
     jacobian = net.jacobian(x)
     hessian = net.hessian(x, xi='x', xj='x')
@@ -51,8 +51,8 @@ problem = pinnx.problem.TimePDE(
 )
 
 trainer = pinnx.Trainer(problem)
-trainer.compile(bst.optim.Adam(lr=1e-3)).train(iterations=15000)
-trainer.compile(bst.optim.LBFGS(lr=1e-3)).train(2000, display_every=200)
+trainer.compile(braintools.optim.Adam(lr=1e-3)).train(iterations=15000)
+trainer.compile(braintools.optim.LBFGS(lr=1e-3)).train(2000, display_every=200)
 trainer.saveplot(issave=True, isplot=True)
 
 

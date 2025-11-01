@@ -1,76 +1,67 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-
-[tool.setuptools.packages.find]
-exclude = [
-    "docs*", "tests*", "examples*", "experiments*", "build*", "dist*",
-    "pinnx.egg-info*", "pinnx/__pycache__*",
-]
-
-
-[tool.distutils.bdist_wheel]
-universal = true
+[tool.setuptools.dynamic]
+version = { attr = "pinnx.__version__" }
 
 
 [project]
 name = "pinnx"
-description = "Physics-informed."
-readme = 'README.md'
-license = { text = 'Apache-2.0 license' }
-requires-python = '>=3.9'
-authors = [{ name = 'PINNx Developers', email = 'chao.brain@qq.com' }]
-classifiers = [
-    'Natural Language :: English',
-    'Operating System :: OS Independent',
-    'Development Status :: 4 - Beta',
-    'Intended Audience :: Developers',
-    'Intended Audience :: Science/Research',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
-    'Programming Language :: Python :: 3.11',
-    'Programming Language :: Python :: 3.12',
-    'License :: OSI Approved :: Apache Software License',
-    'Programming Language :: Python',
-    'Topic :: Scientific/Engineering :: Bio-Informatics',
-    'Topic :: Scientific/Engineering :: Mathematics',
-    'Topic :: Scientific/Engineering :: Artificial Intelligence',
-    'Topic :: Software Development :: Libraries',
-]
-
-
+description = "Physics-Informed Neural Networks for Scientific Machine Learning in JAX."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "PINNx Developers", email = "chao.brain@qq.com" }]
 keywords = [
-    'computational neuroscience',
-    'brain-inspired computation',
-    'brain dynamics programming',
+    "computational neuroscience",
+    "brain-inspired computation",
+    "brain dynamics programming",
 ]
-
+classifiers = [
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries",
+]
 dependencies = [
-    'numpy',
-    'jax',
-    'brainunit>=0.0.3',
-    'matplotlib',
-    'scipy',
-    'scikit-learn',
-    'brainstate',
-    'braintools',
-    'optax',
-    'scikit-optimize',
-    'optax',
+    "jax",
+    "brainunit",
+    "brainstate",
+    "braintools",
 ]
-
-dynamic = ['version']
-
-[tool.flit.module]
-name = "pinnx"
+dynamic = ["version"]
 
 [project.urls]
-homepage = 'http://github.com/chaobrain/pinnx'
-repository = 'http://github.com/chaobrain/pinnx'
+Homepage = "https://github.com/chaobrain/pinnx"
+Documentation = "https://pinnx.readthedocs.io/"
+"Source Code" = "https://github.com/chaobrain/pinnx"
+"Bug Tracker" = "https://github.com/chaobrain/pinnx/issues"
 
 [project.optional-dependencies]
-testing = [
-    'pytest',
+cpu = ["jaxlib"]
+cuda12 = ["jaxlib[cuda12]"]
+cuda13 = ["jaxlib[cuda13]"]
+tpu = ["jaxlib[tpu]"]
+testing = ["pytest"]
+
+[tool.setuptools.packages.find]
+exclude = [
+    "dev*",
+    "docs*",
+    "tests*",
+    "examples*",
+    "experiments*",
+    "build*",
+    "dist*",
+    "pinnx.egg-info*",
+    "pinnx/__pycache__*",
 ]

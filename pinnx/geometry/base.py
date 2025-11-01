@@ -6,7 +6,7 @@ import abc
 from typing import Dict, Union
 from typing import Literal, Sequence
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax.numpy as jnp
 import numpy as np
@@ -335,7 +335,7 @@ class CSGUnion(Geometry):
         )
 
     def random_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
             tmp = (
@@ -351,7 +351,7 @@ class CSGUnion(Geometry):
         return x
 
     def random_boundary_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
             geom1_boundary_points = self.geom1.random_boundary_points(n, random=random)
@@ -418,7 +418,7 @@ class CSGDifference(Geometry):
         )
 
     def random_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
             tmp = self.geom1.random_points(n, random=random)
@@ -431,7 +431,7 @@ class CSGDifference(Geometry):
         return x
 
     def random_boundary_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
 
@@ -504,7 +504,7 @@ class CSGIntersection(Geometry):
         )
 
     def random_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
             tmp = self.geom1.random_points(n, random=random)
@@ -517,7 +517,7 @@ class CSGIntersection(Geometry):
         return x
 
     def random_boundary_points(self, n, random="pseudo"):
-        x = np.empty(shape=(n, self.dim), dtype=bst.environ.dftype())
+        x = np.empty(shape=(n, self.dim), dtype=brainstate.environ.dftype())
         i = 0
         while i < n:
             geom1_boundary_points = self.geom1.random_boundary_points(n, random=random)
@@ -577,11 +577,11 @@ class DictPointGeometry(AbstractGeometry):
             raise ValueError("The number of names should match the dimension of the geometry. "
                              "But got {} names and {} dimensions.".format(len(self.name2unit), geom.dim))
 
-    def arr_to_dict(self, x: bst.typing.ArrayLike) -> Dict[str, bst.typing.ArrayLike]:
+    def arr_to_dict(self, x: brainstate.typing.ArrayLike) -> Dict[str, brainstate.typing.ArrayLike]:
         return {name: array_to_quantity(x[..., i], unit)
                 for i, (name, unit) in enumerate(self.name2unit.items())}
 
-    def dict_to_arr(self, x: Dict[str, bst.typing.ArrayLike]) -> bst.typing.ArrayLike:
+    def dict_to_arr(self, x: Dict[str, brainstate.typing.ArrayLike]) -> brainstate.typing.ArrayLike:
         arrs = [quantity_to_array(x[name], unit) for name, unit in self.name2unit.items()]
         mod = utils.smart_numpy(arrs[0])
         return mod.stack(arrs, axis=-1)
@@ -616,29 +616,29 @@ class DictPointGeometry(AbstractGeometry):
             x = self.dict_to_arr(x)
         return self.geom.boundary_constraint_factor(x, **kw)
 
-    def boundary_normal(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> Dict[str, bst.typing.ArrayLike]:
+    def boundary_normal(self, x: Union[np.ndarray, jnp.ndarray, u.Quantity, Dict]) -> Dict[str, brainstate.typing.ArrayLike]:
         if isinstance(x, dict):
             x = self.dict_to_arr(x)
         normal = self.geom.boundary_normal(x)
         return self.arr_to_dict(normal)
 
-    def uniform_points(self, n, boundary: bool = True) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_points(self, n, boundary: bool = True) -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.uniform_points(n, boundary=boundary)
         return self.arr_to_dict(points)
 
-    def random_points(self, n, random="pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_points(self, n, random="pseudo") -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.random_points(n, random=random)
         return self.arr_to_dict(points)
 
-    def uniform_boundary_points(self, n) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_boundary_points(self, n) -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.uniform_boundary_points(n)
         return self.arr_to_dict(points)
 
-    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_boundary_points(self, n, random: str = "pseudo") -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.random_boundary_points(n, random=random)
         return self.arr_to_dict(points)
 
-    def periodic_point(self, x, component: Union[str, int]) -> Dict[str, bst.typing.ArrayLike]:
+    def periodic_point(self, x, component: Union[str, int]) -> Dict[str, brainstate.typing.ArrayLike]:
         if isinstance(x, dict):
             x = self.dict_to_arr(x)
         if isinstance(component, str):
@@ -647,16 +647,16 @@ class DictPointGeometry(AbstractGeometry):
         x = self.geom.periodic_point(x, component)
         return self.arr_to_dict(x)
 
-    def background_points(self, x, dirn, dist2npt, shift) -> Dict[str, bst.typing.ArrayLike]:
+    def background_points(self, x, dirn, dist2npt, shift) -> Dict[str, brainstate.typing.ArrayLike]:
         if isinstance(x, dict):
             x = self.dict_to_arr(x)
         points = self.geom.background_points(x, dirn, dist2npt, shift)
         return self.arr_to_dict(points)
 
-    def random_initial_points(self, n: int, random: str = "pseudo") -> Dict[str, bst.typing.ArrayLike]:
+    def random_initial_points(self, n: int, random: str = "pseudo") -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.random_initial_points(n, random=random)
         return self.arr_to_dict(points)
 
-    def uniform_initial_points(self, n: int) -> Dict[str, bst.typing.ArrayLike]:
+    def uniform_initial_points(self, n: int) -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.uniform_initial_points(n)
         return self.arr_to_dict(points)

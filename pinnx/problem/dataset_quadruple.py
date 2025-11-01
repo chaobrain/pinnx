@@ -4,7 +4,7 @@
 
 from typing import Sequence
 
-import brainstate as bst
+import brainstate
 
 from pinnx.utils.sampler import BatchSampler
 from .base import Problem
@@ -34,7 +34,7 @@ class QuadrupleDataset(Problem):
         y_train,
         X_test,
         y_test,
-        approximator: bst.nn.Module = None,
+        approximator: brainstate.nn.Module = None,
         loss_fn: str = 'MSE',
         loss_weights: Sequence[float] = None,
     ):

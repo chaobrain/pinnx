@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 # ==============================================================================
 
 
-import brainstate as bst
+import braintools
+import brainstate
 import brainunit as u
 import jax.tree
 import numpy as np
@@ -41,7 +42,7 @@ net = pinnx.nn.Model(
                          y=unit_of_space,
                          z=unit_of_space,
                          t=unit_of_t),
-    pinnx.nn.FNN([4] + 4 * [50] + [4], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.FNN([4] + 4 * [50] + [4], "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(u_vel=unit_of_speed,
                          v_vel=unit_of_speed,
                          w_vel=unit_of_speed,
@@ -55,7 +56,7 @@ rho = 1 * u.kilogram / u.meter ** 3
 mu = 1 * u.pascal * u.second
 
 
-@bst.compile.jit
+@brainstate.transform.jit
 def pde(x, u):
     jacobian = net.jacobian(x)
     x_hessian = net.hessian(x, y=['u_vel', 'v_vel', 'w_vel'], xi=['x'], xj=['x'])
@@ -109,7 +110,7 @@ def pde(x, u):
     return [momentum_x, momentum_y, momentum_z, continuity]
 
 
-@bst.compile.jit(static_argnums=1)
+@brainstate.transform.jit(static_argnums=1)
 def icbc_cond_func(x, include_p: bool = False):
     x = {k: v.mantissa for k, v in x.items()}
 
@@ -180,8 +181,8 @@ problem = pinnx.problem.TimePDE(
 
 model = pinnx.Trainer(problem)
 
-model.compile(bst.optim.Adam(1e-3)).train(iterations=30000)
-model.compile(bst.optim.LBFGS(1e-3)).train(5000, display_every=200)
+model.compile(braintools.optim.Adam(1e-3)).train(iterations=30000)
+model.compile(braintools.optim.LBFGS(1e-3)).train(5000, display_every=200)
 
 x, y, z = np.meshgrid(np.linspace(-1, 1, 10), np.linspace(-1, 1, 10), np.linspace(-1, 1, 10))
 t_0 = np.zeros(1000)

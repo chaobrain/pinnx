@@ -5,7 +5,8 @@
 import time
 from typing import Union, Sequence, Callable, Optional
 
-import brainstate as bst
+import braintools
+import brainstate
 import brainunit as u
 import jax.numpy as jnp
 import jax.tree
@@ -35,14 +36,14 @@ class Trainer:
                 physics systems that need to be recovered.
     """
     __module__ = 'pinnx'
-    optimizer: bst.optim.Optimizer  # optimizer
+    optimizer: braintools.optim.Optimizer  # optimizer
     problem: Problem  # problem
-    params: bst.util.FlattedDict  # trainable variables
+    params: brainstate.util.FlattedDict  # trainable variables
 
     def __init__(
         self,
         problem: Problem,
-        external_trainable_variables: Union[bst.ParamState, Sequence[bst.ParamState]] = None,
+        external_trainable_variables: Union[brainstate.ParamState, Sequence[brainstate.ParamState]] = None,
         batch_size: Optional[int] = None,
     ):
         # the problem
@@ -54,14 +55,14 @@ class Trainer:
             raise ValueError("Problem must define an approximator before training.")
 
         # parameters and external trainable variables
-        params = bst.graph.states(self.problem.approximator, bst.ParamState)
+        params = brainstate.graph.states(self.problem.approximator, brainstate.ParamState)
         if external_trainable_variables is None:
             external_trainable_variables = []
         else:
             if not isinstance(external_trainable_variables, list):
                 external_trainable_variables = [external_trainable_variables]
         for i, var in enumerate(external_trainable_variables):
-            assert isinstance(var, bst.ParamState), ("external_trainable_variables must be a "
+            assert isinstance(var, brainstate.ParamState), ("external_trainable_variables must be a "
                                                      "list of ParamState instance.")
             params[('external_trainable_variable', i)] = var
         self.params = params
@@ -78,7 +79,7 @@ class Trainer:
     @utils.timing
     def compile(
         self,
-        optimizer: bst.optim.Optimizer,
+        optimizer: braintools.optim.Optimizer,
         metrics: Union[str, Sequence[str]] = None,
         measture_train_step_compile_time: bool = False,
     ):
@@ -92,7 +93,7 @@ class Trainer:
         print("Compiling trainer...")
 
         # optimizer
-        assert isinstance(optimizer, bst.optim.Optimizer), "optimizer must be an Optimizer instance."
+        assert isinstance(optimizer, braintools.optim.Optimizer), "optimizer must be an Optimizer instance."
         self.optimizer = optimizer
         self.optimizer.register_trainable_weights(self.params)
 
@@ -102,12 +103,12 @@ class Trainer:
         self.metrics = [metrics_module.get(m) for m in metrics]
 
         def fn_outputs(training: bool, inputs):
-            with bst.environ.context(fit=training):
+            with brainstate.environ.context(fit=training):
                 inputs = jax.tree.map(lambda x: u.math.asarray(x), inputs, is_leaf=u.math.is_quantity)
                 return self.problem.approximator(inputs)
 
         def fn_outputs_losses(training, inputs, targets, **kwargs):
-            with bst.environ.context(fit=training):
+            with brainstate.environ.context(fit=training):
                 # inputs
                 inputs = jax.tree.map(lambda x: u.math.asarray(x), inputs, is_leaf=u.math.is_quantity)
 
@@ -136,14 +137,14 @@ class Trainer:
                 losses = fn_outputs_losses_train(inputs, targets, **aux)[1]
                 return u.math.sum(u.math.asarray([loss.sum() for loss in jax.tree.leaves(losses)]))
 
-            grads = bst.augment.grad(_loss_fun, grad_states=self.params)()
+            grads = brainstate.transform.grad(_loss_fun, grad_states=self.params)()
             self.optimizer.update(grads)
 
         # Callables
-        self.fn_outputs = bst.compile.jit(fn_outputs, static_argnums=0)
-        self.fn_outputs_losses_train = bst.compile.jit(fn_outputs_losses_train)
-        self.fn_outputs_losses_test = bst.compile.jit(fn_outputs_losses_test)
-        self.fn_train_step = bst.compile.jit(fn_train_step)
+        self.fn_outputs = brainstate.transform.jit(fn_outputs, static_argnums=0)
+        self.fn_outputs_losses_train = brainstate.transform.jit(fn_outputs_losses_train)
+        self.fn_outputs_losses_test = brainstate.transform.jit(fn_outputs_losses_test)
+        self.fn_train_step = brainstate.transform.jit(fn_train_step)
 
         if measture_train_step_compile_time:
             t0 = time.time()
@@ -337,7 +338,7 @@ class Trainer:
                 to apply during prediction.
         """
         xs = jax.tree.map(
-            lambda x: u.math.asarray(x, dtype=bst.environ.dftype()),
+            lambda x: u.math.asarray(x, dtype=brainstate.environ.dftype()),
             xs,
             is_leaf=u.math.is_quantity
         )
@@ -366,9 +367,9 @@ class Trainer:
         save_path = f"{save_path}-{self.train_state.epoch}.msgpack"
 
         # avoid the duplicate ParamState save
-        model = bst.graph.Dict(params=self.params, optimizer=self.optimizer)
+        model = brainstate.graph.Dict(params=self.params, optimizer=self.optimizer)
 
-        checkpoint = bst.graph.states(model).to_nest()
+        checkpoint = brainstate.graph.states(model).to_nest()
         braintools.file.msgpack_save(save_path, checkpoint)
 
         if verbose > 0:
@@ -390,9 +391,9 @@ class Trainer:
         if verbose > 0:
             print("Restoring trainer from {} ...\n".format(save_path))
 
-        data = bst.graph.Dict(params=self.params, optimizer=self.optimizer)
+        data = brainstate.graph.Dict(params=self.params, optimizer=self.optimizer)
 
-        checkpoint = bst.graph.states(data).to_nest()
+        checkpoint = brainstate.graph.states(data).to_nest()
         braintools.file.msgpack_load(save_path, target=checkpoint)
 
     def saveplot(

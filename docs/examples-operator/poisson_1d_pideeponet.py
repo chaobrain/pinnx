@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import matplotlib.pyplot as plt
 import numpy as np
 import jax
@@ -35,7 +35,7 @@ evaluation_points = pinnx.utils.dict_to_array(evaluation_points)
 # Setup DeepONet
 dim_x = 1
 p = 32
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONetCartesianProd(
         [num_eval_points, 32, p],
         [dim_x, 32, p],
@@ -59,7 +59,7 @@ pde_op = pinnx.problem.PDEOperatorCartesianProd(
 
 # Define and train trainer
 model = pinnx.Trainer(pde_op)
-model.compile(bst.optim.Adam(0.0005)).train(iterations=20000)
+model.compile(braintools.optim.Adam(0.0005)).train(iterations=20000)
 model.saveplot(isplot=True)
 
 # Plot realisations of f(x)

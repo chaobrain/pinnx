@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def out_transform(inputs, outputs):
 
 n_pts_edge = 101  # using the size of true solution, but this is unnecessary
 
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONetCartesianProd(
         [n_pts_edge, 128, 128, 128],
         [2, 128, 128, 128],
@@ -127,8 +127,8 @@ data = pinnx.problem.PDEOperatorCartesianProd(
 
 # Trainer
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.SGD(1e-6)).train(iterations=50)
-# trainer.compile(bst.optim.Adam(bst.optim.InverseTimeDecayLR(1e-5, 10000, 0.5))).train(iterations=50000)
+trainer.compile(braintools.optim.SGD(1e-6)).train(iterations=50)
+# trainer.compile(braintools.optim.Adam(braintools.optim.InverseTimeDecayLR(1e-5, 10000, 0.5))).train(iterations=50000)
 trainer.saveplot()
 
 # Evaluation

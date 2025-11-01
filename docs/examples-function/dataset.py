@@ -1,4 +1,4 @@
-# Copyright 2024 BDP Ecosystem Limited. All Rights Reserved.
+# Copyright 2024 BrainX Ecosystem Limited. All Rights Reserved.
 #
 # Licensed under the GNU LESSER GENERAL PUBLIC LICENSE, Version 2.1 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@
 # ==============================================================================
 import os
 
-import brainstate as bst
+import braintools
+import brainstate
 import numpy as np
 
 import pinnx
@@ -25,7 +26,7 @@ test_data = np.loadtxt(os.path.join(PATH, '..', 'dataset', 'dataset.test'))
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None),
-    pinnx.nn.FNN([1] + [50] * 3 + [1], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.FNN([1] + [50] * 3 + [1], "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(y=None),
 )
 
@@ -39,5 +40,5 @@ data = pinnx.problem.DataSet(
 )
 
 model = pinnx.Trainer(data)
-model.compile(bst.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=50000)
+model.compile(braintools.optim.Adam(0.001), metrics=["l2 relative error"]).train(iterations=50000)
 model.saveplot(issave=True, isplot=True)

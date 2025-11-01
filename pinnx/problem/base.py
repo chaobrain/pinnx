@@ -6,7 +6,7 @@ from __future__ import annotations
 import abc
 from typing import Callable, Sequence, Any, Tuple
 
-import brainstate as bst
+import brainstate
 import jax
 
 from pinnx.utils.losses import get_loss
@@ -37,12 +37,12 @@ class Problem(abc.ABC):
             weighted by the `loss_weights` coefficients.
     """
 
-    approximator: bst.nn.Module
+    approximator: brainstate.nn.Module
     loss_fn: Callable | Sequence[Callable]
 
     def __init__(
         self,
-        approximator: bst.nn.Module = None,
+        approximator: brainstate.nn.Module = None,
         loss_fn: str | Callable[[Inputs, Outputs], LOSS] = 'MSE',
         loss_weights: Sequence[float] = None,
     ):
@@ -76,7 +76,7 @@ class Problem(abc.ABC):
 
     def define_approximator(
         self,
-        approximator: bst.nn.Module,
+        approximator: brainstate.nn.Module,
     ) -> Problem:
         """
         Define the approximator.
@@ -85,7 +85,7 @@ class Problem(abc.ABC):
             approximator: The approximator.
 
         """
-        assert isinstance(approximator, bst.nn.Module), "approximator must be an instance of bst.nn.Module."
+        assert isinstance(approximator, brainstate.nn.Module), "approximator must be an instance of brainstate.nn.Module."
         self.approximator = approximator
         return self
 
@@ -99,14 +99,14 @@ class Problem(abc.ABC):
         """
         Return a list of losses for training dataset, i.e., constraints.
         """
-        with bst.environ.context(fit=True):
+        with brainstate.environ.context(fit=True):
             return self.losses(inputs, outputs, targets, **kwargs)
 
     def losses_test(self, inputs, outputs, targets, **kwargs):
         """
         Return a list of losses for test dataset, i.e., constraints.
         """
-        with bst.environ.context(fit=False):
+        with brainstate.environ.context(fit=False):
             return self.losses(inputs, outputs, targets, **kwargs)
 
     @abc.abstractmethod

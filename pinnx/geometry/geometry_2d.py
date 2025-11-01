@@ -5,7 +5,7 @@ __all__ = ["Disk", "Ellipse", "Polygon", "Rectangle", "StarShaped", "Triangle"]
 
 from typing import Union, Literal
 
-import brainstate as bst
+import brainstate
 import jax.numpy as jnp
 from scipy import spatial
 
@@ -30,7 +30,7 @@ class Disk(Hypersphere):
         mod = utils.smart_numpy(x)
         xc = x - self.center
         ad = jnp.dot(xc, dirn)
-        return (-ad + (ad ** 2 - mod.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(bst.environ.dftype())
+        return (-ad + (ad ** 2 - mod.sum(xc * xc, axis=-1) + self._r2) ** 0.5).astype(brainstate.environ.dftype())
 
     def distance2boundary(self, x, dirn):
         mod = utils.smart_numpy(x)
@@ -72,7 +72,7 @@ class Disk(Hypersphere):
         h = dx / n
         pts = (
             x
-            - jnp.arange(-shift, n - shift + 1, dtype=bst.environ.dftype())[:, None]
+            - jnp.arange(-shift, n - shift + 1, dtype=brainstate.environ.dftype())[:, None]
             * h
             * dirn
         )
@@ -92,7 +92,7 @@ class Ellipse(Geometry):
     """
 
     def __init__(self, center, semimajor, semiminor, angle=0):
-        self.center = jnp.array(center, dtype=bst.environ.dftype())
+        self.center = jnp.array(center, dtype=brainstate.environ.dftype())
         self.semimajor = semimajor
         self.semiminor = semiminor
         self.angle = angle
@@ -103,14 +103,14 @@ class Ellipse(Geometry):
                 center[0] - self.c * jnp.cos(angle),
                 center[1] + self.c * jnp.sin(angle),
             ],
-            dtype=bst.environ.dftype(),
+            dtype=brainstate.environ.dftype(),
         )
         self.focus2 = jnp.array(
             [
                 center[0] + self.c * jnp.cos(angle),
                 center[1] - self.c * jnp.sin(angle),
             ],
-            dtype=bst.environ.dftype(),
+            dtype=brainstate.environ.dftype(),
         )
         self.rotation_mat = jnp.array(
             [[jnp.cos(-angle), -jnp.sin(-angle)], [jnp.sin(-angle), jnp.cos(-angle)]]
@@ -458,7 +458,7 @@ class StarShaped(Geometry):
     """
 
     def __init__(self, center, radius, coeffs_cos, coeffs_sin):
-        self.center = jnp.array(center, dtype=bst.environ.dftype())
+        self.center = jnp.array(center, dtype=brainstate.environ.dftype())
         self.radius = radius
         self.coeffs_cos = coeffs_cos
         self.coeffs_sin = coeffs_sin
@@ -515,7 +515,7 @@ class StarShaped(Geometry):
         return jnp.array([dxt[:, 1], -dxt[:, 0]]).T
 
     def random_points(self, n, random="pseudo"):
-        x = jnp.empty((0, 2), dtype=bst.environ.dftype())
+        x = jnp.empty((0, 2), dtype=brainstate.environ.dftype())
         vbbox = self.bbox[1] - self.bbox[0]
         while len(x) < n:
             x_new = sample(n, 2, sampler="pseudo") * vbbox + self.bbox[0]
@@ -550,9 +550,9 @@ class Triangle(Geometry):
             self.area = -self.area
             x2, x3 = x3, x2
 
-        self.x1 = jnp.array(x1, dtype=bst.environ.dftype())
-        self.x2 = jnp.array(x2, dtype=bst.environ.dftype())
-        self.x3 = jnp.array(x3, dtype=bst.environ.dftype())
+        self.x1 = jnp.array(x1, dtype=brainstate.environ.dftype())
+        self.x2 = jnp.array(x2, dtype=brainstate.environ.dftype())
+        self.x3 = jnp.array(x3, dtype=brainstate.environ.dftype())
 
         self.v12 = self.x2 - self.x1
         self.v23 = self.x3 - self.x2
@@ -630,8 +630,8 @@ class Triangle(Geometry):
         # - http://mathworld.wolfram.com/TrianglePointPicking.html
         # - https://hbfs.wordpress.com/2010/10/05/random-points-in-a-triangle-generating-random-sequences-ii/
         # - https://stackoverflow.com/questions/19654251/random-point-inside-triangle-inside-java
-        sqrt_r1 = jnp.sqrt(bst.random.rand(n, 1))
-        r2 = bst.random.rand(n, 1)
+        sqrt_r1 = jnp.sqrt(brainstate.random.rand(n, 1))
+        r2 = brainstate.random.rand(n, 1)
         return (
             (1 - sqrt_r1) * self.x1
             + sqrt_r1 * (1 - r2) * self.x2
@@ -786,7 +786,7 @@ class Polygon(Geometry):
     """
 
     def __init__(self, vertices):
-        self.vertices = jnp.array(vertices, dtype=bst.environ.dftype())
+        self.vertices = jnp.array(vertices, dtype=brainstate.environ.dftype())
         if len(vertices) == 3:
             raise ValueError("The polygon is a triangle. Use Triangle instead.")
         if Rectangle.is_valid(self.vertices):
@@ -880,7 +880,7 @@ class Polygon(Geometry):
         return jnp.array([0, 0])
 
     def random_points(self, n, random="pseudo"):
-        x = jnp.empty((0, 2), dtype=bst.environ.dftype())
+        x = jnp.empty((0, 2), dtype=brainstate.environ.dftype())
         vbbox = self.bbox[1] - self.bbox[0]
         while len(x) < n:
             x_new = sample(n, 2, sampler="pseudo") * vbbox + self.bbox[0]

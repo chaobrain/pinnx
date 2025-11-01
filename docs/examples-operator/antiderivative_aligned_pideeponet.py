@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import matplotlib.pyplot as plt
@@ -20,7 +20,7 @@ def pde(x, u_, aux):
 
 
 # Net
-net = bst.nn.Sequential(
+net = brainstate.nn.Sequential(
     pinnx.nn.DeepONetCartesianProd(
         [50, 128, 128, 128],
         [1, 128, 128, 128],
@@ -54,7 +54,7 @@ data = pinnx.problem.PDEOperatorCartesianProd(
 )
 
 trainer = pinnx.Trainer(data)
-trainer.compile(bst.optim.Adam(0.0005)).train(iterations=40000)
+trainer.compile(braintools.optim.Adam(0.0005)).train(iterations=40000)
 trainer.saveplot()
 
 v = np.sin(np.pi * eval_pts).T

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Callable, Sequence, Union, Optional, Dict, Any
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import jax
 import numpy as np
@@ -20,8 +20,8 @@ __all__ = [
     "IDE",
 ]
 
-X = Dict[str, bst.typing.ArrayLike]
-Y = Dict[str, bst.typing.ArrayLike]
+X = Dict[str, brainstate.typing.ArrayLike]
+Y = Dict[str, brainstate.typing.ArrayLike]
 InitMat = Any
 
 
@@ -40,7 +40,7 @@ class IDE(PDE):
         ide: Callable[[X, Y, InitMat], Any],
         constraints: Union[ICBC, Sequence[ICBC]],
         quad_deg: int,
-        approximator: Optional[bst.nn.Module] = None,
+        approximator: Optional[brainstate.nn.Module] = None,
         kernel: Callable = None,
         num_domain: int = 0,
         num_boundary: int = 0,
@@ -54,8 +54,8 @@ class IDE(PDE):
         self.kernel = kernel or (lambda x, *args: np.ones((len(x), 1)))
         self.quad_deg = quad_deg
         self.quad_x, self.quad_w = np.polynomial.legendre.leggauss(quad_deg)
-        self.quad_x = self.quad_x.astype(bst.environ.dftype())
-        self.quad_w = self.quad_w.astype(bst.environ.dftype())
+        self.quad_x = self.quad_x.astype(brainstate.environ.dftype())
+        self.quad_w = self.quad_w.astype(brainstate.environ.dftype())
 
         super().__init__(
             geometry,
@@ -74,7 +74,7 @@ class IDE(PDE):
 
     def call_pde_errors(self, inputs, outputs, **kwargs):
         bcs_start = np.cumsum([0] + self.num_bcs)
-        fit = bst.environ.get('fit')
+        fit = brainstate.environ.get('fit')
         int_mat = self.get_int_matrix(fit)
         pde_errors = self.pde(inputs, outputs, int_mat, **kwargs)
         return jax.tree.map(lambda x: x[bcs_start[-1]:], pde_errors)
@@ -139,7 +139,7 @@ class IDE(PDE):
             else:
                 num_f = self.num_test
 
-            int_mat = np.zeros((num_bc + num_f, X.size), dtype=bst.environ.dftype())
+            int_mat = np.zeros((num_bc + num_f, X.size), dtype=brainstate.environ.dftype())
             for i in range(num_f):
                 x = X[i + num_bc, 0]
                 beg = num_f + num_bc + self.quad_deg * i

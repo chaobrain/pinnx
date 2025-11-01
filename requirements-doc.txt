@@ -1,4 +1,4 @@
--r requirements.txt
+-r requirements-dev.txt
 
 # document requirements
 pandoc

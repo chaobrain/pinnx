@@ -1,4 +1,4 @@
-import brainstate as bst
+import brainstate
 import brainunit as u
 import numpy as np
 
@@ -8,8 +8,8 @@ unit_of_x = u.meter
 unit_of_t = u.second
 unit_of_c = u.mole / u.meter ** 3
 
-kf = bst.ParamState(0.05 * u.meter ** 6 / u.mole ** 2 / u.second)
-D = bst.ParamState(1.0 * u.meter ** 2 / u.second)
+kf = brainstate.ParamState(0.05 * u.meter ** 6 / u.mole ** 2 / u.second)
+D = brainstate.ParamState(1.0 * u.meter ** 2 / u.second)
 
 
 def pde(x, y):
@@ -81,5 +81,5 @@ data = pinnx.problem.TimePDE(
 
 variable = pinnx.callbacks.VariableValue([kf, D], period=1000, filename="./variables.dat")
 model = pinnx.Trainer(data, external_trainable_variables=[kf, D])
-model.compile(bst.optim.Adam(0.001)).train(iterations=80000, callbacks=[variable])
+model.compile(braintools.optim.Adam(0.001)).train(iterations=80000, callbacks=[variable])
 model.saveplot(issave=True, isplot=True)

@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Questions
+  - name: Questions & Discussions
     url: https://github.com/chaobrain/pinnx/discussions
-    about: Please ask questions on the Discussions tab
+    about: Ask questions and discuss ideas with the community
+  - name: Documentation
+    url: https://pinnx.readthedocs.io/
+    about: Read the official documentation
+  - name: Brain Modeling Ecosystem
+    url: https://brainmodeling.readthedocs.io/
+    about: Explore the broader brain modeling ecosystem

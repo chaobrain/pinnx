@@ -5,6 +5,7 @@
 """External utilities."""
 
 import csv
+import importlib.util
 import os
 from multiprocessing import Pool
 
@@ -14,7 +15,11 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from sklearn import preprocessing
+
+sklearn_installed = importlib.util.find_spec("sklearn")
+
+if sklearn_installed:
+    from sklearn import preprocessing
 
 
 def apply(func, args=None, kwds=None):
@@ -62,6 +67,9 @@ def standardize(X_train, X_test):
     if u.math.ndim(X_test) == 1:
         test_exp_dim = True
         X_test = X_test.reshape(-1, 1)
+
+    if not sklearn_installed:
+        raise ImportError("scikit-learn is not installed. Please install it to use the standardize function.")
 
     scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
     X_train = scaler.fit_transform(X_train)

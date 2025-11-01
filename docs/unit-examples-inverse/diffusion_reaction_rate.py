@@ -2,7 +2,7 @@
 Implementation for the diffusion-reaction system with a space-dependent reaction rate in paper https://arxiv.org/abs/2111.02801.
 """
 
-import brainstate as bst
+import brainstate
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
@@ -46,7 +46,7 @@ def pde(x, y):
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=unit_of_x),
-    pinnx.nn.PFNN([1, [20, 20], [20, 20], 2], "tanh", bst.init.KaimingUniform()),
+    pinnx.nn.PFNN([1, [20, 20], [20, 20], 2], "tanh", braintools.init.KaimingUniform()),
     pinnx.nn.ArrayToDict(u=unit_of_u, k=1 / u.second),
 )
 
@@ -74,7 +74,7 @@ problem = pinnx.problem.PDE(
 )
 
 model = pinnx.Trainer(problem)
-model.compile(bst.optim.Adam(1e-3)).train(iterations=20000)
+model.compile(braintools.optim.Adam(1e-3)).train(iterations=20000)
 
 x = geom.uniform_points(500)
 yhat = model.predict(x)

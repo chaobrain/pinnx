@@ -1,4 +1,4 @@
-import brainstate as bst
+import braintools
 import brainunit as u
 import numpy as np
 from jax.experimental.sparse import COO
@@ -43,7 +43,7 @@ bc = pinnx.icbc.DirichletBC(func)
 
 net = pinnx.nn.Model(
     pinnx.nn.DictToArray(x=None),
-    pinnx.nn.FNN([1] + [20] * 4 + [1], "tanh", bst.init.KaimingUniform(),
+    pinnx.nn.FNN([1] + [20] * 4 + [1], "tanh", braintools.init.KaimingUniform(),
                  output_transform=lambda x, y: x * (1 - x) * y),
     pinnx.nn.ArrayToDict(y=None),
 )
@@ -82,5 +82,5 @@ else:
 
 trainer = pinnx.Trainer(data)
 
-trainer.compile(bst.optim.Adam(1e-3)).train(iterations=10000)
+trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=10000)
 trainer.saveplot(issave=True, isplot=True)

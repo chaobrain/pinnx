@@ -5,7 +5,7 @@
 import abc
 from typing import Optional, Dict
 
-import brainstate as bst
+import brainstate
 
 from pinnx.geometry import AbstractGeometry
 
@@ -43,7 +43,7 @@ class ICBC(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def error(self, inputs, outputs, **kwargs) -> Dict[str, bst.typing.ArrayLike]:
+    def error(self, inputs, outputs, **kwargs) -> Dict[str, brainstate.typing.ArrayLike]:
         """
         Returns the loss for each component at the initial or boundary conditions.
         """

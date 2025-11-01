@@ -1,17 +1,32 @@
-``pinnx`` documentation
-========================
+PINNx: Physics-Informed Neural Networks for Scientific Machine Learning in JAX
+================================================================================
 
-`PINNx <https://github.com/chaobrain/pinnx>`_ is a library for scientific machine learning and physics-informed learning
-in JAX. It is rewritten according to `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
-`Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+.. image:: https://github.com/chaobrain/pinnx/actions/workflows/build.yml/badge.svg
+   :target: https://github.com/chaobrain/pinnx/actions/workflows/build.yml
+   :alt: Build Status
 
-`PINNx` enables to define PINN problem with explicit variables (e.g. ``x``, ``y``, ``z``) and physical units
-(e.g. ``meter``, ``second``, ``kelvin``) and to solve the problem with neural networks.
+.. image:: https://readthedocs.org/projects/pinnx/badge/?version=latest
+   :target: https://pinnx.readthedocs.io/en/latest/?badge=latest
+   :alt: Documentation Status
 
-`PINNx <https://github.com/chaobrain/pinnx>`_ is built on top of our `Brain Dynamics Programming (BDP) ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
-For example, it leverages `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-`brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
-`braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+.. image:: https://badge.fury.io/py/pinnx.svg
+   :target: https://badge.fury.io/py/pinnx
+   :alt: PyPI Version
+
+.. image:: https://img.shields.io/github/license/chaobrain/pinnx
+   :target: https://github.com/chaobrain/pinnx/blob/master/LICENSE
+   :alt: License
+
+
+``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX.
+It is a rewrite of `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
+`brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
+
+For example, it leverages
+
+- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
 
 ----
@@ -20,33 +35,50 @@ For example, it leverages `brainstate <https://brainstate.readthedocs.io/>`_ for
 Installation
 ^^^^^^^^^^^^
 
+Install the stable version with ``pip``:
+
+.. code-block:: bash
+
+   pip install pinnx --upgrade
+
+
+Install ``pinnx`` on CPU or GPU with JAX:
+
 .. tab-set::
 
     .. tab-item:: CPU
 
         .. code-block:: bash
 
-            pip install -U pinnx[cpu]
+            pip install pinnx[cpu]
 
-    .. tab-item:: GPU (CUDA 12.0)
+    .. tab-item:: CUDA 12
 
         .. code-block:: bash
 
-            pip install -U pinnx[cuda12]
+            pip install pinnx[cuda12]
+
+    .. tab-item:: CUDA 13
+
+        .. code-block:: bash
+
+            pip install pinnx[cuda13]
 
     .. tab-item:: TPU
 
         .. code-block:: bash
 
-            pip install -U pinnx[tpu] -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+            pip install pinnx[tpu]
+
 
 Quick Start
 ^^^^^^^^^^^
 
+Define a PINN with explicit variables and physical units.
 
 .. code-block:: python
 
-    import brainstate as bst
+    import braintools
     import brainunit as u
     import pinnx
 
@@ -79,7 +111,7 @@ Quick Start
         pinnx.nn.FNN(
             [geometry.dim] + [20] * 3 + [1],
             "tanh",
-            bst.init.KaimingUniform()
+            braintools.init.KaimingUniform()
         ),
         pinnx.nn.ArrayToDict(y=uy)
     )
@@ -97,39 +129,38 @@ Quick Start
 
     # training
     trainer = pinnx.Trainer(problem)
-    trainer.compile(bst.optim.Adam(1e-3)).train(iterations=15000)
-    trainer.compile(bst.optim.LBFGS(1e-3)).train(2000, display_every=500)
+    trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=15000)
+    trainer.compile(braintools.optim.LBFGS(1e-3)).train(2000, display_every=500)
     trainer.saveplot(issave=True, isplot=True)
 
 
+----
 
-User guide
-^^^^^^^^^^
+
 
 .. toctree::
     :maxdepth: 1
 
+    forward_examples.md
+    foward_unitless_examples.md
+    inverse_examples.md
+    More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
     about.rst
 
 
-.. toctree::
-    :maxdepth: 2
-
-    unit-examples-forward.rst
-    unit-examples-inverse.rst
-    More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
 
 
-See also the BDP ecosystem
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+See also the ecosystem
+^^^^^^^^^^^^^^^^^^^^^^
 
-We are building the `brain dynamics programming ecosystem <https://ecosystem-for-brain-dynamics.readthedocs.io/>`_.
+``pinnx`` is one part of our `brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
 
 .. toctree::
    :hidden:
    :maxdepth: 1
    :caption: API Documentation
 
+   changelog.md
    apis/pinnx.rst
    apis/pinnx.callbacks.rst
    apis/pinnx.fnspace.rst

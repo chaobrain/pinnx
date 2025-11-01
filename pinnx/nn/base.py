@@ -4,11 +4,11 @@
 
 from typing import Optional, Callable
 
-import brainstate as bst
+import brainstate
 import jax.tree
 
 
-class NN(bst.nn.Module):
+class NN(brainstate.nn.Module):
     """Base class for all neural network modules."""
 
     def __init__(
@@ -36,6 +36,6 @@ class NN(bst.nn.Module):
     def num_trainable_parameters(self):
         """Evaluate the number of trainable parameters for the NN."""
         n_param = 0
-        for key, val in self.states(bst.ParamState).items():
+        for key, val in self.states(brainstate.ParamState).items():
             n_param += [v.size for v in jax.tree_leaves(val)]
         return n_param
