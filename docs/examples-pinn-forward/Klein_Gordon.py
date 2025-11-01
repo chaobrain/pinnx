@@ -30,7 +30,7 @@ The reference solution is $y(x, t)=x \cos (t)$.
 
 """
 
-import brainstate
+import braintools
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np

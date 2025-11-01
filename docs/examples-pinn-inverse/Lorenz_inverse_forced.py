@@ -5,6 +5,7 @@ Identification of the parameters of the modified Lorenz attractor (with exogenou
 
 import re
 
+import braintools
 import brainstate
 import matplotlib.pyplot as plt
 import numpy as np

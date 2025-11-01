@@ -1,4 +1,4 @@
-import brainstate
+import braintools
 import brainunit as u
 import jax.tree
 import numpy as np

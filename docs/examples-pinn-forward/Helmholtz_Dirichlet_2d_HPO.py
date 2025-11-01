@@ -1,4 +1,4 @@
-import brainstate
+import braintools
 import brainunit as u
 import numpy as np
 from skopt import gp_minimize

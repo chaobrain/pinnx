@@ -1,6 +1,7 @@
 import os
 
 import brainstate
+import braintools
 import numpy as np
 import optax
 import brainunit as u

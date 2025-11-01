@@ -14,6 +14,7 @@
 # ==============================================================================
 
 
+import braintools
 import brainstate
 import brainunit as u
 import jax.tree

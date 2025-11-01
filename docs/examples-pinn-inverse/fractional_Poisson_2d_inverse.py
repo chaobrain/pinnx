@@ -1,4 +1,5 @@
 import brainstate
+import braintools
 import brainunit as u
 import jax
 import numpy as np

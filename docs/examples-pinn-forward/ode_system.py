@@ -1,4 +1,4 @@
-import brainstate
+import braintools
 import numpy as np
 
 import pinnx

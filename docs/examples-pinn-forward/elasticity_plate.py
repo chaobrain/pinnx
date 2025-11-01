@@ -5,7 +5,7 @@ References:
     https://github.com/sciann/sciann-applications/blob/master/SciANN-Elasticity/Elasticity-Forward.ipynb.
 """
 
-import brainstate
+import braintools
 import brainunit as u
 
 import pinnx
