@@ -1,9 +1,10 @@
-name: build
+name: Build and Test
 
 on:
   pull_request:
   push:
     branches:
+      - main
       - master
   workflow_dispatch:
 
@@ -14,24 +15,112 @@ concurrency:
   cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 jobs:
-  import:
+  test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
-      - name: Install with requirements
-        run: python -m pip install -e .
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[cpu]"
 
-      - name: List environment
+      - name: List installed packages
         run: python -m pip freeze
 
+      - name: Test import
+        run: python -c "import pinnx; print(f'PINNx version: {pinnx.__version__}')"
+
+      - name: Run tests
+        if: hashFiles('tests/**/*.py') != ''
+        run: |
+          python -m pip install pytest pytest-cov
+          pytest tests/ -v --cov=pinnx --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && hashFiles('tests/**/*.py') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install flake8 black isort
+
+      - name: Check code formatting with black
+        run: black --check --diff pinnx/
+        continue-on-error: true
+
+      - name: Check import sorting with isort
+        run: isort --check-only --diff pinnx/
+        continue-on-error: true
+
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 pinnx/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 pinnx/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+        continue-on-error: true
+
+  docs:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[cpu]"
+          python -m pip install -r requirements-doc.txt
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+
+      - name: Upload documentation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: docs/_build/html/
+          retention-days: 7

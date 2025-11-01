@@ -1,0 +1,40 @@
+---
+name: Bug Report
+about: Report a bug or unexpected behavior
+title: '[BUG] '
+labels: bug
+assignees: ''
+---
+
+**Describe the bug**
+A clear and concise description of what the bug is.
+
+**To Reproduce**
+Steps to reproduce the behavior:
+1. Import/setup '...'
+2. Run code '...'
+3. See error
+
+**Minimal Code Example**
+```python
+import pinnx
+# Your minimal code example here
+```
+
+**Expected behavior**
+A clear and concise description of what you expected to happen.
+
+**Error Message**
+```
+Paste the full error message/traceback here
+```
+
+**Environment:**
+ - OS: [e.g., Ubuntu 22.04, macOS 13.0, Windows 11]
+ - Python version: [e.g., 3.11.5]
+ - PINNx version: [e.g., 0.0.2]
+ - JAX version: [e.g., 0.4.20]
+ - Installation method: [e.g., pip, conda, from source]
+
+**Additional context**
+Add any other context about the problem here.
