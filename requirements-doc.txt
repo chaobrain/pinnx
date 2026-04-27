@@ -3,7 +3,7 @@
 # document requirements
 pandoc
 Jinja2
-sphinx>=5
+sphinx>=8.1.3
 myst-nb
 sphinx_thebe
 sphinx-autodoc-typehints
