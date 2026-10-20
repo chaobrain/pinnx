@@ -10,7 +10,7 @@ version = { attr = "pinnx.__version__" }
 name = "pinnx"
 description = "Physics-Informed Neural Networks for Scientific Machine Learning in JAX."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [{ name = "PINNx Developers", email = "chao.brain@qq.com" }]
 keywords = [
     "computational neuroscience",
@@ -22,10 +22,10 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Mathematics",
@@ -33,7 +33,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
-    "jax",
+    "jax>=0.9.0",
     "brainunit",
     "brainstate",
     "braintools",
@@ -47,10 +47,10 @@ Documentation = "https://pinnx.readthedocs.io/"
 "Bug Tracker" = "https://github.com/chaobrain/pinnx/issues"
 
 [project.optional-dependencies]
-cpu = ["jaxlib"]
-cuda12 = ["jaxlib[cuda12]"]
-cuda13 = ["jaxlib[cuda13]"]
-tpu = ["jaxlib[tpu]"]
+cpu = ["jaxlib>=0.9.0"]
+cuda12 = ["jaxlib[cuda12]>=0.9.0"]
+cuda13 = ["jaxlib[cuda13]>=0.9.0"]
+tpu = ["jaxlib[tpu]>=0.9.0"]
 testing = ["pytest"]
 
 [tool.setuptools.packages.find]

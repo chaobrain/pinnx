@@ -48,7 +48,7 @@ jobs:
         continue-on-error: ${{ matrix.python-version == '3.13' }}
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11' && hashFiles('tests/**/*.py') != ''
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' && hashFiles('tests/**/*.py') != ''
         uses: codecov/codecov-action@v6
         with:
           file: ./coverage.xml
@@ -67,7 +67,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: 'pip'
 
       - name: Install linting tools
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: 'pip'
 
       - name: Install dependencies
@@ -140,7 +140,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install ruff
         run: pip install ruff
