@@ -177,7 +177,7 @@ class FPDE(PDE):
         if self.num_test is None:
             # assign the training points to the testing points
             num_bc = sum(self.num_bcs)
-            self.test_x = jax.tree_map(lambda x: x[num_bc:], self.train_x)
+            self.test_x = jax.tree.map(lambda x: x[num_bc:], self.train_x)
             self.frac_test = self.frac_train
         else:
             alpha = self.alpha.value if isinstance(self.alpha, brainstate.State) else self.alpha

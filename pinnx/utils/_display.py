@@ -85,7 +85,7 @@ class TrainingDisplay:
             )
             print(
                 "    l_infinity: {}".format(
-                    jax.tree_map(
+                    jax.tree.map(
                         lambda x: u.linalg.norm(x, ord=u.math.inf),
                         train_state.best_ystd,
                         is_leaf=u.math.is_quantity
@@ -96,7 +96,7 @@ class TrainingDisplay:
                 index = u.math.argmax(tuple(train_state.best_ystd.values())[0])
                 print(
                     "    max uncertainty location:",
-                    jax.tree_map(
+                    jax.tree.map(
                         lambda test: test[index],
                         train_state.X_test,
                         is_leaf=u.math.is_quantity,
