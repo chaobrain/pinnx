@@ -3,6 +3,7 @@ Implementation for the diffusion-reaction system with a space-dependent reaction
 """
 
 import brainstate
+import braintools
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np

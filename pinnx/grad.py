@@ -252,15 +252,15 @@ def jacobian(
     Args:
         fn: Function to compute the gradient.
         xs: Inputs of the function.
+        y (str, sequence of str or None): The output component(s) y_i, i.e. the row(s)
+            of J. If ``None``, all outputs are used.
+        x (str, sequence of str or None): The input component(s) x_j, i.e. the
+            column(s) of J. If ``None``, all inputs are used.
         mode: The mode of the gradient computation. Choose between 'backward' and 'forward'.
-        x (str or None): `i`th row. If `i` is ``None``, returns the `j`th column
-            J[:, `j`].
-        y (str or None): `j`th column. If `j` is ``None``, returns the `i`th row
-            J[`i`, :], i.e., the gradient of y_i. `i` and `j` cannot be both ``None``,
-            unless J has only one element, which is returned.
+        vmap: Whether to vectorize the computation over the batch of points.
 
     Returns:
-        (`i`, `j`)th entry J[`i`, `j`], `i`th row J[`i`, :], or `j`th column J[:, `j`].
+        A nested dict ``J[y_i][x_j]`` restricted to the requested components.
     """
     # assert isinstance(xs, dict), 'xs must be a dictionary.'
     assert isinstance(mode, str), 'mode must be a string.'

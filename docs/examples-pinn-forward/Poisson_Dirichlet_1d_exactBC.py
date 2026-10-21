@@ -44,7 +44,7 @@ problem = pinnx.problem.PDE(
 
 trainer = pinnx.Trainer(problem)
 trainer.compile(
-    braintools.optim.Adam(braintools.optim.InverseTimeDecayLR(0.001, 1000, 0.3)),
+    braintools.optim.Adam(braintools.optim.ExponentialDecayLR(0.001, 1000, 1 / 1.3)),
     metrics=["l2 relative error"]
 ).train(iterations=30000)
 trainer.saveplot(issave=True, isplot=True)

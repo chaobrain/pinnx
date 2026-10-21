@@ -1,4 +1,5 @@
 import brainstate
+import braintools
 import jax
 import matplotlib.pyplot as plt
 import numpy as np

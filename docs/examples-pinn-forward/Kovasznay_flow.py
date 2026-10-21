@@ -44,7 +44,7 @@ def bc_func(x):
 
 
 def boundary_outflow(x, on_boundary):
-    return on_boundary and pinnx.utils.isclose(x[0], 1)
+    return u.math.logical_and(on_boundary, pinnx.utils.isclose(x['x'], 1))
 
 
 spatial_domain = pinnx.geometry.Rectangle(xmin=[-0.5, -0.5], xmax=[1, 1.5])

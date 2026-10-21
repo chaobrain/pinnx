@@ -172,6 +172,8 @@ class GRF(FunctionSpace):
             K = gp.kernels.Matern(length_scale=length_scale, nu=0.5)
         elif kernel == "ExpSineSquared":
             K = gp.kernels.ExpSineSquared(length_scale=length_scale, periodicity=T)
+        else:
+            raise ValueError(f"Unknown kernel {kernel!r}; expected 'RBF', 'AE' or 'ExpSineSquared'.")
         self.K = K(self.x)
         self.L = np.linalg.cholesky(self.K + 1e-13 * np.eye(self.N))
 
@@ -240,6 +242,8 @@ class GRF_KL(FunctionSpace):
             kernel = gp.kernels.RBF(length_scale=length_scale)
         elif kernel == "AE":
             kernel = gp.kernels.Matern(length_scale=length_scale, nu=0.5)
+        else:
+            raise ValueError(f"Unknown kernel {kernel!r}; expected 'RBF' or 'AE'.")
         eigval, eigvec = eig(kernel, num_eig, N, eigenfunction=True)
         eigvec *= eigval ** 0.5
         x = np.linspace(0, T, num=N)
@@ -318,6 +322,8 @@ class GRF2D(FunctionSpace):
             K = gp.kernels.RBF(length_scale=length_scale)
         elif kernel == "AE":
             K = gp.kernels.Matern(length_scale=length_scale, nu=0.5)
+        else:
+            raise ValueError(f"Unknown kernel {kernel!r}; expected 'RBF' or 'AE'.")
         self.K = K(self.X)
         self.L = np.linalg.cholesky(self.K + 1e-12 * np.eye(self.N ** 2))
 
@@ -363,5 +369,5 @@ def eig(kernel, num, Nx, eigenfunction=True):
     idx = np.flipud(np.argsort(eigval))[:num]
     eigval, eigvec = eigval[idx], eigvec[:, idx]
     for i in range(num):
-        eigvec[:, i] /= np.trapz(eigvec[:, i] ** 2, dx=h) ** 0.5
+        eigvec[:, i] /= np.trapezoid(eigvec[:, i] ** 2, dx=h) ** 0.5
     return eigval, eigvec

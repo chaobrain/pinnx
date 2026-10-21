@@ -9,15 +9,16 @@
 
 
 import brainstate
+import braintools
 import numpy as np
 
 import pinnx
 
 # Load dataset
-d = np.load("./antiderivative_unaligned_train.npz", allow_pickle=True)
+d = np.load("../dataset/antiderivative_unaligned_train.npz", allow_pickle=True)
 X_train = (d["X_train0"].astype(np.float32), d["X_train1"].astype(np.float32))
 y_train = d["y_train"].astype(np.float32)
-d = np.load("./antiderivative_unaligned_test.npz", allow_pickle=True)
+d = np.load("../dataset/antiderivative_unaligned_test.npz", allow_pickle=True)
 X_test = (d["X_test0"].astype(np.float32), d["X_test1"].astype(np.float32))
 y_test = d["y_test"].astype(np.float32)
 

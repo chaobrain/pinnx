@@ -64,7 +64,7 @@ data = pinnx.problem.PDE(
     anchors=observe_t,
 )
 
-variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=600, filename="../../examples/pinn_inverse/variables.dat")
+variable = pinnx.callbacks.VariableValue([C1, C2, C3], period=600, filename="variables.dat")
 
 trainer = pinnx.Trainer(data, external_trainable_variables=[C1, C2, C3])
 trainer.compile(braintools.optim.Adam(0.001)).train(iterations=50000, callbacks=[variable])
