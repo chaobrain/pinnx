@@ -116,7 +116,7 @@ class DirichletBC(BC):
         on_boundary: Callable[[X, np.array], np.array] = lambda x, on: on,
     ):
         super().__init__(on_boundary)
-        self.func = func if callable(func) else lambda x: func
+        self.func = func if callable(func) else lambda x, **kwargs: func
 
     def error(self, bc_inputs, bc_outputs, **kwargs):
         values = self.func(bc_inputs, **kwargs)
@@ -217,7 +217,7 @@ class PeriodicBC(BC):
             yleft = bc_outputs[self.component_y][:mid]
             yright = bc_outputs[self.component_y][mid:]
         else:
-            dydx = self.problem.approximator.jacobian(bc_outputs, y=self.component_y, x=self.component_x)
+            dydx = self.problem.approximator.jacobian(bc_inputs, y=self.component_y, x=self.component_x)
             dydx = dydx[self.component_y][self.component_x]
             yleft = dydx[:mid]
             yright = dydx[mid:]
@@ -388,52 +388,55 @@ class Interface2DBC(BC):
         super().__init__(lambda x, on: on)
 
         self.func = utils.return_tensor(func)
-        self.on_boundary1 = lambda x, on: np.array([on_boundary1(x[i], on[i]) for i in range(len(x))])
-        self.on_boundary2 = lambda x, on: np.array([on_boundary2(x[i], on[i]) for i in range(len(x))])
+        self.on_boundary1 = lambda x, on: jax.vmap(on_boundary1)(x, on)
+        self.on_boundary2 = lambda x, on: jax.vmap(on_boundary2)(x, on)
+        if direction not in ["normal", "tangent"]:
+            raise ValueError("Invalid direction, must be 'normal' or 'tangent'.")
         self.direction = direction
 
     @utils.check_not_none('geometry')
     def collocation_points(self, X):
         on_boundary = self.geometry.on_boundary(X)
-        X1 = X[self.on_boundary1(X, on_boundary)]
-        X2 = X[self.on_boundary2(X, on_boundary)]
+        X1 = jax.tree.map(lambda x: x[self.on_boundary1(X, on_boundary)], X, is_leaf=u.math.is_quantity)
+        X2 = jax.tree.map(lambda x: x[self.on_boundary2(X, on_boundary)], X, is_leaf=u.math.is_quantity)
         # Flip order of X2 when pinnx.geometry.Polygon is used
-        if self.geometry.__class__.__name__ == "Polygon":
-            X2 = np.flip(X2, axis=0)
-        return np.vstack((X1, X2))
+        if getattr(self.geometry, "geom", self.geometry).__class__.__name__ == "Polygon":
+            X2 = jax.tree.map(lambda x: x[::-1], X2, is_leaf=u.math.is_quantity)
+        return jax.tree.map(
+            lambda x1, x2: u.math.concatenate((x1, x2), axis=0),
+            X1,
+            X2,
+            is_leaf=u.math.is_quantity,
+        )
 
     @utils.check_not_none('geometry')
     def error(self, bc_inputs, bc_outputs, **kwargs):
-        mid = bc_inputs.shape[0] // 2
-        if bc_inputs.shape[0] % 2 != 0:
+        n_batch = len(tuple(bc_inputs.values())[0])
+        if n_batch % 2 != 0:
             raise RuntimeError("There is a different number of points on each edge,\n "
                                "this is likely because the chosen edges do not have the same length.")
-        aux_var = None
-        values = self.func(bc_inputs[: mid], **kwargs)
-        if np.ndim(values) == 2 and np.shape(values)[1] != 1:
-            raise RuntimeError("BC function should return an array of shape N by 1")
-        left_n = self.geometry.boundary_normal(bc_inputs[: mid])
-        right_n = self.geometry.boundary_normal(bc_inputs[: mid])
+        mid = n_batch // 2
+        if len(bc_outputs) != 2:
+            raise ValueError("Interface2DBC requires the network output to have two components.")
+        left_inputs = jax.tree.map(lambda x: x[:mid], bc_inputs, is_leaf=u.math.is_quantity)
+        right_inputs = jax.tree.map(lambda x: x[mid:], bc_inputs, is_leaf=u.math.is_quantity)
+        values = self.func(left_inputs, **kwargs)
+        if u.math.ndim(values) == 2:
+            if u.math.shape(values)[1] != 1:
+                raise RuntimeError("BC function should return an array of shape N by 1")
+            values = values[:, 0]
+
+        # normals are ordered as the geometry coordinates
+        left_n = tuple(self.geometry.boundary_normal(left_inputs).values())
+        right_n = tuple(self.geometry.boundary_normal(right_inputs).values())
+        ykeys = tuple(bc_outputs.keys())
+        y1, y2 = bc_outputs[ykeys[0]], bc_outputs[ykeys[1]]
+
         if self.direction == "normal":
-            left_side = bc_outputs[:mid, :]
-            right_side = bc_outputs[mid:, :]
-            left_values = u.math.sum(left_side * left_n, 1, keepdims=True)
-            right_values = u.math.sum(right_side * right_n, 1, keepdims=True)
-
-        elif self.direction == "tangent":
-            # Tangent vector is [n[1],-n[0]] on edge 1
-            left_side1 = bc_outputs[:mid, 0:1]
-            left_side2 = bc_outputs[:mid, 1:2]
-            right_side1 = bc_outputs[mid:, 0:1]
-            right_side2 = bc_outputs[mid:, 1:2]
-            left_values_1 = u.math.sum(left_side1 * left_n[:, 1:2], 1, keepdims=True)
-            left_values_2 = u.math.sum(-left_side2 * left_n[:, 0:1], 1, keepdims=True)
-            left_values = left_values_1 + left_values_2
-            right_values_1 = u.math.sum(right_side1 * right_n[:, 1:2], 1, keepdims=True)
-            right_values_2 = u.math.sum(-right_side2 * right_n[:, 0:1], 1, keepdims=True)
-            right_values = right_values_1 + right_values_2
-
+            left_values = y1[:mid] * left_n[0] + y2[:mid] * left_n[1]
+            right_values = y1[mid:] * right_n[0] + y2[mid:] * right_n[1]
         else:
-            raise ValueError("Invalid direction, must be 'normal' or 'tangent'.")
-
-        return left_values + right_values - values
+            # Tangent vector is [n[1],-n[0]]
+            left_values = y1[:mid] * left_n[1] - y2[:mid] * left_n[0]
+            right_values = y1[mid:] * right_n[1] - y2[mid:] * right_n[0]
+        return {ykeys[0]: left_values + right_values - values}

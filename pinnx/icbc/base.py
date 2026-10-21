@@ -3,11 +3,14 @@
 
 
 import abc
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 
 import brainstate
 
 from pinnx.geometry import AbstractGeometry
+
+if TYPE_CHECKING:
+    from pinnx.problem.base import Problem
 
 
 class ICBC(abc.ABC):
