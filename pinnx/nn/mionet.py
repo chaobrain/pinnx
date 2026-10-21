@@ -55,7 +55,9 @@ class MIONetCartesianProd(NN):
             # Fully connected network
             self.branch2 = FNN(layer_sizes_branch2, self.activation_branch2, kernel_initializer)
         if layer_sizes_merger is not None:
-            self.activation_merger = get_activation(activation["merger"])
+            self.activation_merger = get_activation(
+                activation["merger"] if isinstance(activation, dict) else activation
+            )
             if callable(layer_sizes_merger[1]):
                 # User-defined network
                 self.merger = layer_sizes_merger[1]
@@ -65,7 +67,9 @@ class MIONetCartesianProd(NN):
         else:
             self.merger = None
         if layer_sizes_output_merger is not None:
-            self.activation_output_merger = get_activation(activation["output merger"])
+            self.activation_output_merger = get_activation(
+                activation["output merger"] if isinstance(activation, dict) else activation
+            )
             if callable(layer_sizes_output_merger[1]):
                 # User-defined network
                 self.output_merger = layer_sizes_output_merger[1]
@@ -128,8 +132,9 @@ class MIONetCartesianProd(NN):
             elif self.output_merge_operation == "add":
                 y = y_func + y_loc
             elif self.output_merge_operation == "cat":
-                y_func = y_func.repeat(1, y_loc.shape[1], 1)
-                y_loc = y_loc.repeat(y_func.shape[0], 1, 1)
+                shape = (y_func.shape[0], y_loc.shape[1], y_func.shape[2])
+                y_func = u.math.broadcast_to(y_func, shape)
+                y_loc = u.math.broadcast_to(y_loc, shape[:2] + y_loc.shape[2:])
                 y = u.math.concatenate((y_func, y_loc), axis=2)
             shape0 = y.shape[0]
             shape1 = y.shape[1]
@@ -137,7 +142,7 @@ class MIONetCartesianProd(NN):
             y = self.output_merger(y)
             y = y.reshape(shape0, shape1)
         # Add bias
-        y += self.b
+        y += self.b.value
         if self._output_transform is not None:
             y = self._output_transform(inputs, y)
         return y
@@ -173,7 +178,7 @@ class PODMIONet(NN):
         else:
             self.activation_branch1 = (
                 self.activation_branch2
-            ) = self.activation_trunk = get_activation(activation)
+            ) = self.activation_trunk = self.activation_merger = get_activation(activation)
         self.pod_basis = pod_basis
         if callable(layer_sizes_branch1[1]):
             # User-defined network
@@ -237,7 +242,7 @@ class PODMIONet(NN):
             if self.trunk_last_activation:
                 y_loc = self.activation_trunk(y_loc)
             y = u.math.einsum("bi,ni->bn", y_func, u.math.concatenate((self.pod_basis, y_loc), axis=1))
-            y += self.b
+            y += self.b.value
         if self._output_transform is not None:
             y = self._output_transform(inputs, y)
         return y

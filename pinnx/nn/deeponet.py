@@ -316,7 +316,7 @@ class PODDeepONet(NN):
             self.trunk = FNN(layer_sizes_trunk, self.activation_trunk, kernel_initializer)
             self.b = brainstate.ParamState(0.0)
 
-    def forward(self, inputs):
+    def update(self, inputs):
         x_func = inputs[0]
         x_loc = inputs[1]
 

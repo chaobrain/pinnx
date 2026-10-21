@@ -59,7 +59,9 @@ class Trainer:
         if external_trainable_variables is None:
             external_trainable_variables = []
         else:
-            if not isinstance(external_trainable_variables, list):
+            if isinstance(external_trainable_variables, (list, tuple)):
+                external_trainable_variables = list(external_trainable_variables)
+            else:
                 external_trainable_variables = [external_trainable_variables]
         for i, var in enumerate(external_trainable_variables):
             assert isinstance(var, brainstate.ParamState), ("external_trainable_variables must be a "
@@ -100,6 +102,8 @@ class Trainer:
         # metrics may use trainer variables such as self.net,
         # and thus are instantiated after compile.
         metrics = metrics or []
+        if isinstance(metrics, str):
+            metrics = [metrics]
         self.metrics = [metrics_module.get(m) for m in metrics]
 
         def fn_outputs(training: bool, inputs):
@@ -146,11 +150,11 @@ class Trainer:
         self.fn_outputs_losses_test = brainstate.transform.jit(fn_outputs_losses_test)
         self.fn_train_step = brainstate.transform.jit(fn_train_step)
 
+        self.train_step_compile_time = None
         if measture_train_step_compile_time:
             t0 = time.time()
             self._compile_training_step(self.batch_size)
-            t1 = time.time()
-            return self, t1 - t0
+            self.train_step_compile_time = time.time() - t0
 
         return self
 
@@ -197,6 +201,8 @@ class Trainer:
 
         if self.metrics is None:
             raise ValueError("Compile the trainer before training.")
+        if batch_size is None:
+            batch_size = self.batch_size
 
         # callbacks
         callbacks = CallbackList(callbacks=[callbacks] if isinstance(callbacks, Callback) else callbacks)
@@ -287,7 +293,10 @@ class Trainer:
         )
 
         # metrics
-        if isinstance(self.train_state.y_test, (list, tuple)):
+        if self.train_state.y_test is None:
+            # no reference solution to compare against
+            self.train_state.metrics_test = []
+        elif isinstance(self.train_state.y_test, (list, tuple)):
             self.train_state.metrics_test = [
                 m(self.train_state.y_test[i],
                   self.train_state.y_pred_test[i])
@@ -366,11 +375,7 @@ class Trainer:
         # save path
         save_path = f"{save_path}-{self.train_state.epoch}.msgpack"
 
-        # avoid the duplicate ParamState save
-        model = brainstate.graph.Dict(params=self.params, optimizer=self.optimizer)
-
-        checkpoint = brainstate.graph.states(model).to_nest()
-        braintools.file.msgpack_save(save_path, checkpoint)
+        braintools.file.msgpack_save(save_path, self._checkpoint())
 
         if verbose > 0:
             print(
@@ -391,10 +396,14 @@ class Trainer:
         if verbose > 0:
             print("Restoring trainer from {} ...\n".format(save_path))
 
-        data = brainstate.graph.Dict(params=self.params, optimizer=self.optimizer)
+        braintools.file.msgpack_load(save_path, target=self._checkpoint())
 
-        checkpoint = brainstate.graph.states(data).to_nest()
-        braintools.file.msgpack_load(save_path, target=checkpoint)
+    def _checkpoint(self):
+        """The trainable variables and optimizer states, restored in place on load."""
+        return {
+            'params': self.params.to_nest(),
+            'optimizer': brainstate.graph.states(self.optimizer).to_nest(),
+        }
 
     def saveplot(
         self,

@@ -81,7 +81,7 @@ def test_triple_cartesian_prod_tuple_batch():
     y = np.random.rand(6, 5)
     problem = pinnx.problem.TripleCartesianProd(X, y, X, y)
     (xb, xt), yb = problem.train_next_batch((3, 2))
-    assert xb.shape == (3, 3) and xt.shape == (2, 1) and yb.shape == (3, 2)
+    assert xb.shape == (3, 3) and xt.shape == (2, 1) and yb.shape == (3, 2, 1)
 
 
 def test_quadruple_cartesian_prod_init():

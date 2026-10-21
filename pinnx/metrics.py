@@ -18,6 +18,9 @@ __all__ = [
 
 
 def _accuracy(y_true, y_pred):
+    if u.math.ndim(y_true) < 2:
+        # one label per sample
+        return u.math.mean(u.math.equal(y_pred, y_true))
     return u.math.mean(u.math.equal(u.math.argmax(y_pred, axis=-1),
                                     u.math.argmax(y_true, axis=-1)))
 
@@ -49,9 +52,11 @@ def nanl2_relative_error(y_true, y_pred):
 
 
 def _mean_l2_relative_error(y_true, y_pred):
+    if u.math.ndim(y_true) < 2:
+        return _l2_relative_error(y_true, y_pred)
     return u.math.mean(
-        u.linalg.norm(y_true - y_pred, axis=1) /
-        u.linalg.norm(y_true, axis=1)
+        u.linalg.norm(y_true - y_pred, axis=-1) /
+        u.linalg.norm(y_true, axis=-1)
     )
 
 
