@@ -14,3 +14,10 @@
 # ==============================================================================
 
 
+import pinnx
+
+
+def test_import_and_public_api():
+    for name in pinnx.__all__:
+        assert hasattr(pinnx, name), name
+    assert pinnx.__version_info__ == tuple(map(int, pinnx.__version__.split(".")))
