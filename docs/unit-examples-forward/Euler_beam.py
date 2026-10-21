@@ -30,7 +30,7 @@ def boundary_r(x, on_boundary):
 
 
 bc1 = pinnx.icbc.DirichletBC(lambda x: {'y': 0 * unit_of_u}, boundary_l)
-bc2 = pinnx.icbc.NeumannBC(lambda x: {'y': 0 * unit_of_u}, boundary_l)
+bc2 = pinnx.icbc.NeumannBC(lambda x: {'y': 0 * unit_of_u / unit_of_x}, boundary_l)
 bc3 = pinnx.icbc.OperatorBC(lambda x, y: net.hessian(x)['y']['x']['x'] / u.meter, boundary_r)
 bc4 = pinnx.icbc.OperatorBC(lambda x, y: net.gradient(x, order=3)['y']['x']['x']['x'] / u.meter ** 2, boundary_r)
 

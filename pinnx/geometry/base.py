@@ -620,7 +620,8 @@ class DictPointGeometry(AbstractGeometry):
         if isinstance(x, dict):
             x = self.dict_to_arr(x)
         normal = self.geom.boundary_normal(x)
-        return self.arr_to_dict(normal)
+        # normals are unit vectors, so they are dimensionless
+        return {name: normal[..., i] for i, name in enumerate(self.name2unit)}
 
     def uniform_points(self, n, boundary: bool = True) -> Dict[str, brainstate.typing.ArrayLike]:
         points = self.geom.uniform_points(n, boundary=boundary)

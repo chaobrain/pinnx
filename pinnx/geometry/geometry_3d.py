@@ -52,7 +52,7 @@ class Cuboid(Hypercube):
 
         pts = []
         for v in [self.xmin[-1], self.xmax[-1]]:
-            u = list(itertools.product(x, y))
+            u = jnp.array(list(itertools.product(x, y)))
             pts.append(jnp.hstack((u, jnp.full((len(u), 1), v))))
         if nz > 2:
             for v in [self.xmin[1], self.xmax[1]]:
@@ -60,7 +60,7 @@ class Cuboid(Hypercube):
                 pts.append(jnp.hstack((u[:, 0:1], jnp.full((len(u), 1), v), u[:, 1:])))
         if ny > 2 and nz > 2:
             for v in [self.xmin[0], self.xmax[0]]:
-                u = list(itertools.product(y[1:-1], z[1:-1]))
+                u = jnp.array(list(itertools.product(y[1:-1], z[1:-1])))
                 pts.append(jnp.hstack((jnp.full((len(u), 1), v), u)))
         pts = jnp.vstack(pts)
         if n != len(pts):
@@ -137,7 +137,7 @@ class Cuboid(Hypercube):
         if not inside:
             raise ValueError("inside=False is not supported for Cuboid")
 
-        if not hasattr(self, "self.xmin_tensor"):
+        if not hasattr(self, "xmin_tensor"):
             self.xmin_tensor = jnp.asarray(self.xmin)
             self.xmax_tensor = jnp.asarray(self.xmax)
 
@@ -170,6 +170,8 @@ class Cuboid(Hypercube):
             return jnp.minimum(dist_l, dist_r)
         dist_l = jnp.prod(dist_l, axis=-1, keepdims=True)
         dist_r = jnp.prod(dist_r, axis=-1, keepdims=True)
+        if smoothness == "Cinf":
+            return jnp.square(dist_l * dist_r)
         return dist_l * dist_r
 
 

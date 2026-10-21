@@ -2,23 +2,18 @@
 # ==============================================================================
 
 
-import importlib.util
 import itertools
 from typing import Literal
 
 import brainstate
-import jax
 import jax.numpy as jnp
+import numpy as np
 from scipy import stats
 
 from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
 from ..utils import isclose
-
-sklearn_installed = importlib.util.find_spec("sklearn")
-if sklearn_installed:
-    from sklearn import preprocessing
 
 
 class Hypercube(Geometry):
@@ -60,9 +55,10 @@ class Hypercube(Geometry):
         mod = utils.smart_numpy(x)
         _n = -mod.isclose(x, self.xmin).astype(brainstate.environ.dftype()) + mod.isclose(x, self.xmax)
         # For vertices, the normal is averaged for all directions
-        idx = mod.count_nonzero(_n, axis=-1) > 1
-        _n = jax.vmap(lambda idx_, n_: jax.numpy.where(idx_, n_ / mod.linalg.norm(n_, keepdims=True), n_))(idx, _n)
-        return mod.asarray(_n)
+        mod = np if isinstance(_n, np.ndarray) else jnp
+        idx = mod.count_nonzero(_n, axis=-1, keepdims=True) > 1
+        norm = mod.linalg.norm(_n, axis=-1, keepdims=True)
+        return mod.where(idx, _n / mod.where(norm == 0, 1, norm), _n)
 
     def uniform_points(self, n, boundary=True):
         dx = (self.volume / n) ** (1 / self.dim)
@@ -130,18 +126,18 @@ class Hypercube(Geometry):
     def random_boundary_points(self, n, random="pseudo"):
         x = sample(n, self.dim, random)
         # Randomly pick a dimension
-        rand_dim = brainstate.random.randint(self.dim, size=n)
+        rand_dim = np.asarray(brainstate.random.randint(self.dim, size=n))
         # Replace value of the randomly picked dimension with the nearest boundary value (0 or 1)
-        x[jnp.arange(n), rand_dim] = jnp.round(x[jnp.arange(n), rand_dim])
+        x[np.arange(n), rand_dim] = np.round(x[np.arange(n), rand_dim])
         return (self.xmax - self.xmin) * x + self.xmin
 
     def periodic_point(self, x, component):
-        y = jnp.copy(x)
-        _on_xmin = isclose(y[:, component], self.xmin[component])
-        _on_xmax = isclose(y[:, component], self.xmax[component])
-        y[:, component][_on_xmin] = self.xmax[component]
-        y[:, component][_on_xmax] = self.xmin[component]
-        return y
+        y = jnp.asarray(x)
+        xc = y[:, component]
+        _on_xmin = isclose(xc, self.xmin[component])
+        _on_xmax = isclose(xc, self.xmax[component])
+        xc = jnp.where(_on_xmin, self.xmax[component], jnp.where(_on_xmax, self.xmin[component], xc))
+        return y.at[:, component].set(xc.astype(y.dtype))
 
     def boundary_constraint_factor(
         self,
@@ -205,7 +201,7 @@ class Hypercube(Geometry):
         if not inside:
             raise ValueError("inside=False is not supported for Hypercube")
 
-        if not hasattr(self, "self.xmin_tensor"):
+        if not hasattr(self, "xmin_tensor"):
             self.xmin_tensor = jnp.asarray(self.xmin)
             self.xmax_tensor = jnp.asarray(self.xmax)
 
@@ -221,7 +217,9 @@ class Hypercube(Geometry):
             return jnp.minimum(dist_l, dist_r)
         # TODO: fix potential numerical underflow
         dist_l = jnp.prod(dist_l, axis=-1, keepdims=True)
-        dist_r = jnp.prod(dist_r, dim=-1, keepdims=True)
+        dist_r = jnp.prod(dist_r, axis=-1, keepdims=True)
+        if smoothness == "Cinf":
+            return jnp.square(dist_l * dist_r)
         return dist_l * dist_r
 
 
@@ -261,7 +259,7 @@ class Hypersphere(Geometry):
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
 
-        if not hasattr(self, "self.center_tensor"):
+        if not hasattr(self, "center_tensor"):
             self.center_tensor = jnp.asarray(self.center)
             self.radius_tensor = jnp.asarray(self.radius)
 
@@ -280,9 +278,6 @@ class Hypersphere(Geometry):
 
     def random_points(self, n, random="pseudo"):
         # https://math.stackexchange.com/questions/87230/picking-random-points-in-the-volume-of-sphere-with-uniform-probability
-        if not sklearn_installed:
-            raise ImportError("sklearn is required for random point sampling in Hypersphere. Please install sklearn.")
-
         if random == "pseudo":
             U = brainstate.random.rand(n, 1).astype(brainstate.environ.dftype())
             X = brainstate.random.normal(size=(n, self.dim)).astype(brainstate.environ.dftype())
@@ -290,25 +285,22 @@ class Hypersphere(Geometry):
             rng = sample(n, self.dim + 1, random)
             U, X = rng[:, 0:1], rng[:, 1:]  # Error if X = [0, 0, ...]
             X = stats.norm.ppf(X).astype(brainstate.environ.dftype())
-        X = preprocessing.normalize(X)
+        X = X / jnp.linalg.norm(X, axis=-1, keepdims=True)
         X = U ** (1 / self.dim) * X
         return self.radius * X + self.center
 
     def random_boundary_points(self, n, random="pseudo"):
         # http://mathworld.wolfram.com/HyperspherePointPicking.html
-        if not sklearn_installed:
-            raise ImportError("sklearn is required for random boundary point sampling "
-                              "in Hypersphere. Please install sklearn.")
-
         if random == "pseudo":
             X = brainstate.random.normal(size=(n, self.dim)).astype(brainstate.environ.dftype())
         else:
             U = sample(n, self.dim, random)  # Error for [0, 0, ...] or [0.5, 0.5, ...]
             X = stats.norm.ppf(U).astype(brainstate.environ.dftype())
-        X = preprocessing.normalize(X)
+        X = X / jnp.linalg.norm(X, axis=-1, keepdims=True)
         return self.radius * X + self.center
 
     def background_points(self, x, dirn, dist2npt, shift):
+        dirn = jnp.asarray(dirn)
         dirn = dirn / jnp.linalg.norm(dirn)
         dx = self.distance2boundary_unitdirn(x, -dirn)
         n = max(dist2npt(dx), 1)
