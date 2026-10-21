@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import copy
 import math
 import warnings
 from typing import Callable, Sequence, Optional, Dict, Any
@@ -11,7 +12,10 @@ from typing import Callable, Sequence, Optional, Dict, Any
 import brainstate
 import brainunit as u
 import jax
+import jax.numpy as jnp
+import jax.scipy.linalg
 import numpy as np
+import scipy.linalg
 
 from pinnx.geometry import GeometryXTime, DictPointGeometry
 from pinnx.utils import array_ops, run_if_all_none
@@ -98,17 +102,13 @@ class FPDE(PDE):
         # do not cache int_mat when alpha is a learnable parameter
         fit = brainstate.environ.get('fit')
 
-        if fit:
-            if isinstance(self.alpha, brainstate.State):
-                int_mat = self.get_int_matrix(True)
-            else:
-                if self.int_mat_train is not None:
-                    # use cached int_mat
-                    int_mat = self.int_mat_train
-                else:
-                    # initialize self.int_mat_train with int_mat
-                    int_mat = self.get_int_matrix(True)
-                    self.int_mat_train = int_mat
+        if isinstance(self.alpha, brainstate.State):
+            # rebuild the weights from the current alpha so that it receives gradients
+            int_mat = self.get_int_matrix(fit, alpha=self.alpha.value)
+        elif fit:
+            if self.int_mat_train is None:
+                self.int_mat_train = self.get_int_matrix(True)
+            int_mat = self.int_mat_train
         else:
             int_mat = self.get_int_matrix(False)
 
@@ -116,15 +116,22 @@ class FPDE(PDE):
         # pde_errors = self.pde(pde_inputs, pde_outputs, int_mat, **kwargs)
         # return pde_errors
         pde_errors = self.pde(inputs, outputs, int_mat, **kwargs)
+        if not fit:
+            # the test data has no boundary points
+            return pde_errors
         return jax.tree.map(lambda x: x[bcs_start[-1]:], pde_errors)
 
     def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
-        return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
-        # fit = brainstate.environ.get('fit')
-        # if fit:
-        #     return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
-        # else:
-        #     return [u.math.zeros((), dtype=brainstate.environ.dftype()) for _ in self.constraints]
+        if brainstate.environ.get('fit'):
+            return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
+        # the test data has no boundary points
+        return [{f'ibc{i}': u.math.zeros((), dtype=brainstate.environ.dftype())}
+                for i in range(len(self.constraints))]
+
+    def resample_train_points(self, pde_points=True, bc_points=True):
+        # the cached integral matrix belongs to the old training points
+        self.int_mat_train = None
+        super().resample_train_points(pde_points=pde_points, bc_points=bc_points)
 
     @run_if_all_none("train_x", "train_y")
     def train_next_batch(self, batch_size=None):
@@ -195,16 +202,15 @@ class FPDE(PDE):
     def test_points(self):
         return self.geometry.uniform_points(self.num_test, True)
 
-    def get_int_matrix(self, training):
-        if training:
-            int_mat = self.frac_train.get_matrix(sparse=True)
-            num_bc = sum(self.num_bcs)
-        else:
-            int_mat = self.frac_test.get_matrix(sparse=True)
-            num_bc = 0
+    def get_int_matrix(self, training, alpha=None):
+        frac = self.frac_train if training else self.frac_test
+        if alpha is not None:
+            frac = frac.with_alpha(alpha)
+        int_mat = frac.get_matrix(sparse=True)
+        num_bc = sum(self.num_bcs) if training else 0
 
         if self.disc.meshtype == "static":
-            int_mat = np.roll(int_mat, -1, 1)
+            int_mat = (jnp if isinstance(int_mat, jax.Array) else np).roll(int_mat, -1, 1)
             int_mat = int_mat[1:-1]
 
         int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
@@ -378,13 +384,12 @@ class TimeFPDE(FPDE):
                              is_leaf=u.math.is_quantity)
         return X
 
-    def get_int_matrix(self, training):
-        if training:
-            int_mat = self.frac_train.get_matrix(sparse=True)
-            num_bc = sum(self.num_bcs)
-        else:
-            int_mat = self.frac_test.get_matrix(sparse=True)
-            num_bc = 0
+    def get_int_matrix(self, training, alpha=None):
+        frac = self.frac_train if training else self.frac_test
+        if alpha is not None:
+            frac = frac.with_alpha(alpha)
+        int_mat = frac.get_matrix(sparse=True)
+        num_bc = sum(self.num_bcs) if training else 0
 
         int_mat = array_ops.zero_padding(int_mat, ((num_bc, 0), (num_bc, 0)))
         return int_mat
@@ -463,10 +468,25 @@ class Fractional:
             if self.disc.meshtype == "static"
             else self.dynamic_dist2npts(self.geom.diam) + 1
         )
+        if isinstance(self.alpha, jax.Array):
+            # differentiable with respect to alpha
+            j = jnp.arange(1, n, dtype=brainstate.environ.dftype())
+            return jnp.concatenate((jnp.ones(1), jnp.cumprod((j - 1 - self.alpha) / j)))
         w = [1.0]
         for j in range(1, n):
             w.append(w[-1] * (j - 1 - self.alpha) / j)
         return np.asarray(w)
+
+    def with_alpha(self, alpha):
+        """Return a copy that uses ``alpha`` for the weights (the points are unchanged)."""
+        frac = copy.copy(self)
+        frac.alpha = alpha
+        frac._w_init = frac._init_weights()
+        if frac.disc.meshtype == "dynamic":
+            # the points are concrete; only the weights depend on (a possibly traced) alpha
+            with jax.ensure_compile_time_eval():
+                frac.get_x()
+        return frac
 
     def get_x(self):
         self.x = (
@@ -586,7 +606,7 @@ class Fractional:
         return self._w_init[: n + 1]
 
     def get_matrix_static(self):
-        if not isinstance(self.alpha, (np.ndarray, jax.Array)):
+        if not isinstance(self.alpha, jax.Array):
             int_mat = np.zeros(
                 (self.disc.resolution[0], self.disc.resolution[0]),
                 dtype=brainstate.environ.dftype(),
@@ -605,29 +625,29 @@ class Fractional:
                 # int_mat[i, 0:i+2] = np.flipud(self.modify_third_order(w=self.get_weight(i)))
                 # int_mat[i, i-1:] += self.modify_third_order(w=self.get_weight(self.disc.resolution[0]-1-i))
             return h ** (-self.alpha) * int_mat
-        int_mat = np.zeros((1, self.disc.resolution[0]), dtype=brainstate.environ.dftype())
+        int_mat = jnp.zeros((1, self.disc.resolution[0]), dtype=brainstate.environ.dftype())
         for i in range(1, self.disc.resolution[0] - 1):
             # shifted
-            row = np.concatenate(
+            row = jnp.concatenate(
                 [
-                    np.zeros(1, dtype=brainstate.environ.dftype()),
-                    np.flip(self.get_weight(i), (0,)),
-                    np.zeros(self.disc.resolution[0] - i - 2, dtype=brainstate.environ.dftype()),
+                    jnp.zeros(1, dtype=brainstate.environ.dftype()),
+                    jnp.flip(self.get_weight(i), (0,)),
+                    jnp.zeros(self.disc.resolution[0] - i - 2, dtype=brainstate.environ.dftype()),
                 ],
                 0,
             )
-            row += np.concatenate(
+            row += jnp.concatenate(
                 [
-                    np.zeros(i - 1, dtype=brainstate.environ.dftype()),
+                    jnp.zeros(i - 1, dtype=brainstate.environ.dftype()),
                     self.get_weight(self.disc.resolution[0] - 1 - i),
-                    np.zeros(1, dtype=brainstate.environ.dftype()),
+                    jnp.zeros(1, dtype=brainstate.environ.dftype()),
                 ],
                 0,
             )
-            row = np.expand_dims(row, 0)
-            int_mat = np.concatenate([int_mat, row], 0)
-        int_mat = np.concatenate(
-            [int_mat, np.zeros([1, self.disc.resolution[0]], dtype=brainstate.environ.dftype())], 0
+            row = jnp.expand_dims(row, 0)
+            int_mat = jnp.concatenate([int_mat, row], 0)
+        int_mat = jnp.concatenate(
+            [int_mat, jnp.zeros([1, self.disc.resolution[0]], dtype=brainstate.environ.dftype())], 0
         )
         h = self.geom.diam / (self.disc.resolution[0] - 1)
         return h ** (-self.alpha) * int_mat
@@ -677,6 +697,16 @@ class FractionalTime:
         self.disc, self.nt, self.x0 = disc, nt, x0
 
         self.x, self.fracx = None, None
+
+    def with_alpha(self, alpha):
+        """Return a copy that uses ``alpha`` for the weights (the points are unchanged)."""
+        frac = copy.copy(self)
+        frac.alpha = alpha
+        if frac.disc.meshtype == "dynamic":
+            # the points are concrete; only the weights depend on (a possibly traced) alpha
+            with jax.ensure_compile_time_eval():
+                frac.get_x()
+        return frac
 
     def get_x(self):
         self.x = (
@@ -728,18 +758,11 @@ class FractionalTime:
     def get_matrix_static(self):
         # Only consider the inside points
         print("Warning: assume zero boundary condition.")
-        n = (self.disc.resolution[0] - 2) * (self.nt - 1)
-        int_mat = np.zeros((n, n), dtype=brainstate.environ.dftype())
         self.fracx = Fractional(self.alpha, self.geom, self.disc, None)
-        int_mat_one = self.fracx.get_matrix()
-        beg = 0
-        for _ in range(self.nt - 1):
-            int_mat[
-            beg: beg + self.disc.resolution[0] - 2,
-            beg: beg + self.disc.resolution[0] - 2,
-            ] = int_mat_one[1:-1, 1:-1]
-            beg += self.disc.resolution[0] - 2
-        return int_mat
+        block = self.fracx.get_matrix()[1:-1, 1:-1]
+        if isinstance(block, jax.Array):
+            return jax.scipy.linalg.block_diag(*([block] * (self.nt - 1)))
+        return scipy.linalg.block_diag(*([block] * (self.nt - 1))).astype(brainstate.environ.dftype())
 
     def get_matrix_dynamic(self, sparse):
         return self.fracx.get_matrix(sparse)

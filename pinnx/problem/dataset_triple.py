@@ -57,7 +57,7 @@ class TripleDataset(Problem):
         self.train_sampler = BatchSampler(len(self.train_y), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
@@ -119,7 +119,7 @@ class TripleCartesianProd(Problem):
         self.trunk_sampler = BatchSampler(len(X_train[1]), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
@@ -132,7 +132,7 @@ class TripleCartesianProd(Problem):
         return (
             (self.train_x[0][indices_branch],
              self.train_x[1][indices_trunk],),
-            self.train_y[indices_branch, indices_trunk]
+            self.train_y[indices_branch][:, indices_trunk]
         )
 
     def test(self):

@@ -7,6 +7,7 @@ from typing import Sequence
 import brainstate
 import brainunit as u
 import jax
+import jax.numpy as jnp
 import numpy as np
 
 
@@ -32,6 +33,8 @@ def hstack(tup):
             tup[0] = np.asarray([], dtype=brainstate.environ.dftype())
         else:
             tup[0] = np.array([], dtype=brainstate.environ.dftype())
+    if any(isinstance(t, jax.Array) for t in tup):
+        return jnp.concatenate([jnp.asarray(t) for t in tup], 0)
     return np.concatenate(tup, 0) if is_tensor(tup[0]) else np.hstack(tup)
 
 
@@ -45,4 +48,6 @@ def zero_padding(array, pad_width):
             dense_shape[1] + sum(pad_width[1]),
         )
         return indices, values, dense_shape
+    if isinstance(array, jax.Array):
+        return jnp.pad(array, pad_width)
     return np.pad(array, pad_width)

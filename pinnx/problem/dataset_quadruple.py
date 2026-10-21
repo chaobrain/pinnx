@@ -51,7 +51,7 @@ class QuadrupleDataset(Problem):
         self.train_sampler = BatchSampler(len(self.train_y), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
@@ -59,8 +59,8 @@ class QuadrupleDataset(Problem):
         indices = self.train_sampler.get_next(batch_size)
         return (
             (self.train_x[0][indices],
-             self.train_x[1][indices]),
-            self.train_x[2][indices],
+             self.train_x[1][indices],
+             self.train_x[2][indices]),
             self.train_y[indices],
         )
 
@@ -81,7 +81,17 @@ class QuadrupleCartesianProd(Problem):
         y_train: A NumPy array of shape (`N1`, `N2`).
     """
 
-    def __init__(self, X_train, y_train, X_test, y_test):
+    def __init__(
+        self,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        approximator: brainstate.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
+    ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
         if (
             len(X_train[0]) * len(X_train[2]) != y_train.size
             or len(X_train[1]) * len(X_train[2]) != y_train.size
@@ -105,7 +115,7 @@ class QuadrupleCartesianProd(Problem):
         self.trunk_sampler = BatchSampler(len(X_train[2]), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:

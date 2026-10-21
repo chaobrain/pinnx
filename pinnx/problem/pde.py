@@ -203,7 +203,7 @@ class PDE(Problem):
     @utils.check_not_none('num_bcs')
     def losses(self, inputs, outputs, targets, **kwargs):
         # PDE inputs and outputs, computing PDE losses
-        pde_errors = self.call_pde_errors(inputs, outputs, **kwargs)
+        pde_errors = self.call_pde_errors(inputs, outputs, **kwargs) if self._pde is not None else []
         if not isinstance(pde_errors, (list, tuple)):
             pde_errors = [pde_errors]
 
@@ -245,7 +245,7 @@ class PDE(Problem):
         # Generate `self.num_bcs` and `self.train_x_bc`
         self.bc_points()
 
-        if self.pde is not None:
+        if self._pde is not None:
             # include data in boundary, initial conditions, and PDE
             if len(self.train_x_bc):
                 self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=0),
@@ -302,7 +302,7 @@ class PDE(Problem):
                                         anchors,
                                         self.train_x_all)
 
-        if self.pde is not None:
+        if self._pde is not None:
             # include data in boundary, initial conditions, and PDE
             self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         self.bc_points(),
@@ -323,7 +323,7 @@ class PDE(Problem):
         self.anchors = jax.tree.map(lambda x: x.astype(brainstate.environ.dftype()), anchors)
         self.train_x_all = self.anchors
 
-        if self.pde is not None:
+        if self._pde is not None:
             # include data in boundary, initial conditions, and PDE
             self.train_x = jax.tree.map(lambda x, y: u.math.concatenate((x, y), axis=-1),
                                         self.bc_points(),
