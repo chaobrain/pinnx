@@ -1,26 +1,28 @@
-# # linux
-# wget -nc https://paddle-org.bj.bcebos.com/paddlescience/datasets/DeepONet/antiderivative_unaligned_train.npz
-# wget -nc https://paddle-org.bj.bcebos.com/paddlescience/datasets/DeepONet/antiderivative_unaligned_test.npz
-
-# # windows
-# curl https://paddle-org.bj.bcebos.com/paddlescience/datasets/deeponet/antiderivative_unaligned_train.npz -o antiderivative_unaligned_train.npz
-# curl https://paddle-org.bj.bcebos.com/paddlescience/datasets/deeponet/antiderivative_unaligned_test.npz -o antiderivative_unaligned_test.npz
-
-
-
 import brainstate
 import braintools
 import numpy as np
 
 import pinnx
 
+
+def load_unaligned(split, num_samples, rng):
+    """Draws (function, location, value) triples from the aligned antiderivative dataset.
+
+    In the unaligned format each input function is paired with a single location, so
+    a sample is ``(v, x) -> y`` instead of the aligned ``v -> y`` on a shared grid.
+    """
+    d = np.load(f"../dataset/antiderivative_aligned_{split}.npz", allow_pickle=True)
+    v, x = d["X"][0].astype(np.float32), d["X"][1].astype(np.float32)
+    y = d["y"].astype(np.float32)
+    i = rng.integers(0, v.shape[0], num_samples)
+    j = rng.integers(0, x.shape[0], num_samples)
+    return (v[i], x[j]), y[i, j][:, None]
+
+
 # Load dataset
-d = np.load("../dataset/antiderivative_unaligned_train.npz", allow_pickle=True)
-X_train = (d["X_train0"].astype(np.float32), d["X_train1"].astype(np.float32))
-y_train = d["y_train"].astype(np.float32)
-d = np.load("../dataset/antiderivative_unaligned_test.npz", allow_pickle=True)
-X_test = (d["X_test0"].astype(np.float32), d["X_test1"].astype(np.float32))
-y_test = d["y_test"].astype(np.float32)
+rng = np.random.default_rng(1234)
+X_train, y_train = load_unaligned("train", 10000, rng)
+X_test, y_test = load_unaligned("test", 10000, rng)
 
 # Choose a network
 m = 100

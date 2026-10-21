@@ -88,7 +88,7 @@ Helmholtz equation over a 2D square domain: Hyper-parameter optimization <https:
 Helmholtz equation over a 2D square domain with a hole <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Helmholtz_Dirichlet_2d_hole.py>
 Helmholtz sound-hard scattering problem with absorbing boundary conditions <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Helmholtz_Sound_hard_ABC_2d.py>
 Diffusion equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_1d.py>
-Diffusion equation with hard initial and boundary conditions <https://github.com/chatobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_1d_exactBC.py>
+Diffusion equation with hard initial and boundary conditions <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_1d_exactBC.py>
 Diffusion equation with training points resampling <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_1d_resample.py>
 Diffusion-reaction equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_reaction.py>
 Linear elastostatic equation over a 2D square domain <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/elasticity_plate.py>
@@ -106,7 +106,6 @@ Poisson equation in 1D with Dirichlet/Neumann boundary conditions <https://githu
 Poisson equation in 1D with Dirichlet/Periodic boundary conditions <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Poisson_periodic_1d.py>
 Poisson equation in 1D with Dirichlet/PointSetOperator boundary conditions<https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Poisson_PointSetOperator_1d.py>
 Poisson equation in 1D with Dirichlet/Robin boundary conditions <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Poisson_Robin_1d.py>
-Lotka-Volterra ODE equation<https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/ode_Lotka_Volterra.py>
 Beltrami flow <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Beltrami_flow.py>
 Fractional diffusion equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/fractional_diffusion_1d.py>
 Fractional Poisson equation in 1D<https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/fractional_Poisson_1d.py>

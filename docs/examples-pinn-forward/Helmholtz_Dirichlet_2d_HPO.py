@@ -1,10 +1,8 @@
 import braintools
 import brainunit as u
+import matplotlib.pyplot as plt
 import numpy as np
-from skopt import gp_minimize
-from skopt.plots import plot_convergence, plot_objective
-from skopt.space import Real, Categorical, Integer
-from skopt.utils import use_named_args
+from scipy.stats import qmc
 
 import pinnx
 
@@ -82,26 +80,33 @@ def train_model(model, config):
     return error
 
 
-# HPO setting
-n_calls = 50
-dim_learning_rate = Real(low=1e-4, high=5e-2, name="learning_rate", prior="log-uniform")
-dim_num_dense_layers = Integer(low=1, high=10, name="num_dense_layers")
-dim_num_dense_nodes = Integer(low=5, high=500, name="num_dense_nodes")
-dim_activation = Categorical(categories=["sin", "sigmoid", "tanh"], name="activation")
+# HPO setting: a quasi-random (Sobol) search over the hyper-parameter space
+learning_rate_range = (1e-4, 5e-2)  # sampled log-uniformly
+num_dense_layers_range = (1, 10)
+num_dense_nodes_range = (5, 500)
+activations = ["sin", "sigmoid", "tanh"]
 
-dimensions = [
-    dim_learning_rate,
-    dim_num_dense_layers,
-    dim_num_dense_nodes,
-    dim_activation,
-]
-
-default_parameters = [1e-3, 4, 50, u.math.sin]
+default_parameters = [1e-3, 4, 50, "sin"]
 
 
-@use_named_args(dimensions=dimensions)
-def fitness(learning_rate, num_dense_layers, num_dense_nodes, activation):
-    config = [learning_rate, num_dense_layers, num_dense_nodes, activation]
+def sample_configs(m, seed=1234):
+    """Draws ``2 ** m`` hyper-parameter configurations from a scrambled Sobol sequence."""
+    unit = qmc.Sobol(d=4, seed=seed).random_base2(m)
+    log_lr = np.log10(learning_rate_range)
+    learning_rates = 10 ** (log_lr[0] + unit[:, 0] * (log_lr[1] - log_lr[0]))
+    num_layers = num_dense_layers_range[0] + np.floor(
+        unit[:, 1] * (num_dense_layers_range[1] - num_dense_layers_range[0] + 1)).astype(int)
+    num_nodes = num_dense_nodes_range[0] + np.floor(
+        unit[:, 2] * (num_dense_nodes_range[1] - num_dense_nodes_range[0] + 1)).astype(int)
+    acts = np.floor(unit[:, 3] * len(activations)).astype(int)
+    return [
+        [float(lr), int(nl), int(nn), activations[a]]
+        for lr, nl, nn, a in zip(learning_rates, num_layers, num_nodes, acts)
+    ]
+
+
+def fitness(config):
+    learning_rate, num_dense_layers, num_dense_nodes, activation = config
     global ITERATION
 
     print(ITERATION, "it number")
@@ -116,7 +121,6 @@ def fitness(learning_rate, num_dense_layers, num_dense_nodes, activation):
     model = create_model(config)
     # possibility to change where we save
     error = train_model(model, config)
-    # print(accuracy, 'accuracy is')
 
     if np.isnan(error):
         error = 10 ** 5
@@ -127,16 +131,15 @@ def fitness(learning_rate, num_dense_layers, num_dense_nodes, activation):
 
 ITERATION = 0
 
-search_result = gp_minimize(
-    func=fitness,
-    dimensions=dimensions,
-    acq_func="EI",  # Expected Improvement.
-    n_calls=n_calls,
-    x0=default_parameters,
-    random_state=1234,
-)
+configs = [default_parameters] + sample_configs(m=4)
+errors = [fitness(config) for config in configs]
 
-print(search_result.x)
+best = int(np.argmin(errors))
+print("Best hyper-parameters:", configs[best], "test loss:", errors[best])
 
-plot_convergence(search_result)
-plot_objective(search_result, show_points=True, size=3.8)
+plt.plot(np.arange(1, len(errors) + 1), np.minimum.accumulate(errors), "o-")
+plt.xlabel("Number of calls")
+plt.ylabel("Minimum test loss")
+plt.yscale("log")
+plt.title("Convergence plot")
+plt.show()
