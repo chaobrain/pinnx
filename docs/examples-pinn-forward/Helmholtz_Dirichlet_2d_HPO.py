@@ -1,5 +1,5 @@
 import braintools
-import brainunit as u
+import saiunit as u
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import qmc

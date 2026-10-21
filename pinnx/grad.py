@@ -20,7 +20,7 @@ from functools import wraps
 from typing import Dict, Callable, Sequence, Union, Optional, Tuple, Any, Iterator
 
 import brainstate
-import brainunit as u
+import saiunit as u
 
 TransformFn = Callable
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import jax
 import pinnx
-import brainunit as u
+import saiunit as u
 
 
 # Poisson equation: -u_xx = f

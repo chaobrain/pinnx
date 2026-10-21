@@ -2,14 +2,14 @@
 
 
 <p align="center">
-  	<img alt="Header image of pinnx." src="https://github.com/chaobrain/pinnx/blob/main/docs/_static/pinnx.png" width=40%>
+  	<img alt="Header image of pinnx." src="https://raw.githubusercontent.com/chaobrain/pinnx/main/docs/_static/pinnx.png" width=40%>
 </p> 
 
 
 [![Build Status](https://github.com/chaobrain/pinnx/actions/workflows/build.yml/badge.svg)](https://github.com/chaobrain/pinnx/actions/workflows/build.yml)
-[![Documentation Status](https://readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/)
 [![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://badge.fury.io/py/pinnx)
-[![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/master/LICENSE)
+[![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/main/LICENSE)
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
 It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
@@ -17,7 +17,7 @@ It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhance
 For example, it leverages 
 
 - [brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
-- [brainunit](https://brainunit.readthedocs.io/) for dimensional analysis, 
+- [saiunit](https://saiunit.readthedocs.io/) for dimensional analysis, 
 - [braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
 
 
@@ -28,7 +28,7 @@ Define a PINN with explicit variables and physical units.
 
 ```python
 import braintools
-import brainunit as u
+import saiunit as u
 import pinnx
 
 # geometry

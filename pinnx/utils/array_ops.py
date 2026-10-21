@@ -5,7 +5,7 @@
 from typing import Sequence
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import jax
 import jax.numpy as jnp
 import numpy as np

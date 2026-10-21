@@ -1,5 +1,5 @@
 import braintools
-import brainunit as u
+import saiunit as u
 import numpy as np
 from scipy.special import jv, hankel1
 

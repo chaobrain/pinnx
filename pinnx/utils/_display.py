@@ -4,7 +4,7 @@
 import sys
 from pprint import pformat
 
-import brainunit as u
+import saiunit as u
 import jax.tree
 
 from pinnx.utils import tree_repr

@@ -25,7 +25,7 @@ It is a rewrite of `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhan
 For example, it leverages
 
 - `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
-- `brainunit <https://brainunit.readthedocs.io/>`_ for dimensional analysis,
+- `saiunit <https://saiunit.readthedocs.io/>`_ for dimensional analysis,
 - `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
 
 
@@ -79,7 +79,7 @@ Define a PINN with explicit variables and physical units.
 .. code-block:: python
 
     import braintools
-    import brainunit as u
+    import saiunit as u
     import pinnx
 
     # geometry

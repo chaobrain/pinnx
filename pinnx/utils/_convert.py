@@ -16,7 +16,7 @@
 from typing import Sequence, Dict
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import numpy as np
 
 __all__ = [

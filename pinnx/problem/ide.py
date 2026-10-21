@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Callable, Sequence, Union, Optional, Dict, Any
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import jax
 import numpy as np
 

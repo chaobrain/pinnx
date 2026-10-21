@@ -5,7 +5,7 @@
 from typing import Optional, Callable
 
 import brainstate
-import brainunit as u
+import saiunit as u
 
 from pinnx.utils import get_activation
 from .base import NN

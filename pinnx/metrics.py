@@ -2,7 +2,7 @@
 # ==============================================================================
 
 
-import brainunit as u
+import saiunit as u
 import jax
 
 __all__ = [

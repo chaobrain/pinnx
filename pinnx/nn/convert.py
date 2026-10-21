@@ -16,7 +16,7 @@
 from typing import Dict
 
 import brainstate
-import brainunit as u
+import saiunit as u
 
 __all__ = [
     'DictToArray',
@@ -43,7 +43,7 @@ def dict_to_array(
 
 
 def _as_unit(unit, name):
-    """Accept a ``brainunit.Unit``, ``None``, or a unit-valued Quantity such as ``1 / u.second``."""
+    """Accept a ``saiunit.Unit``, ``None``, or a unit-valued Quantity such as ``1 / u.second``."""
     if unit is None or isinstance(unit, u.Unit):
         return unit
     if isinstance(unit, u.Quantity) and u.math.size(unit) == 1 and float(unit.mantissa) == 1.0:
@@ -57,7 +57,7 @@ class DictToArray(brainstate.nn.Module):
 
     Args:
         axis (int): The axis to concatenate.
-        **units: The units for each input. The unit should be the instance of ``brainunit.Unit``, but it can be None.
+        **units: The units for each input. The unit should be the instance of ``saiunit.Unit``, but it can be None.
     """
 
     def __init__(self, axis: int = -1, **units):
@@ -101,7 +101,7 @@ class ArrayToDict(brainstate.nn.Module):
     Args:
         axis (int): The axis to split the output data.
         **units: The units of the output data. The unit should be the instance
-          of ``brainunit.Unit``, but it can be None.
+          of ``saiunit.Unit``, but it can be None.
     """
 
     def __init__(self, axis: int = -1, **units):
