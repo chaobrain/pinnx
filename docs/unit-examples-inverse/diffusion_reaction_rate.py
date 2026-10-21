@@ -4,7 +4,7 @@ Implementation for the diffusion-reaction system with a space-dependent reaction
 
 import brainstate
 import braintools
-import brainunit as u
+import saiunit as u
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_bvp

@@ -7,7 +7,7 @@ from typing import Dict, Union
 from typing import Literal, Sequence
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import jax.numpy as jnp
 import numpy as np
 
@@ -570,7 +570,7 @@ class DictPointGeometry(AbstractGeometry):
         kw_names = {key: u.UNITLESS if unit is None else unit for key, unit in kw_names.items()}
         for key, unit in kw_names.items():
             assert isinstance(key, str), "The name should be a string."
-            assert isinstance(unit, u.Unit), "The unit should be a brainunit.Unit."
+            assert isinstance(unit, u.Unit), "The unit should be a saiunit.Unit."
         self.name2unit = {name: u.UNITLESS for name in names}
         self.name2unit.update(kw_names)
         if len(self.name2unit) != geom.dim:

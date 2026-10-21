@@ -7,7 +7,7 @@ from typing import Union, Sequence, Callable, Optional
 
 import braintools
 import brainstate
-import brainunit as u
+import saiunit as u
 import jax.numpy as jnp
 import jax.tree
 import numpy as np

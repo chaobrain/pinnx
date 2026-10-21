@@ -2,7 +2,7 @@ import brainstate
 import braintools
 import numpy as np
 import optax
-import brainunit as u
+import saiunit as u
 import os
 
 import pinnx as pinnx

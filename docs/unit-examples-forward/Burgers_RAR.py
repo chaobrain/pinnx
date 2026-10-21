@@ -1,5 +1,5 @@
 import braintools
-import brainunit as u
+import saiunit as u
 import jax.tree
 import numpy as np
 

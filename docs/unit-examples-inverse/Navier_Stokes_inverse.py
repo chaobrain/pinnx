@@ -12,7 +12,7 @@ import jax.tree
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.io import loadmat
-import brainunit as u
+import saiunit as u
 
 import pinnx
 

@@ -1,6 +1,6 @@
 import braintools
 import brainstate
-import brainunit as u
+import saiunit as u
 import matplotlib.pyplot as plt
 
 import pinnx

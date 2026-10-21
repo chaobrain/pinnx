@@ -5,7 +5,7 @@ from typing import Union, Callable, Sequence, Dict, Optional
 
 import brainstate
 import braintools
-import brainunit as u
+import saiunit as u
 
 from pinnx.utils import get_activation
 from .base import NN

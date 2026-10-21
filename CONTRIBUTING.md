@@ -118,7 +118,7 @@ Follow conventional commit format when possible:
 
 ### Python Style
 
-- Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) style guide
+- Follow [PEP 8](https://peps.python.org/pep-0008/) style guide
 - Use meaningful variable and function names
 - Maximum line length: 100 characters
 - Use type hints where appropriate
@@ -134,7 +134,7 @@ Follow conventional commit format when possible:
 
 ```python
 import jax.numpy as jnp
-import brainunit as u
+import saiunit as u
 
 
 def compute_residual(
@@ -270,7 +270,7 @@ Please note that this project follows our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 If you have questions about contributing:
 
-- Open a [discussion](https://github.com/chaobrain/pinnx/discussions)
+- Open an [issue](https://github.com/chaobrain/pinnx/issues)
 - Check the [documentation](https://pinnx.readthedocs.io/)
 - Contact the maintainers at chao.brain@qq.com
 

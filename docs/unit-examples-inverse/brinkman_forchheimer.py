@@ -4,7 +4,7 @@ Implementation of Brinkman-Forchheimer equation example in paper https://arxiv.o
 
 import brainstate
 import braintools
-import brainunit as u
+import saiunit as u
 import numpy as np
 
 import pinnx

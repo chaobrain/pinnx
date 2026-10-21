@@ -16,7 +16,7 @@
 
 import brainstate
 import braintools
-import brainunit as u
+import saiunit as u
 
 import pinnx
 

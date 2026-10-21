@@ -6,7 +6,7 @@ import time
 from typing import Dict, Callable
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import jax.tree
 import numpy as np
 

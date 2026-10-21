@@ -23,7 +23,7 @@ class IC(ICBC):
             This function should take a dictionary of collocation points and
             return a dictionary of initial conditions. For example::
 
-                import brainunit as u
+                import saiunit as u
                 def func(x):
                     return {'y': -u.math.sin(np.pi * x['x'] / u.meter) * u.meter / u.second}
         on_initial: Filter function for initial conditions.

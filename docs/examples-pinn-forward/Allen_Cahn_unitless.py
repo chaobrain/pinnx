@@ -4,7 +4,7 @@ Implementation of Allen-Cahn equation example in paper https://arxiv.org/abs/211
 
 import brainstate
 import braintools
-import brainunit as u
+import saiunit as u
 import numpy as np
 from scipy.io import loadmat
 

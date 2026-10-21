@@ -10,7 +10,7 @@ from functools import wraps
 from typing import Callable, Union
 
 import brainstate
-import brainunit as u
+import saiunit as u
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import animation

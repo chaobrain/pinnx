@@ -31,7 +31,7 @@ The reference solution is $y(x, t)=x \cos (t)$.
 """
 
 import braintools
-import brainunit as u
+import saiunit as u
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import griddata

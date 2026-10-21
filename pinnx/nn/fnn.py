@@ -18,7 +18,7 @@ from typing import Union, Callable, Sequence, Optional
 
 import braintools
 import brainstate
-import brainunit as u
+import saiunit as u
 
 from pinnx.utils import get_activation
 from .base import NN

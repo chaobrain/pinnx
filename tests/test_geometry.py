@@ -128,7 +128,7 @@ def test_hypercube_vertex_normal_is_normalized():
 
 
 def test_dict_geometry_normals_are_dimensionless():
-    import brainunit as u
+    import saiunit as u
     geom = g.Rectangle([0.0, 0.0], [1.0, 1.0]).to_dict_point(x=u.meter, y=u.meter)
     pts = {"x": np.array([0.0, 0.5]) * u.meter, "y": np.array([0.5, 1.0]) * u.meter}
     n = geom.boundary_normal(pts)
