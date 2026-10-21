@@ -5,7 +5,6 @@
 """External utilities."""
 
 import csv
-import importlib.util
 import os
 from multiprocessing import Pool
 
@@ -14,12 +13,8 @@ import brainunit as u
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
-
-sklearn_installed = importlib.util.find_spec("sklearn")
-
-if sklearn_installed:
-    from sklearn import preprocessing
 
 
 def apply(func, args=None, kwds=None):
@@ -40,12 +35,35 @@ def apply(func, args=None, kwds=None):
     return r
 
 
+class StandardScaler:
+    """Standardize features by removing the mean and scaling to unit variance.
+
+    Mirrors the parts of ``sklearn.preprocessing.StandardScaler`` that PINNx uses.
+    """
+
+    def fit(self, X):
+        X = np.asarray(X)
+        self.mean_ = X.mean(axis=0)
+        scale = X.std(axis=0)
+        # constant features are left unscaled, as in scikit-learn
+        self.scale_ = np.where(scale == 0, 1.0, scale)
+        return self
+
+    def transform(self, X):
+        return (np.asarray(X) - self.mean_) / self.scale_
+
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
+
+    def inverse_transform(self, X):
+        return np.asarray(X) * self.scale_ + self.mean_
+
+
 def standardize(X_train, X_test):
     """Standardize features by removing the mean and scaling to unit variance.
 
-    The mean and std are computed from the training data `X_train` using
-    `sklearn.preprocessing.StandardScaler <https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html>`_,
-    and then applied to the testing data `X_test`.
+    The mean and std are computed from the training data `X_train`, and then
+    applied to the testing data `X_test`.
 
     Args:
         X_train: A NumPy array of shape (n_samples, n_features). The data used to
@@ -54,7 +72,7 @@ def standardize(X_train, X_test):
         X_test: A NumPy array.
 
     Returns:
-        scaler: Instance of ``sklearn.preprocessing.StandardScaler``.
+        scaler: Instance of ``StandardScaler``.
         X_train: Transformed training data.
         X_test: Transformed testing data.
     """
@@ -62,23 +80,20 @@ def standardize(X_train, X_test):
     train_exp_dim = False
     if u.math.ndim(X_train) == 1:
         train_exp_dim = True
-        X_train = X_train.reshape(-1, 1)
+        X_train = np.reshape(X_train, (-1, 1))
     test_exp_dim = False
     if u.math.ndim(X_test) == 1:
         test_exp_dim = True
-        X_test = X_test.reshape(-1, 1)
+        X_test = np.reshape(X_test, (-1, 1))
 
-    if not sklearn_installed:
-        raise ImportError("scikit-learn is not installed. Please install it to use the standardize function.")
-
-    scaler = preprocessing.StandardScaler(with_mean=True, with_std=True)
+    scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     if train_exp_dim:
         X_train = X_train.flatten()
     if test_exp_dim:
         X_test = X_test.flatten()
-    return X_train, X_test
+    return scaler, X_train, X_test
 
 
 def saveplot(
@@ -219,8 +234,8 @@ def plot_best_state(train_state):
             if y_train is not None:
                 plt.plot(train_state.X_train[xkeys[0]], y_train[ykey], "ok", label="Train")
             if y_test is not None:
-                plt.plot(X, y_test[ykey], "-k", label="True")
-            y_val, y_unit = u.split_mantissa_unit(best_y[ykey])
+                plt.plot(X, y_test[ykey][idx], "-k", label="True")
+            y_val, y_unit = u.split_mantissa_unit(best_y[ykey][idx])
             plt.plot(
                 X, y_val, "--r",
                 label=(f"{ykey} Prediction"
@@ -228,7 +243,7 @@ def plot_best_state(train_state):
                        f"{ykey} Prediction [{y_unit}]")
             )
             if best_ystd is not None:
-                ystd_val = u.get_magnitude(best_ystd[ykey].to(y_unit))
+                ystd_val = u.get_magnitude(best_ystd[ykey][idx].to(y_unit))
                 plt.plot(X, y_val + 1.96 * ystd_val, "-b", label="95% CI")
                 plt.plot(X, y_val - 1.96 * ystd_val, "-b")
         plt.xlabel("x")
@@ -350,6 +365,8 @@ def isclose(a, b):
         a, b (array like): DictToArray arrays to compare.
     """
     pack = smart_numpy(a)
+    if pack is np:
+        a = np.asarray(a)
     a_dtype = a.dtype
     a_unit = u.get_unit(a)
     if a_dtype == jnp.float32:
@@ -362,11 +379,10 @@ def isclose(a, b):
 
 
 def smart_numpy(x):
-    if isinstance(x, jnp.ndarray):
-        return jnp
-    elif isinstance(x, jax.Array):
-        return jax.numpy
-    elif isinstance(x, u.Quantity):
+    """Return the array module (``u.math``, ``jnp`` or ``np``) that matches ``x``."""
+    if isinstance(x, u.Quantity):
         return u.math
+    elif isinstance(x, jax.Array):
+        return jnp
     else:
-        raise TypeError(f"Unknown type {type(x)}.")
+        return np

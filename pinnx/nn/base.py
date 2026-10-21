@@ -36,6 +36,6 @@ class NN(brainstate.nn.Module):
     def num_trainable_parameters(self):
         """Evaluate the number of trainable parameters for the NN."""
         n_param = 0
-        for key, val in self.states(brainstate.ParamState).items():
-            n_param += [v.size for v in jax.tree_leaves(val)]
+        for val in self.states(brainstate.ParamState).values():
+            n_param += sum(v.size for v in jax.tree.leaves(val.value))
         return n_param

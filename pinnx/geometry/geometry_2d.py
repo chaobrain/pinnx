@@ -6,14 +6,16 @@ __all__ = ["Disk", "Ellipse", "Polygon", "Rectangle", "StarShaped", "Triangle"]
 from typing import Union, Literal
 
 import brainstate
+import jax
 import jax.numpy as jnp
+import numpy as np
 from scipy import spatial
 
 from pinnx import utils
 from pinnx.utils.sampling import sample
 from .base import Geometry
 from .geometry_nd import Hypercube, Hypersphere
-from ..utils import isclose, vectorize
+from ..utils import isclose
 
 
 class Disk(Hypersphere):
@@ -66,6 +68,7 @@ class Disk(Hypersphere):
         return self.radius * X + self.center
 
     def background_points(self, x, dirn, dist2npt, shift):
+        dirn = jnp.asarray(dirn)
         dirn = dirn / jnp.linalg.norm(dirn)
         dx = self.distance2boundary_unitdirn(x, -dirn)
         n = max(dist2npt(dx), 1)
@@ -119,9 +122,15 @@ class Ellipse(Geometry):
             self.theta_from_arc_length,
             self.total_arc,
         ) = self._theta_from_arc_length_constructor()
-        super().__init__(
-            2, (self.center - semimajor, self.center + semiminor), 2 * self.c
+        # half extents of the (rotated) ellipse along x and y
+        half = jnp.array(
+            [
+                jnp.sqrt((semimajor * jnp.cos(angle)) ** 2 + (semiminor * jnp.sin(angle)) ** 2),
+                jnp.sqrt((semimajor * jnp.sin(angle)) ** 2 + (semiminor * jnp.cos(angle)) ** 2),
+            ],
+            dtype=brainstate.environ.dftype(),
         )
+        super().__init__(2, (self.center - half, self.center + half), 2 * semimajor)
 
     def on_boundary(self, x):
         d1 = jnp.linalg.norm(x - self.focus1, axis=-1)
@@ -146,7 +155,7 @@ class Ellipse(Geometry):
         coords_diffs = jnp.diff(coords)
         # Compute the full arc
         delta_r = jnp.linalg.norm(coords_diffs, axis=0)
-        cumulative_distance = jnp.concatenate(([0], jnp.cumsum(delta_r)))
+        cumulative_distance = jnp.concatenate((jnp.zeros(1), jnp.cumsum(delta_r)))
         c = jnp.sum(delta_r)
         return theta, cumulative_distance, c
 
@@ -189,7 +198,7 @@ class Ellipse(Geometry):
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("`smoothness` must be one of C0, C0+, Cinf")
 
-        if not hasattr(self, "self.focus1_tensor"):
+        if not hasattr(self, "focus1_tensor"):
             self.focus1_tensor = jnp.asarray(self.focus1)
             self.focus2_tensor = jnp.asarray(self.focus2)
 
@@ -258,24 +267,25 @@ class Rectangle(Hypercube):
         l1 = self.xmax[0] - self.xmin[0]
         l2 = l1 + self.xmax[1] - self.xmin[1]
         l3 = l2 + l1
-        u = jnp.ravel(sample(n + 2, 1, random))
+        u = np.ravel(sample(n + 2, 1, random))
         # Remove the possible points very close to the corners
-        u = u[jnp.logical_not(isclose(u, l1 / self.perimeter))]
-        u = u[jnp.logical_not(isclose(u, l3 / self.perimeter))]
+        u = u[np.logical_not(isclose(u, l1 / self.perimeter))]
+        u = u[np.logical_not(isclose(u, l3 / self.perimeter))]
         u = u[:n]
 
-        u *= self.perimeter
-        x = []
-        for l in u:
-            if l < l1:
-                x.append([self.xmin[0] + l, self.xmin[1]])
-            elif l < l2:
-                x.append([self.xmax[0], self.xmin[1] + l - l1])
-            elif l < l3:
-                x.append([self.xmax[0] - l + l2, self.xmax[1]])
-            else:
-                x.append([self.xmin[0], self.xmax[1] - l + l3])
-        return jnp.vstack(x)
+        l = u * self.perimeter
+        xmin, xmax = self.xmin, self.xmax
+        x0 = jnp.select(
+            [l < l1, l < l2, l < l3],
+            [xmin[0] + l, jnp.full_like(l, xmax[0]), xmax[0] - l + l2],
+            jnp.full_like(l, xmin[0]),
+        )
+        x1 = jnp.select(
+            [l < l1, l < l2, l < l3],
+            [jnp.full_like(l, xmin[1]), xmin[1] + l - l1, jnp.full_like(l, xmax[1])],
+            xmax[1] - l + l3,
+        )
+        return jnp.stack((x0, x1), axis=-1).astype(brainstate.environ.dftype())
 
     def _boundary_constraint_factor_inside(
         self,
@@ -290,7 +300,7 @@ class Rectangle(Hypercube):
         It should not be called directly in most cases.
         """
 
-        if not hasattr(self, "self.xmin_tensor"):
+        if not hasattr(self, "xmin_tensor"):
             self.xmin_tensor = jnp.asarray(self.xmin)
             self.xmax_tensor = jnp.asarray(self.xmax)
         if where not in ["right", "top"]:
@@ -317,6 +327,8 @@ class Rectangle(Hypercube):
             return jnp.minimum(dist_l, dist_r)
         dist_l = jnp.prod(dist_l, axis=-1, keepdims=True)
         dist_r = jnp.prod(dist_r, axis=-1, keepdims=True)
+        if smoothness == "Cinf":
+            return jnp.square(dist_l * dist_r)
         return dist_l * dist_r
 
     def boundary_constraint_factor(
@@ -381,7 +393,7 @@ class Rectangle(Hypercube):
         if inside:
             return self._boundary_constraint_factor_inside(x, where, smoothness)
 
-        if not hasattr(self, "self.x11_tensor"):
+        if not hasattr(self, "x11_tensor"):
             self.x11_tensor = jnp.asarray(self.xmin)
             self.x22_tensor = jnp.asarray(self.xmax)
             self.x12_tensor = jnp.asarray([self.xmin[0], self.xmax[1]])
@@ -424,6 +436,8 @@ class Rectangle(Hypercube):
         if smoothness == "C0":
             return jnp.minimum(jnp.minimum(dist_left, dist_right),
                                jnp.minimum(dist_bottom, dist_top))
+        if smoothness == "Cinf":
+            return jnp.square(dist_left * dist_right * dist_bottom * dist_top)
         return dist_left * dist_right * dist_bottom * dist_top
 
     @staticmethod
@@ -462,7 +476,7 @@ class StarShaped(Geometry):
         self.radius = radius
         self.coeffs_cos = coeffs_cos
         self.coeffs_sin = coeffs_sin
-        max_radius = radius + jnp.sum(coeffs_cos) + jnp.sum(coeffs_sin)
+        max_radius = radius + np.sum(np.abs(coeffs_cos)) + np.sum(np.abs(coeffs_sin))
         super().__init__(
             2,
             (self.center - max_radius, self.center + max_radius),
@@ -497,7 +511,7 @@ class StarShaped(Geometry):
     def on_boundary(self, x):
         r, theta = polar(x - self.center)
         r_theta = self._r_theta(theta)
-        return isclose(jnp.linalg.norm(r_theta - r), 0)
+        return isclose(r_theta - r, 0)
 
     def boundary_normal(self, x):
         _, theta = polar(x - self.center)
@@ -570,7 +584,10 @@ class Triangle(Geometry):
 
         super().__init__(
             2,
-            (jnp.minimum(x1, jnp.minimum(x2, x3)), jnp.maximum(x1, jnp.maximum(x2, x3))),
+            (
+                jnp.minimum(self.x1, jnp.minimum(self.x2, self.x3)),
+                jnp.maximum(self.x1, jnp.maximum(self.x2, self.x3)),
+            ),
             self.l12
             * self.l23
             * self.l31
@@ -587,9 +604,9 @@ class Triangle(Geometry):
         # https://stackoverflow.com/a/2049593/12679294
         _sign = jnp.hstack(
             [
-                jnp.cross(self.v12, x - self.x1)[:, jnp.newaxis],
-                jnp.cross(self.v23, x - self.x2)[:, jnp.newaxis],
-                jnp.cross(self.v31, x - self.x3)[:, jnp.newaxis],
+                cross2d(self.v12, x - self.x1)[:, jnp.newaxis],
+                cross2d(self.v23, x - self.x2)[:, jnp.newaxis],
+                cross2d(self.v31, x - self.x3)[:, jnp.newaxis],
             ]
         )
         return ~jnp.logical_and(jnp.any(_sign > 0, axis=-1), jnp.any(_sign < 0, axis=-1))
@@ -600,7 +617,7 @@ class Triangle(Geometry):
         l3 = jnp.linalg.norm(x - self.x3, axis=-1)
         return jnp.any(
             isclose(
-                [l1 + l2 - self.l12, l2 + l3 - self.l23, l3 + l1 - self.l31],
+                jnp.stack([l1 + l2 - self.l12, l2 + l3 - self.l23, l3 + l1 - self.l31]),
                 0,
             ),
             axis=0,
@@ -613,8 +630,10 @@ class Triangle(Geometry):
         on12 = isclose(l1 + l2, self.l12)
         on23 = isclose(l2 + l3, self.l23)
         on31 = isclose(l3 + l1, self.l31)
-        # Check points on the vertexes
-        if jnp.any(jnp.count_nonzero(jnp.hstack([on12, on23, on31]), axis=-1) > 1):
+        # Check points on the vertexes (only possible on concrete values)
+        if not isinstance(x, jax.core.Tracer) and jnp.any(
+            jnp.count_nonzero(jnp.hstack([on12, on23, on31]), axis=-1) > 1
+        ):
             raise ValueError(
                 "{}.boundary_normal do not accept points on the vertexes.".format(
                     self.__class__.__name__
@@ -669,22 +688,22 @@ class Triangle(Geometry):
         return x
 
     def random_boundary_points(self, n, random="pseudo"):
-        u = jnp.ravel(sample(n + 2, 1, random))
+        u = np.ravel(sample(n + 2, 1, random))
         # Remove the possible points very close to the corners
-        u = u[jnp.logical_not(isclose(u, self.l12 / self.perimeter))]
-        u = u[jnp.logical_not(isclose(u, (self.l12 + self.l23) / self.perimeter))]
+        u = u[np.logical_not(isclose(u, self.l12 / self.perimeter))]
+        u = u[np.logical_not(isclose(u, (self.l12 + self.l23) / self.perimeter))]
         u = u[:n]
 
-        u *= self.perimeter
-        x = []
-        for l in u:
-            if l < self.l12:
-                x.append(l * self.n12 + self.x1)
-            elif l < self.l12 + self.l23:
-                x.append((l - self.l12) * self.n23 + self.x2)
-            else:
-                x.append((l - self.l12 - self.l23) * self.n31 + self.x3)
-        return jnp.vstack(x)
+        l = (u * self.perimeter)[:, None]
+        return jnp.where(
+            l < self.l12,
+            l * self.n12 + self.x1,
+            jnp.where(
+                l < self.l12 + self.l23,
+                (l - self.l12) * self.n23 + self.x2,
+                (l - self.l12 - self.l23) * self.n31 + self.x3,
+            ),
+        ).astype(brainstate.environ.dftype())
 
     def boundary_constraint_factor(
         self,
@@ -740,7 +759,7 @@ class Triangle(Geometry):
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
 
-        if not hasattr(self, "self.x1_tensor"):
+        if not hasattr(self, "x1_tensor"):
             self.x1_tensor = jnp.asarray(self.x1)
             self.x2_tensor = jnp.asarray(self.x2)
             self.x3_tensor = jnp.asarray(self.x3)
@@ -807,7 +826,7 @@ class Polygon(Geometry):
             jnp.max(self.diagonals),
         )
         self.nvertices = len(self.vertices)
-        self.perimeter = jnp.sum(
+        self.perimeter = np.sum(
             [self.diagonals[i, i + 1] for i in range(-1, self.nvertices - 1)]
         )
         self.bbox = jnp.array(
@@ -833,7 +852,7 @@ class Polygon(Geometry):
             Returns:
                 wn: Winding number (=0 only if P is outside polygon).
             """
-            wn = jnp.zeros(len(P))  # Winding number counter
+            wn = jnp.zeros(len(P), dtype=int)  # Winding number counter
 
             # Repeat the first vertex at end
             # Loop through all edges of the polygon
@@ -848,7 +867,7 @@ class Polygon(Geometry):
                     ),
                     axis=-1,
                 )
-                wn[tmp] += 1  # Have a valid up intersect
+                wn = wn + tmp  # Have a valid up intersect
                 tmp = jnp.all(
                     jnp.hstack(
                         [
@@ -859,25 +878,28 @@ class Polygon(Geometry):
                     ),
                     axis=-1,
                 )
-                wn[tmp] -= 1  # Have a valid down intersect
+                wn = wn - tmp  # Have a valid down intersect
             return wn
 
         return wn_PnPoly(x, self.vertices) != 0
 
     def on_boundary(self, x):
-        _on = jnp.zeros(shape=len(x), dtype=int)
+        _on = jnp.zeros(shape=len(x), dtype=bool)
         for i in range(-1, self.nvertices - 1):
             l1 = jnp.linalg.norm(self.vertices[i] - x, axis=-1)
             l2 = jnp.linalg.norm(self.vertices[i + 1] - x, axis=-1)
-            _on[isclose(l1 + l2, self.diagonals[i, i + 1])] += 1
-        return _on > 0
+            _on = _on | isclose(l1 + l2, self.diagonals[i, i + 1])
+        return _on
 
-    @vectorize(excluded=[0], signature="(n)->(n)")
     def boundary_normal(self, x):
+        x = jnp.asarray(x)
+        _n = jnp.zeros_like(x, dtype=self.normal.dtype)
+        found = jnp.zeros(len(x), dtype=bool)
         for i in range(self.nvertices):
-            if is_on_line_segment(self.vertices[i - 1], self.vertices[i], x):
-                return self.normal[i]
-        return jnp.array([0, 0])
+            on = is_on_line_segment(self.vertices[i - 1], self.vertices[i], x) & ~found
+            _n = jnp.where(on[:, None], self.normal[i], _n)
+            found = found | on
+        return _n
 
     def random_points(self, n, random="pseudo"):
         x = jnp.empty((0, 2), dtype=brainstate.environ.dftype())
@@ -909,28 +931,23 @@ class Polygon(Geometry):
         return x
 
     def random_boundary_points(self, n, random="pseudo"):
-        u = jnp.ravel(sample(n + self.nvertices, 1, random))
+        u = np.ravel(sample(n + self.nvertices, 1, random))
         # Remove the possible points very close to the corners
         l = 0
         for i in range(0, self.nvertices - 1):
             l += self.diagonals[i, i + 1]
-            u = u[jnp.logical_not(isclose(u, l / self.perimeter))]
-        u = u[:n]
-        u *= self.perimeter
-        u.sort()
+            u = u[np.logical_not(isclose(u, l / self.perimeter))]
+        u = np.sort(u[:n] * self.perimeter)
 
-        x = []
-        i = -1
-        l0 = 0
-        l1 = l0 + self.diagonals[i, i + 1]
-        v = (self.vertices[i + 1] - self.vertices[i]) / self.diagonals[i, i + 1]
-        for l in u:
-            if l > l1:
-                i += 1
-                l0, l1 = l1, l1 + self.diagonals[i, i + 1]
-                v = (self.vertices[i + 1] - self.vertices[i]) / self.diagonals[i, i + 1]
-            x.append((l - l0) * v + self.vertices[i])
-        return jnp.vstack(x)
+        # edges are walked from V[-1]->V[0], then V[0]->V[1], ...
+        vertices = np.asarray(self.vertices)
+        starts = np.roll(vertices, 1, axis=0)
+        lengths = np.array([self.diagonals[i, i + 1] for i in range(-1, self.nvertices - 1)])
+        cum = np.concatenate(([0.0], np.cumsum(lengths)))
+        edge = np.clip(np.searchsorted(cum, u, side="right") - 1, 0, self.nvertices - 1)
+        v = (vertices - starts) / lengths[:, None]
+        x = (u - cum[edge])[:, None] * v[edge] + starts[edge]
+        return jnp.asarray(x, dtype=brainstate.environ.dftype())
 
 
 def polygon_signed_area(vertices):
@@ -966,7 +983,7 @@ def is_left(P0, P1, P2):
         >0 if P2 left of the line through P0 and P1, =0 if P2 on the line, <0 if P2
         right of the line.
     """
-    return jnp.cross(P1 - P0, P2 - P0, axis=-1).reshape((-1, 1))
+    return cross2d(P1 - P0, P2 - P0).reshape((-1, 1))
 
 
 def is_rectangle(vertices):
@@ -1001,14 +1018,19 @@ def is_on_line_segment(P0, P1, P2):
     v12 = P2 - P1
     return (
         # check that P2 is almost on the line P0 P1
-        isclose(jnp.cross(v01, v02) / jnp.linalg.norm(v01), 0)
+        isclose(cross2d(v01, v02) / jnp.linalg.norm(v01), 0)
         # check that projection of P2 to line is between P0 and P1
-        and v01 @ v02 >= 0
-        and v01 @ v12 <= 0
+        & (v02 @ v01 >= 0)
+        & (v12 @ v01 <= 0)
     )
     # Not between P0 and P1, but close to P0 or P1
     # or isclose(np.linalg.norm(v02), 0)  # check whether P2 is close to P0
     # or isclose(np.linalg.norm(v12), 0)  # check whether P2 is close to P1
+
+
+def cross2d(a, b):
+    """z-component of the cross product of 2D vectors (broadcasts over leading axes)."""
+    return a[..., 0] * b[..., 1] - a[..., 1] * b[..., 0]
 
 
 def polar(x):

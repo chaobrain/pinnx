@@ -250,6 +250,12 @@ def get_num_args(func):
 def get_activation(activation: Union[str, Callable]):
     """Get the activation function."""
     if isinstance(activation, str):
-        return getattr(brainstate.functional, activation)
+        f = getattr(brainstate.nn, activation, None)
+        if callable(f) and not isinstance(f, type):
+            return f
+        f = getattr(u.math, activation, None)
+        if callable(f):
+            return f
+        raise ValueError(f"Unknown activation function: {activation}")
     else:
         return activation

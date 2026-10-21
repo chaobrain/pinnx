@@ -16,9 +16,9 @@ def heat_eq_exact_solution(x, t):
     x : np.ndarray
     t : np.ndarray
     """
-    a_value = a.to_decimal(u.meter2 / u.second).item()
-    n_value = n.to_decimal(u.Hz).item()
-    L_value = L.to_decimal(u.meter).item()
+    a_value = float(a.to_decimal(u.meter2 / u.second))
+    n_value = float(n.to_decimal(u.Hz))
+    L_value = float(L.to_decimal(u.meter))
     return np.exp(-(n_value ** 2 * np.pi ** 2 * a_value * t) / (L_value ** 2)) * np.sin(n_value * np.pi * x / L_value)
 
 
@@ -36,12 +36,8 @@ def gen_exact_solution():
     # Create tensors:
     t = np.linspace(t_min, t_max, num=t_dim).reshape(t_dim, 1)
     x = np.linspace(x_min, x_max, num=x_dim).reshape(x_dim, 1)
-    usol = np.zeros((x_dim, t_dim)).reshape(x_dim, t_dim)
-
     # Obtain the value of the exact solution for each generated point:
-    for i in range(x_dim):
-        for j in range(t_dim):
-            usol[i, j] = heat_eq_exact_solution(x[i], t[j])
+    usol = heat_eq_exact_solution(x, t.T)
 
     # Save solution:
     np.savez("heat_eq_data", x=x, t=t, usol=usol)
@@ -61,7 +57,7 @@ def gen_testdata():
     # Process the data and flatten it out (like labels and features):
     xx, tt = np.meshgrid(x, t)
     X = {'x': np.ravel(xx) * u.meter, 't': np.ravel(tt) * u.second}
-    y = exact.flatten()[:, None]
+    y = exact.flatten()
     return X, y * uy
 
 

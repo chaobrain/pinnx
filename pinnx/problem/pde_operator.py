@@ -148,7 +148,7 @@ class PDEOperator(TimePDE):
             vx = np.vstack((vx, vx_pde))
         self.fn_train_x = (v, x)
         self.fn_train_aux_vars = {'aux': vx}
-        return self.fn_train_x, self.fn_train_x, self.fn_train_aux_vars
+        return self.fn_train_x, self.fn_train_y, self.fn_train_aux_vars
 
     @run_if_all_none("fn_test_x", "fn_test_y", "fn_test_aux_vars")
     def test(self):
@@ -217,7 +217,7 @@ class PDEOperator(TimePDE):
         """
         super().resample_train_points(pde_points=pde_points, bc_points=bc_points)
 
-        self.fn_train_x, self.fn_train_x, self.fn_train_aux_vars = None, None, None
+        self.fn_train_x, self.fn_train_y, self.fn_train_aux_vars = None, None, None
         self.train_next_batch()
 
 
@@ -429,4 +429,11 @@ class PDEOperatorCartesianProd(TimePDE):
             vx = self.fn_space.eval_batch(func_feats, test_x[:, self.func_vars])
             self.fn_test_x = (func_vals, test_x)
             self.fn_test_aux_vars = {'aux': vx}
-        return self.fn_test_x, self.test_y, {'aux': self.fn_test_aux_vars}
+        return self.fn_test_x, self.test_y, self.fn_test_aux_vars
+
+    def resample_train_points(self, pde_points=True, bc_points=True):
+        """
+        Resample the training points and the input functions.
+        """
+        self.fn_train_x, self.fn_train_aux_vars = None, None
+        super().resample_train_points(pde_points=pde_points, bc_points=bc_points)

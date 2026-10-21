@@ -4,6 +4,7 @@ An inverse problem of the Navier-Stokes equation of incompressible flow around c
 References: https://doi.org/10.1016/j.jcp.2018.10.045 Section 4.1.1
 """
 
+import braintools
 import re
 
 import brainstate
@@ -163,12 +164,10 @@ print("Mean residual:", jax.tree.map(lambda x: u.math.mean(u.math.abs(x)), f))
 # reopen saved data using callbacks in fnamevar
 lines = open(fnamevar, "r").readlines()
 # read output data in fnamevar
+# each line looks like "step [v1 unit1, v2 unit2]"; keep only the magnitudes
 Chat = np.array(
     [
-        np.fromstring(
-            min(re.findall(re.escape("[") + "(.*?)" + re.escape("]"), line), key=len),
-            sep=",",
-        )
+        [float(v.split()[0]) for v in re.search(r"\[(.*)\]", line).group(1).split(",")]
         for line in lines
     ]
 )
@@ -176,7 +175,7 @@ l, c = Chat.shape
 plt.semilogy(range(0, l * 100, 100), Chat[:, 0], "r-")
 plt.semilogy(range(0, l * 100, 100), Chat[:, 1], "k-")
 plt.semilogy(range(0, l * 100, 100), np.ones(Chat[:, 0].shape) * C1true, "r--")
-plt.semilogy(range(0, l * 100, 100), np.ones(Chat[:, 1].shape) * C2true, "k--")
+plt.semilogy(range(0, l * 100, 100), np.ones(Chat[:, 1].shape) * C2true.to_decimal(unit_of_c2), "k--")
 plt.legend(["C1hat", "C2hat", "True C1", "True C2"], loc="right")
 plt.xlabel("Epochs")
 plt.title("Variables")

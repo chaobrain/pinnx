@@ -89,7 +89,7 @@ data = pinnx.problem.TimePDE(
 
 model = pinnx.Trainer(data)
 model.compile(
-    braintools.optim.Adam(braintools.optim.InverseTimeDecayLR(1e-3, 3000, 0.9)),
+    braintools.optim.Adam(braintools.optim.ExponentialDecayLR(1e-3, 3000, 1 / 1.9)),
     metrics=["l2 relative error"],
 ).train(iterations=20000)
 model.compile(

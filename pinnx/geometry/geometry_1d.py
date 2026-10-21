@@ -84,14 +84,14 @@ class Interval(Geometry):
             Each element in the tensor corresponds to the computed distance value for the respective point in `x`.
         """
 
-        if where not in [None, "left"]:
-            raise ValueError("where must be None or left")
+        if where not in [None, "left", "right"]:
+            raise ValueError("where must be None, left or right")
         if smoothness not in ["C0", "C0+", "Cinf"]:
             raise ValueError("smoothness must be one of C0, C0+, Cinf")
 
         # To convert self.l and self.r to tensor,
         # and avoid repeated conversion in the loop
-        if not hasattr(self, "self.l_tensor"):
+        if not hasattr(self, "l_tensor"):
             self.l_tensor = jnp.asarray(self.l)
             self.r_tensor = jnp.asarray(self.r)
 
@@ -155,10 +155,12 @@ class Interval(Geometry):
         return brainstate.random.choice([self.l, self.r], n)[:, None].astype(brainstate.environ.dftype())
 
     def periodic_point(self, x, component=0):
-        tmp = jnp.copy(x)
-        tmp[utils.isclose(x, self.l)] = self.r
-        tmp[utils.isclose(x, self.r)] = self.l
-        return tmp
+        x = jnp.asarray(x)
+        return jnp.where(
+            utils.isclose(x, self.l),
+            jnp.asarray(self.r, dtype=x.dtype),
+            jnp.where(utils.isclose(x, self.r), jnp.asarray(self.l, dtype=x.dtype), x),
+        )
 
     def background_points(self, x, dirn, dist2npt, shift):
         """

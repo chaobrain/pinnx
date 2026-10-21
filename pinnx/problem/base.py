@@ -89,6 +89,36 @@ class Problem(abc.ABC):
         self.approximator = approximator
         return self
 
+    def data_losses(self, targets, outputs):
+        """
+        Compare ``outputs`` with ``targets`` using ``loss_fn``, then apply ``loss_weights``.
+
+        If ``loss_fn`` is a list, its entries are applied to the target components in order.
+        ``loss_weights`` are matched to the target components in order (or to the single
+        loss when the targets are an array).
+        """
+        if isinstance(self.loss_fn, (list, tuple)):
+            if not isinstance(targets, dict) or len(self.loss_fn) != len(targets):
+                raise ValueError(f"Got {len(self.loss_fn)} loss functions, which must match "
+                                 f"the number of target components.")
+            losses = {
+                k: f({k: targets[k]}, {k: outputs[k]})[k]
+                for f, k in zip(self.loss_fn, targets)
+            }
+        else:
+            losses = self.loss_fn(targets, outputs)
+
+        if self.loss_weights is not None:
+            if isinstance(losses, dict):
+                if len(self.loss_weights) != len(losses):
+                    raise ValueError(f"Expected {len(losses)} loss weights, got {len(self.loss_weights)}.")
+                losses = {k: w * v for (k, v), w in zip(losses.items(), self.loss_weights)}
+            else:
+                if len(self.loss_weights) != 1:
+                    raise ValueError(f"Expected 1 loss weight, got {len(self.loss_weights)}.")
+                losses = self.loss_weights[0] * losses
+        return losses
+
     def losses(self, inputs, outputs, targets, **kwargs):
         """
         Return a list of losses, i.e., constraints.

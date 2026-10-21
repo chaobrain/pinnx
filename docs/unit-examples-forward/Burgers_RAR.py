@@ -47,15 +47,17 @@ trainer.compile(braintools.optim.Adam(1e-3)).train(iterations=10000)
 trainer.compile(braintools.optim.LBFGS(1e-3)).train(1000)
 
 X = geomtime.random_points(100000)
-err = 1
-while u.get_magnitude(err) > 0.012:
+max_new_points = 10  # stop refining after this many added points
+for _ in range(max_new_points):
     f = trainer.predict(X, operator=pde)
     err_eq = u.math.absolute(f)
     err = u.math.mean(err_eq)
     print(f"Mean residual: {err:.3f}")
+    if u.get_magnitude(err) < 0.012:
+        break
 
     x_id = u.math.argmax(err_eq)
-    new_xs = jax.tree.map(lambda x: x[[x_id]], X)
+    new_xs = jax.tree.map(lambda x: x[x_id][None], X)
     print("Adding new point:", new_xs, "\n")
     problem.add_anchors(new_xs)
     early_stopping = pinnx.callbacks.EarlyStopping(min_delta=1e-4, patience=2000)

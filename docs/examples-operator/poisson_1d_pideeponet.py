@@ -1,4 +1,5 @@
 import brainstate
+import braintools
 import matplotlib.pyplot as plt
 import numpy as np
 import jax
@@ -67,7 +68,7 @@ n = 3
 features = space.random(n)
 fx = space.eval_batch(features, evaluation_points)
 
-x = geom.uniform_points(100, boundary=True)
+x = pinnx.utils.dict_to_array(geom.uniform_points(100, boundary=True))
 y = model.predict((fx, x))['u']
 
 # Setup figure

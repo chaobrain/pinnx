@@ -2,6 +2,9 @@
 # ==============================================================================
 
 
+from typing import Sequence
+
+import brainstate
 import numpy as np
 
 from pinnx.utils import run_if_any_none, standardize
@@ -19,8 +22,19 @@ class MfFunc(Problem):
     """
 
     def __init__(
-        self, geom, func_lo, func_hi, num_lo, num_hi, num_test, dist_train="uniform"
+        self,
+        geom,
+        func_lo,
+        func_hi,
+        num_lo,
+        num_hi,
+        num_test,
+        dist_train="uniform",
+        approximator: brainstate.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
         self.geom = geom
         self.func_lo = func_lo
         self.func_hi = func_hi
@@ -35,8 +49,8 @@ class MfFunc(Problem):
         self.y_test = None
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        loss_lo = loss_fn(targets[0][: self.num_lo], outputs[0][: self.num_lo])
-        loss_hi = loss_fn(targets[1][self.num_lo:], outputs[1][self.num_lo:])
+        loss_lo = self.loss_fn(targets[0][: self.num_lo], outputs[0][: self.num_lo])
+        loss_hi = self.loss_fn(targets[1][self.num_lo:], outputs[1][self.num_lo:])
         return [loss_lo, loss_hi]
 
     @run_if_any_none("X_train", "y_train")
@@ -91,7 +105,11 @@ class MfDataSet(Problem):
         col_x=None,
         col_y=None,
         standardize=False,
+        approximator: brainstate.nn.Module = None,
+        loss_fn: str = 'MSE',
+        loss_weights: Sequence[float] = None,
     ):
+        super().__init__(approximator=approximator, loss_fn=loss_fn, loss_weights=loss_weights)
         if X_lo_train is not None:
             self.X_lo_train = X_lo_train
             self.X_hi_train = X_hi_train
@@ -121,12 +139,12 @@ class MfDataSet(Problem):
 
     def losses_train(self, inputs, outputs, targets, **kwargs):
         n = len(self.X_lo_train)
-        loss_lo = loss_fn(targets[0][:n], outputs[0][:n])
-        loss_hi = loss_fn(targets[1][n:], outputs[1][n:])
+        loss_lo = self.loss_fn(targets[0][:n], outputs[0][:n])
+        loss_hi = self.loss_fn(targets[1][n:], outputs[1][n:])
         return [loss_lo, loss_hi]
 
     def losses_test(self, inputs, outputs, targets, **kwargs):
-        return [0, loss_fn(targets[1], outputs[1])]
+        return [0, self.loss_fn(targets[1], outputs[1])]
 
     @run_if_any_none("X_train", "y_train")
     def train_next_batch(self, batch_size=None):

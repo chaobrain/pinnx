@@ -34,23 +34,20 @@ def pde(x, y):
 
 
 def func(x):
-    x = pinnx.array_to_dict(x, ['x', 'y'])
-    return np.sin(k0 * x['x']) * np.sin(k0 * x['y'])
+    return {'y': u.math.sin(k0 * x['x']) * u.math.sin(k0 * x['y'])}
 
 
 def neumann(x):
-    x_ = pinnx.array_to_dict(x, ['x', 'y'])
-    grad = np.array(
+    grad = u.math.stack(
         [
-            k0 * np.cos(k0 * x_['x']) * np.sin(k0 * x_['y']),
-            k0 * np.sin(k0 * x_['x']) * np.cos(k0 * x_['y']),
-        ]
+            k0 * u.math.cos(k0 * x['x']) * u.math.sin(k0 * x['y']),
+            k0 * u.math.sin(k0 * x['x']) * u.math.cos(k0 * x['y']),
+        ],
+        axis=-1
     )
 
-    normal = -inner.boundary_normal(x)
-    normal = np.array(normal).T
-    result = np.sum(grad * normal, axis=0)
-    return result
+    normal = -inner.boundary_normal(pinnx.utils.dict_to_array(x))
+    return {'y': u.math.sum(grad * normal, axis=-1)}
 
 
 outer = pinnx.geometry.Rectangle([-length / 2, -length / 2], [length / 2, length / 2])
@@ -60,11 +57,11 @@ geom = geom.to_dict_point('x', 'y')
 
 
 def boundary_outer(x, on_boundary):
-    return on_boundary and outer.on_boundary(pinnx.utils.dict_to_array(x))
+    return u.math.logical_and(on_boundary, outer.on_boundary(pinnx.utils.dict_to_array(x)))
 
 
 def boundary_inner(x, on_boundary):
-    return on_boundary and inner.on_boundary(pinnx.utils.dict_to_array(x))
+    return u.math.logical_and(on_boundary, inner.on_boundary(pinnx.utils.dict_to_array(x)))
 
 
 hx_train = wave_len / precision_train
@@ -110,15 +107,15 @@ points = np.vstack(
 )
 
 points_2d = points[:2, :]
-u = trainer.predict(points[:2, :].T)
-u = u.reshape((Nx, Ny))
+u_pred = trainer.predict({'x': points[0], 'y': points[1]})['y']
+u_pred = np.asarray(u_pred).reshape((Nx, Ny))
 
 ide = np.sqrt(points_2d[0, :] ** 2 + points_2d[1, :] ** 2) < R
 ide = ide.reshape((Nx, Nx))
 
-u_exact = func(points.T)
-u_exact = u_exact.reshape((Nx, Ny))
-diff = u_exact - u
+u_exact = func({'x': points[0], 'y': points[1]})['y']
+u_exact = np.asarray(u_exact).reshape((Nx, Ny))
+diff = u_exact - u_pred
 error = np.linalg.norm(diff) / np.linalg.norm(u_exact)
 print("Relative error = ", error)
 
@@ -126,12 +123,12 @@ plt.rc("font", family="serif", size=22)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(24, 12))
 
-matrix = np.fliplr(u).T
+matrix = np.fliplr(u_pred).T
 matrix = np.ma.masked_where(ide, matrix)
 pcm = ax1.imshow(
     matrix,
     extent=[-length / 2, length / 2, -length / 2, length / 2],
-    cmap=plt.cm.get_cmap("seismic"),
+    cmap="seismic",
     interpolation="spline16",
     label="PINN",
 )
@@ -143,7 +140,7 @@ matrix = np.ma.masked_where(ide, matrix)
 pcm = ax2.imshow(
     matrix,
     extent=[-length / 2, length / 2, -length / 2, length / 2],
-    cmap=plt.cm.get_cmap("seismic"),
+    cmap="seismic",
     interpolation="spline16",
     label="Exact",
 )

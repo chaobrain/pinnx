@@ -77,13 +77,26 @@ class IDE(PDE):
         fit = brainstate.environ.get('fit')
         int_mat = self.get_int_matrix(fit)
         pde_errors = self.pde(inputs, outputs, int_mat, **kwargs)
+        if not fit:
+            # the test data has no boundary points
+            return pde_errors
         return jax.tree.map(lambda x: x[bcs_start[-1]:], pde_errors)
+
+    def call_bc_errors(self, loss_fns, loss_weights, inputs, outputs, **kwargs):
+        if brainstate.environ.get('fit'):
+            return super().call_bc_errors(loss_fns, loss_weights, inputs, outputs, **kwargs)
+        # the test data has no boundary points
+        return [{f'ibc{i}': u.math.zeros((), dtype=brainstate.environ.dftype())}
+                for i in range(len(self.constraints))]
 
     @utils.run_if_all_none("train_x", "train_y")
     def train_next_batch(self, batch_size=None):
         self.train_x_all = self.train_points()
         x_bc = self.bc_points()
         x_quad = self.quad_points(self.train_x_all)
+        if not x_bc:
+            # no constraints
+            x_bc = jax.tree.map(lambda x: x[:0], self.train_x_all, is_leaf=u.math.is_quantity)
         self.train_x = jax.tree.map(
             lambda x, y, z: u.math.concatenate((x, y, z), axis=0),
             x_bc,

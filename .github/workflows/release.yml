@@ -82,6 +82,9 @@ jobs:
       - name: Test import
         run: python -c "import pinnx; print('Successfully installed PINNx', pinnx.__version__)"
 
+      - name: Check PEP 561 marker is shipped
+        run: python -c "import importlib.resources as r; assert r.files('pinnx').joinpath('py.typed').is_file(), 'py.typed missing from wheel'"
+
   publish-pypi:
     name: Publish to PyPI
     needs: [build, test-install]

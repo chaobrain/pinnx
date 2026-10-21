@@ -73,8 +73,10 @@ class PointCloud(Geometry):
         boundary_point_matches = isclose(
             (self.boundary_points[:, None, :] - x[None, :, :]), 0
         ).all(axis=2)
-        normals_idx = np.where(boundary_point_matches)[0]
-        return self.boundary_normals[normals_idx, :]
+        # index of the matching boundary point for each point in `x`, in `x` order
+        normals_idx = np.argmax(boundary_point_matches, axis=0)
+        on_boundary = np.any(boundary_point_matches, axis=0)
+        return np.where(on_boundary[:, None], self.boundary_normals[normals_idx, :], 0)
 
     def random_points(self, n, random="pseudo"):
         if n <= self.num_points:

@@ -151,12 +151,6 @@ Point sampling strategies for training data generation.
 
 **quasirandom**: Quasi-random (low-discrepancy) sampling.
 
-**InitialPointGenerator**: Generates initial training points.
-
-**check_random_state**: Validates random state.
-
-**check_dimension**: Validates dimension parameter.
-
 .. autosummary::
    :toctree: generated/
    :nosignatures:
@@ -165,45 +159,5 @@ Point sampling strategies for training data generation.
    sample
    pseudorandom
    quasirandom
-   InitialPointGenerator
-   check_random_state
-   check_dimension
-
-.. currentmodule:: pinnx.utils.transformers
-
-Transformers
-------------
-
-Data transformation and preprocessing utilities.
-
-**Transformer**: Base transformer class.
-
-**Identity**: Identity transformation.
-
-**StringEncoder**: Encode strings to numerical values.
-
-**LogN**: Logarithmic transformation.
-
-**CategoricalEncoder**: Encode categorical variables.
-
-**LabelEncoder**: Encode labels.
-
-**Normalize**: Normalize data.
-
-**Pipeline**: Chain multiple transformers.
-
-.. autosummary::
-   :toctree: generated/
-   :nosignatures:
-   :template: classtemplate.rst
-
-   Transformer
-   Identity
-   StringEncoder
-   LogN
-   CategoricalEncoder
-   LabelEncoder
-   Normalize
-   Pipeline
 
 .. currentmodule:: pinnx.utils

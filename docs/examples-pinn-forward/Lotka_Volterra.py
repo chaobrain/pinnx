@@ -2,36 +2,16 @@ import braintools
 import brainunit as u
 import matplotlib.pyplot as plt
 import numpy as np
-import optax
 from scipy import integrate
 
 import pinnx
 
-ub = 200 * u.second
+ub = 200
 rb = 20
 
 
-def func(t, r):
-    x, y = r
-    dx_t = 1 / ub * rb * (2.0 * ub * x - 0.04 * ub * x * ub * y)
-    dy_t = 1 / ub * rb * (0.02 * ub * x * ub * y - 1.06 * ub * y)
-    return dx_t, dy_t
-
-
-def gen_truedata():
-    t = u.math.linspace(0 * u.second, 1 * u.second, 100)
-    sol = integrate.solve_ivp(func, (0, 10), (100 / ub, 15 / ub), t_eval=t)
-    x_true, y_true = sol.y
-    x_true = x_true.reshape(100, 1)
-    y_true = y_true.reshape(100, 1)
-
-    return x_true, y_true
-
-
-def ode_system(net, x):
-    x = pinnx.array_to_dict(x, ['t'])
-    approx = lambda x: pinnx.array_to_dict(net(pinnx.dict_to_array(x)), ['r', 'p'])
-    jacobian, y = pinnx.grad.jacobian(approx, x, return_value=True)
+def ode_system(x, y):
+    jacobian = net.jacobian(x)
     r = y['r']
     p = y['p']
     dr_t = jacobian['r']['t']
@@ -40,11 +20,6 @@ def ode_system(net, x):
         dr_t - 1 / ub * rb * (2.0 * ub * r - 0.04 * ub * r * ub * p),
         dp_t - 1 / ub * rb * (0.02 * r * ub * p * ub - 1.06 * p * ub),
     ]
-
-
-geom = pinnx.geometry.TimeDomain(0, 1.0)
-data = pinnx.data.PDE(geom, ode_system, [], 3000, 2, num_test=3000)
-net = pinnx.nn.FNN([7] + [64] * 6 + [2], "tanh")
 
 
 def input_transform(t):
@@ -73,32 +48,65 @@ def output_transform(t, y):
     )
 
 
-net.apply_feature_transform(input_transform)
-net.apply_output_transform(output_transform)
-model = pinnx.Trainer(data, net)
+net = pinnx.nn.Model(
+    pinnx.nn.DictToArray(t=None),
+    pinnx.nn.FNN(
+        [7] + [64] * 6 + [2], "tanh",
+        input_transform=input_transform,
+        output_transform=output_transform
+    ),
+    pinnx.nn.ArrayToDict(r=None, p=None),
+)
 
-model.compile(braintools.optim.Adam(0.001))
-losshistory, train_state = model.train(iterations=50000)
+geom = pinnx.geometry.TimeDomain(0, 1.0).to_dict_point('t')
+problem = pinnx.problem.PDE(
+    geom,
+    ode_system,
+    [],
+    net,
+    num_domain=3000,
+    num_boundary=2,
+    num_test=3000
+)
 
-# Most backends except jax can have a second fine-tuning of the solution
-model.compile(braintools.optim.OptaxOptimizer(optax.lbfgs(1e-3, linesearch=None)))
-losshistory, train_state = model.train(1000)
-pinnx.saveplot(losshistory, train_state, issave=True, isplot=True)
+trainer = pinnx.Trainer(problem)
+trainer.compile(braintools.optim.Adam(0.001)).train(iterations=50000)
+trainer.compile(braintools.optim.LBFGS(1e-3)).train(1000)
+trainer.saveplot(issave=True, isplot=True)
 
-plt.xlabel("t")
-plt.ylabel("population")
+
+def func(t, r):
+    x, y = r
+    dx_t = 1 / ub * rb * (2.0 * ub * x - 0.04 * ub * x * ub * y)
+    dy_t = 1 / ub * rb * (0.02 * ub * x * ub * y - 1.06 * ub * y)
+    return dx_t, dy_t
+
+
+def gen_truedata():
+    t = np.linspace(0, 1, 100)
+
+    sol = integrate.solve_ivp(func, (0, 10), (100 / ub, 15 / ub), t_eval=t)
+    x_true, y_true = sol.y
+    x_true = x_true.reshape(100, 1)
+    y_true = y_true.reshape(100, 1)
+
+    return x_true, y_true
+
 
 t = np.linspace(0, 1, 100)
 x_true, y_true = gen_truedata()
 plt.plot(t, x_true, color="black", label="x_true")
 plt.plot(t, y_true, color="blue", label="y_true")
 
-t = t.reshape(100, 1)
-sol_pred = model.predict(t)
-x_pred = sol_pred[:, 0:1]
-y_pred = sol_pred[:, 1:2]
+sol_pred = trainer.predict({'t': t})
+x_pred = sol_pred['r']
+y_pred = sol_pred['p']
 
 plt.plot(t, x_pred, color="red", linestyle="dashed", label="x_pred")
 plt.plot(t, y_pred, color="orange", linestyle="dashed", label="y_pred")
 plt.legend()
+
+plt.xlabel("t")
+plt.ylabel("population")
+
 plt.show()

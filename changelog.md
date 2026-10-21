@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.0.4
+
+### Packaging
+- Declare `numpy`, `scipy` and `matplotlib` as runtime dependencies (they are imported at package import time)
+- Fix accelerator extras: `pinnx[cuda12]`, `pinnx[cuda13]`, `pinnx[tpu]` and `pinnx[cpu]` now map to the matching `jax[...]` extras
+- Ship a PEP 561 `py.typed` marker so type checkers use PINNx's inline annotations
+- Set minimum versions for `brainstate`, `braintools` and `brainunit`
+
+### CI
+- Tests now run on Python 3.12 and 3.13 and failures fail the build
+- The flake8 syntax/undefined-name check is now blocking
+
 ## Version 0.0.3
 
 ### Major Changes
@@ -13,7 +25,6 @@
 - Reorganized project requirements into separate files:
   - `requirements-dev.txt` for development dependencies
   - `requirements-doc.txt` for documentation dependencies
-  - Removed standalone `requirements.txt`
 - Updated copyright information across the project
 
 ### CI/CD Enhancements
@@ -87,7 +98,7 @@
 - Refreshed all Jupyter notebooks with updated code
 
 ### Version Management
-- Bumped version to 0.0.3 in `pyproject.toml`
+- Bumped version to 0.0.3 (`pinnx.__version__`)
 - Added version information to `pinnx/__init__.py`
 - Created this changelog file and integrated it into documentation
 

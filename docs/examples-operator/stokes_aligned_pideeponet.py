@@ -1,4 +1,5 @@
 import brainstate
+import braintools
 import brainunit as u
 import jax
 import matplotlib.pyplot as plt
@@ -11,46 +12,28 @@ import pinnx
 def pde(xy, uvp, aux):
     mu = 0.01
     fix, xy = xy
-    xy = jax.tree.map(lambda x: u.math.expand_dims(x, axis=1), xy)
-    batch_ids = np.arange(fix.shape[0])
 
-    def solve_jac(xy_):
-        f = lambda i: pinnx.grad.jacobian(
-            lambda inp: jax.tree.map(
-                lambda x: x[i],
-                net((fix, pinnx.utils.dict_to_array(inp)))
-            ),
-            {'x': xy_[..., 0], 'y': xy_[..., 1]},
-            vmap=False
-        )
-        return jax.vmap(f)(batch_ids)
+    # Each output u[b, n] depends only on the point xy[n], so the pointwise derivatives
+    # of all outputs are forward-mode directional derivatives along a one-hot tangent.
+    def directional(fn, axis):
+        tangent = jax.numpy.zeros_like(xy).at[:, axis].set(1.)
+        return lambda pts: jax.jvp(fn, (pts,), (tangent,))[1]
 
-    jacobian = jax.vmap(solve_jac)(xy)
-
-    def solve_hes(xy_):
-        f = lambda i: pinnx.grad.hessian(
-            lambda inp: jax.tree.map(
-                lambda x: x[i],
-                net((fix, pinnx.utils.dict_to_array(inp)))
-            ),
-            {'x': xy_[..., 0], 'y': xy_[..., 1]},
-            y=['u', 'v'],
-            vmap=False
-        )
-        return jax.vmap(f)(batch_ids)
-
-    hessian = jax.vmap(solve_hes)(xy)
+    f = lambda pts: net((fix, pts))
+    f_x, f_y = directional(f, 0), directional(f, 1)
+    jacobian = {'x': f_x(xy), 'y': f_y(xy)}
+    hessian = {'xx': directional(f_x, 0)(xy), 'yy': directional(f_y, 1)(xy)}
 
     # first order
-    du_x = u.math.squeeze(jacobian['u']['x'])
-    dv_y = u.math.squeeze(jacobian['v']['y'])
-    dp_x = u.math.squeeze(jacobian['p']['x'])
-    dp_y = u.math.squeeze(jacobian['p']['y'])
+    du_x = jacobian['x']['u']
+    dv_y = jacobian['y']['v']
+    dp_x = jacobian['x']['p']
+    dp_y = jacobian['y']['p']
     # second order
-    du_xx = u.math.squeeze(hessian['u']['x']['x'])
-    du_yy = u.math.squeeze(hessian['u']['y']['y'])
-    dv_xx = u.math.squeeze(hessian['v']['x']['x'])
-    dv_yy = u.math.squeeze(hessian['v']['y']['y'])
+    du_xx = hessian['xx']['u']
+    du_yy = hessian['yy']['u']
+    dv_xx = hessian['xx']['v']
+    dv_yy = hessian['yy']['v']
     motion_x = mu * (du_xx + du_yy) - dp_x
     motion_y = mu * (dv_xx + dv_yy) - dp_y
     mass = du_x + dv_y
@@ -128,7 +111,7 @@ data = pinnx.problem.PDEOperatorCartesianProd(
 # Trainer
 trainer = pinnx.Trainer(data)
 trainer.compile(braintools.optim.SGD(1e-6)).train(iterations=50)
-# trainer.compile(braintools.optim.Adam(braintools.optim.InverseTimeDecayLR(1e-5, 10000, 0.5))).train(iterations=50000)
+# trainer.compile(braintools.optim.Adam(braintools.optim.ExponentialDecayLR(1e-5, 10000, 1 / 1.5))).train(iterations=50000)
 trainer.saveplot()
 
 # Evaluation

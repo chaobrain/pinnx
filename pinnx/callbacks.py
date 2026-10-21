@@ -11,6 +11,7 @@ import jax.tree
 import numpy as np
 
 from . import utils
+from .nn.model import Model
 
 __all__ = [
     'Callback',
@@ -182,9 +183,9 @@ class ModelCheckpoint(Callback):
 
     def get_monitor_value(self):
         if self.monitor == "train loss":
-            result = sum(self.model.train_state.loss_train)
+            result = np.sum(jax.tree.leaves(self.model.train_state.loss_train))
         elif self.monitor == "test loss":
-            result = sum(self.model.train_state.loss_test)
+            result = np.sum(jax.tree.leaves(self.model.train_state.loss_test))
         else:
             raise ValueError("The specified monitor function is incorrect.")
 
@@ -486,8 +487,20 @@ class MovieDumper(Callback):
         self.spectrum = []
         self.epochs_since_last_save = 0
 
+    def _predict(self):
+        approximator = self.model.problem.approximator
+        if isinstance(approximator, Model):
+            # the approximator takes and returns dicts
+            xkeys = tuple(approximator.input.units.keys())
+            ys = self.model.fn_outputs(False, {k: self.x[:, i] for i, k in enumerate(xkeys)})
+            component = self.component
+            if not isinstance(component, str):
+                component = tuple(ys.keys())[component]
+            return np.asarray(u.get_magnitude(ys[component]))
+        return np.asarray(self.model.fn_outputs(False, self.x)[:, self.component])
+
     def on_train_begin(self):
-        self.y.append(self.model.fn_outputs(False, self.x)[:, self.component])
+        self.y.append(self._predict())
         if self.save_spectrum:
             A = np.fft.rfft(self.y[-1])
             self.spectrum.append(np.abs(A))

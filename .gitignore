@@ -11,6 +11,8 @@ dist/
 
 # Sphinx documentation
 docs/_build/
+docs/apis/generated/
+docs/changelog.md
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -29,6 +31,9 @@ related-projects.md
 # .dat files in the docs folder and it's subfolders
 docs/**/*.dat
 docs/**/*.npz
+# outputs written by running the docs examples
+docs/examples-*/*.txt
+docs/unit-examples-*/*.txt
 
 .DS_Store
 /dev/

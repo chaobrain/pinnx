@@ -31,12 +31,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
 ]
 dependencies = [
     "jax>=0.9.0",
-    "brainunit",
-    "brainstate",
-    "braintools",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "brainunit>=0.2.1",
+    "brainstate>=0.5.0",
+    "braintools>=0.3.0",
 ]
 dynamic = ["version"]
 
@@ -47,11 +51,14 @@ Documentation = "https://pinnx.readthedocs.io/"
 "Bug Tracker" = "https://github.com/chaobrain/pinnx/issues"
 
 [project.optional-dependencies]
-cpu = ["jaxlib>=0.9.0"]
-cuda12 = ["jaxlib[cuda12]>=0.9.0"]
-cuda13 = ["jaxlib[cuda13]>=0.9.0"]
-tpu = ["jaxlib[tpu]>=0.9.0"]
-testing = ["pytest"]
+cpu = ["jax[cpu]>=0.9.0"]
+cuda12 = ["jax[cuda12]>=0.9.0"]
+cuda13 = ["jax[cuda13]>=0.9.0"]
+tpu = ["jax[tpu]>=0.9.0"]
+testing = ["pytest", "pytest-cov"]
+
+[tool.setuptools.package-data]
+pinnx = ["py.typed"]
 
 [tool.setuptools.packages.find]
 exclude = [
@@ -65,3 +72,7 @@ exclude = [
     "pinnx.egg-info*",
     "pinnx/__pycache__*",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

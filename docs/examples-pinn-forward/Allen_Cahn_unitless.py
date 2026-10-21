@@ -31,10 +31,9 @@ net = pinnx.nn.Model(
     pinnx.nn.FNN(
         [2] + [20] * 3 + [1],
         activation="tanh",
-        output_transform=lambda x, y: u.math.expand_dims(
-            x[..., 0] ** 2 * u.math.cos(np.pi * x[..., 0]) +
-            x[..., 1] * (1 - x[..., 0] ** 2) * y,
-            axis=-1
+        output_transform=lambda x, y: (
+            x[..., 0:1] ** 2 * u.math.cos(np.pi * x[..., 0:1]) +
+            x[..., 1:2] * (1 - x[..., 0:1] ** 2) * y
         )
     ),
     pinnx.nn.ArrayToDict(u=None)
@@ -72,4 +71,4 @@ X, y_true = gen_testdata()
 y_pred = trainer.predict(X)
 f = pde(X, y_pred)
 print("Mean residual:", u.math.mean(u.math.absolute(f)))
-print("L2 relative error:", braintools.metric.l2_norm(y_true, y_pred['u']))
+print("L2 relative error:", pinnx.metrics.l2_relative_error(y_true, y_pred['u'].flatten()))

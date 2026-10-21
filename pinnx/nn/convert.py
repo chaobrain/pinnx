@@ -42,6 +42,15 @@ def dict_to_array(
     return u.math.stack([d[key] for key in keys], axis=axis)
 
 
+def _as_unit(unit, name):
+    """Accept a ``brainunit.Unit``, ``None``, or a unit-valued Quantity such as ``1 / u.second``."""
+    if unit is None or isinstance(unit, u.Unit):
+        return unit
+    if isinstance(unit, u.Quantity) and u.math.size(unit) == 1 and float(unit.mantissa) == 1.0:
+        return unit.unit
+    raise TypeError(f"{name} values must be a unit or None, but got {unit!r}.")
+
+
 class DictToArray(brainstate.nn.Module):
     """
     DictToArray layer, scaling the input data according to the given units, and merging them into an array.
@@ -55,20 +64,17 @@ class DictToArray(brainstate.nn.Module):
         super().__init__()
 
         # axis
-        assert isinstance(axis, int), f"DictToArray axis must be an integer. Please check the input values."
+        assert isinstance(axis, int), "DictToArray axis must be an integer. Please check the input values."
         self.axis = axis
 
         # unit scale
-        self.units = units
-        for val in units.values():
-            assert isinstance(val, u.Unit) or val is None, (f"DictToArray values must be a unit or None. "
-                                                            "Please check the input values.")
+        self.units = {k: _as_unit(v, "DictToArray") for k, v in units.items()}
 
         self.in_size = len(units)
         self.out_size = len(units)
 
     def update(self, x: Dict[str, brainstate.typing.ArrayLike]):
-        assert set(x.keys()) == set(self.units.keys()), (f"DictToArray keys mismatch. "
+        assert set(x.keys()) == set(self.units.keys()), ("DictToArray keys mismatch. "
                                                          f"{set(x.keys())} != {set(self.units.keys())}.")
 
         # scale the input
@@ -77,7 +83,7 @@ class DictToArray(brainstate.nn.Module):
             val = x[key]
             if isinstance(self.units[key], u.Unit):
                 assert (isinstance(val, u.Quantity) or self.units[key].dim == u.DIMENSIONLESS), (
-                    f"DictToArray values must be a quantity. "
+                    "DictToArray values must be a quantity. "
                     "Please check the input values.")
                 x_dict[key] = val.to_decimal(self.units[key]) if isinstance(val, u.Quantity) else val
             else:
@@ -101,18 +107,15 @@ class ArrayToDict(brainstate.nn.Module):
     def __init__(self, axis: int = -1, **units):
         super().__init__()
 
-        assert isinstance(axis, int), f"Output axis must be an integer. "
+        assert isinstance(axis, int), "Output axis must be an integer. "
         self.axis = axis
-        self.units = units
-        for val in units.values():
-            assert isinstance(val, u.Unit) or val is None, (f"Input values must be a unit or None. "
-                                                            "Please check the input values.")
+        self.units = {k: _as_unit(v, "ArrayToDict") for k, v in units.items()}
         self.in_size = len(units)
         self.out_size = len(units)
 
     def update(self, arr: brainstate.typing.ArrayLike) -> Dict[str, brainstate.typing.ArrayLike]:
-        assert arr.shape[self.axis] == len(self.units), (f"The number of columns of x must be "
-                                                         f"equal to the number of units. "
+        assert arr.shape[self.axis] == len(self.units), ("The number of columns of x must be "
+                                                         "equal to the number of units. "
                                                          f"Got {arr.shape[self.axis]} != {len(self.units)}. "
                                                          "Please check the input values.")
         shape = list(arr.shape)

@@ -110,7 +110,7 @@ def pde(x, u):
     return [momentum_x, momentum_y, momentum_z, continuity]
 
 
-@brainstate.transform.jit(static_argnums=1)
+@brainstate.transform.jit(static_argnames="include_p")
 def icbc_cond_func(x, include_p: bool = False):
     x = {k: v.mantissa for k, v in x.items()}
 
@@ -202,8 +202,8 @@ X_1 = dict(
 output_0 = model.predict(X_0)
 output_1 = model.predict(X_1)
 
-out_exact_0 = icbc_cond_func(X_0, True)
-out_exact_1 = icbc_cond_func(X_1, True)
+out_exact_0 = icbc_cond_func(X_0, include_p=True)
+out_exact_1 = icbc_cond_func(X_1, include_p=True)
 
 f_0 = pde(X_0, output_0)
 f_1 = pde(X_1, output_1)

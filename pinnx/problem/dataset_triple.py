@@ -5,6 +5,7 @@
 from typing import Sequence
 
 import brainstate
+import numpy as np
 
 from pinnx.utils.sampler import BatchSampler
 from .base import Problem
@@ -57,7 +58,7 @@ class TripleDataset(Problem):
         self.train_sampler = BatchSampler(len(self.train_y), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
@@ -85,7 +86,9 @@ class TripleCartesianProd(Problem):
     Args:
         X_train: A tuple of two NumPy arrays. The first element has the shape (`N1`,
             `dim1`), and the second element has the shape (`N2`, `dim2`).
-        y_train: A NumPy array of shape (`N1`, `N2`).
+        y_train: A NumPy array of shape (`N1`, `N2`) or (`N1`, `N2`, `n_outputs`).
+            A 2D array is given a trailing output axis to match the
+            (`N1`, `N2`, `n_outputs`) output of ``pinnx.nn.DeepONetCartesianProd``.
     """
 
     def __init__(
@@ -112,6 +115,10 @@ class TripleCartesianProd(Problem):
             raise ValueError(
                 "The testing dataset does not have the format of Cartesian product."
             )
+        if np.ndim(y_train) == 2:
+            y_train = y_train[..., None]
+        if np.ndim(y_test) == 2:
+            y_test = y_test[..., None]
         self.train_x, self.train_y = X_train, y_train
         self.test_x, self.test_y = X_test, y_test
 
@@ -119,7 +126,7 @@ class TripleCartesianProd(Problem):
         self.trunk_sampler = BatchSampler(len(X_train[1]), shuffle=True)
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         if batch_size is None:
@@ -132,7 +139,7 @@ class TripleCartesianProd(Problem):
         return (
             (self.train_x[0][indices_branch],
              self.train_x[1][indices_trunk],),
-            self.train_y[indices_branch, indices_trunk]
+            self.train_y[indices_branch][:, indices_trunk]
         )
 
     def test(self):

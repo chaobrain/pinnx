@@ -6,7 +6,6 @@ from typing import Sequence, Dict
 
 import brainstate
 import jax
-import numpy as np
 
 from pinnx import utils
 from .base import Problem
@@ -50,14 +49,14 @@ class DataSet(Problem):
                 lambda train, test: utils.standardize(train, test),
                 self.train_x, self.test_x
             )
+            self.scaler_x = dict()
             self.train_x = dict()
             self.test_x = dict()
             for key, val in r.items():
-                self.train_x[key] = val[0]
-                self.test_x[key] = val[1]
+                self.scaler_x[key], self.train_x[key], self.test_x[key] = val
 
     def losses(self, inputs, outputs, targets, **kwargs):
-        return self.loss_fn(targets, outputs)
+        return self.data_losses(targets, outputs)
 
     def train_next_batch(self, batch_size=None):
         return self.train_x, self.train_y

@@ -118,7 +118,7 @@ html_last_updated_fmt = ""
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-jupyter_execute_notebooks = "off"
+nb_execution_mode = "off"
 thebe_config = {
     "repository_url": "https://github.com/binder-examples/jupyter-stacks-datascience",
     "repository_branch": "master",
