@@ -11,7 +11,7 @@ name = "pinnx"
 description = "Physics-Informed Neural Networks for Scientific Machine Learning in JAX."
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [{ name = "PINNx Developers", email = "chao.brain@qq.com" }]
+authors = [{ name = "PINNx Developers", email = "chaobrain@outlook.com" }]
 keywords = [
     "computational neuroscience",
     "brain-inspired computation",
