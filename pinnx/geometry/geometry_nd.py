@@ -166,24 +166,24 @@ class Hypercube(Geometry):
                 e.g., "C0", "C0+", "Cinf". "C0" is the least smooth, "Cinf" is the most smooth.
                 Default is "C0".
 
-                - C0
-                The distance function is continuous but may not be non-differentiable.
-                But the set of non-differentiable points should have measure zero,
-                which makes the probability of the collocation point falling in this set be zero.
+                - ``C0``:
+                  The distance function is continuous but may not be non-differentiable.
+                  But the set of non-differentiable points should have measure zero,
+                  which makes the probability of the collocation point falling in this set be zero.
 
-                - C0+
-                The distance function is continuous and differentiable almost everywhere. The
-                non-differentiable points can only appear on boundaries. If the points in `x` are
-                all inside or outside the geometry, the distance function is smooth.
+                - ``C0+``:
+                  The distance function is continuous and differentiable almost everywhere. The
+                  non-differentiable points can only appear on boundaries. If the points in `x` are
+                  all inside or outside the geometry, the distance function is smooth.
 
-                - Cinf
-                The distance function is continuous and differentiable at any order on any
-                points. This option may result in a polynomial of HIGH order.
+                - ``Cinf``:
+                  The distance function is continuous and differentiable at any order on any
+                  points. This option may result in a polynomial of HIGH order.
 
-                - WARNING
-                In current implementation,
-                numerical underflow may happen for high dimensionalities
-                when `smoothness="C0+"` or `smoothness="Cinf"`.
+                - **Warning**:
+                  In current implementation,
+                  numerical underflow may happen for high dimensionalities
+                  when `smoothness="C0+"` or `smoothness="Cinf"`.
 
             where (string, optional): This option is currently not supported for Hypercube.
             inside (bool, optional): The `x` is either inside or outside the geometry.

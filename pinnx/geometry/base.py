@@ -104,19 +104,19 @@ class AbstractGeometry(abc.ABC):
                 e.g., "C0", "C0+", "Cinf". "C0" is the least smooth, "Cinf" is the most smooth.
                 Default is "C0+".
 
-                - C0
-                The distance function is continuous but may not be non-differentiable.
-                But the set of non-differentiable points should have measure zero,
-                which makes the probability of the collocation point falling in this set be zero.
+                - ``C0``:
+                  The distance function is continuous but may not be non-differentiable.
+                  But the set of non-differentiable points should have measure zero,
+                  which makes the probability of the collocation point falling in this set be zero.
 
-                - C0+
-                The distance function is continuous and differentiable almost everywhere. The
-                non-differentiable points can only appear on boundaries. If the points in `x` are
-                all inside or outside the geometry, the distance function is smooth.
+                - ``C0+``:
+                  The distance function is continuous and differentiable almost everywhere. The
+                  non-differentiable points can only appear on boundaries. If the points in `x` are
+                  all inside or outside the geometry, the distance function is smooth.
 
-                - Cinf
-                The distance function is continuous and differentiable at any order on any
-                points. This option may result in a polynomial of HIGH order.
+                - ``Cinf``:
+                  The distance function is continuous and differentiable at any order on any
+                  points. This option may result in a polynomial of HIGH order.
 
         Returns:
             A tensor of a type determined by the backend, which will have a shape of (n, 1).

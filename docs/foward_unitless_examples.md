@@ -93,9 +93,9 @@ Diffusion equation with training points resampling <https://github.com/chaobrain
 Diffusion-reaction equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/diffusion_reaction.py>
 Linear elastostatic equation over a 2D square domain <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/elasticity_plate.py>
 Euler beam (with units) <https://github.com/chaobrain/pinnx/blob/main/docs/unit-examples-forward/Euler_beam.py>
-Klein-Gordon equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Klein_Gordon.py>
-Kovasznay flow <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Kovasznay_flow.py>
-Lotka-Volterra equation <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/Lotka_Volterra.py>
+examples-pinn-forward/Klein_Gordon.ipynb
+examples-pinn-forward/Kovasznay_flow.ipynb
+examples-pinn-forward/Lotka_Volterra.ipynb
 Second-order ODE system <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/ode_2nd.py>
 A simple ODE system <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/ode_ide.py>
 Second order ODE <https://github.com/chaobrain/pinnx/blob/main/docs/examples-pinn-forward/ode_system.py>

@@ -54,27 +54,27 @@ class DeepONet(NN):
         multi_output_strategy (str or None): ``None``, "independent", "split_both", "split_branch" or
             "split_trunk". It makes sense to set in case of multiple outputs.
 
-            - None
-            Classical implementation of DeepONet with a single output.
-            Cannot be used with `num_outputs` > 1.
+            - ``None``:
+              Classical implementation of DeepONet with a single output.
+              Cannot be used with `num_outputs` > 1.
 
-            - independent
-            Use `num_outputs` independent DeepONets, and each DeepONet outputs only
-            one function.
+            - ``independent``:
+              Use `num_outputs` independent DeepONets, and each DeepONet outputs only
+              one function.
 
-            - split_both
-            Split the outputs of both the branch net and the trunk net into `num_outputs`
-            groups, and then the kth group outputs the kth solution.
+            - ``split_both``:
+              Split the outputs of both the branch net and the trunk net into `num_outputs`
+              groups, and then the kth group outputs the kth solution.
 
-            - split_branch
-            Split the branch net and share the trunk net. The width of the last layer
-            in the branch net should be equal to the one in the trunk net multiplied
-            by the number of outputs.
+            - ``split_branch``:
+              Split the branch net and share the trunk net. The width of the last layer
+              in the branch net should be equal to the one in the trunk net multiplied
+              by the number of outputs.
 
-            - split_trunk
-            Split the trunk net and share the branch net. The width of the last layer
-            in the trunk net should be equal to the one in the branch net multiplied
-            by the number of outputs.
+            - ``split_trunk``:
+              Split the trunk net and share the branch net. The width of the last layer
+              in the trunk net should be equal to the one in the branch net multiplied
+              by the number of outputs.
     """
 
     def __init__(
@@ -170,27 +170,27 @@ class DeepONetCartesianProd(NN):
         multi_output_strategy (str or None): ``None``, "independent", "split_both", "split_branch" or
             "split_trunk". It makes sense to set in case of multiple outputs.
 
-            - None
-            Classical implementation of DeepONet with a single output.
-            Cannot be used with `num_outputs` > 1.
+            - ``None``:
+              Classical implementation of DeepONet with a single output.
+              Cannot be used with `num_outputs` > 1.
 
-            - independent
-            Use `num_outputs` independent DeepONets, and each DeepONet outputs only
-            one function.
+            - ``independent``:
+              Use `num_outputs` independent DeepONets, and each DeepONet outputs only
+              one function.
 
-            - split_both
-            Split the outputs of both the branch net and the trunk net into `num_outputs`
-            groups, and then the kth group outputs the kth solution.
+            - ``split_both``:
+              Split the outputs of both the branch net and the trunk net into `num_outputs`
+              groups, and then the kth group outputs the kth solution.
 
-            - split_branch
-            Split the branch net and share the trunk net. The width of the last layer
-            in the branch net should be equal to the one in the trunk net multiplied
-            by the number of outputs.
+            - ``split_branch``:
+              Split the branch net and share the trunk net. The width of the last layer
+              in the branch net should be equal to the one in the trunk net multiplied
+              by the number of outputs.
 
-            - split_trunk
-            Split the trunk net and share the branch net. The width of the last layer
-            in the trunk net should be equal to the one in the branch net multiplied
-            by the number of outputs.
+            - ``split_trunk``:
+              Split the trunk net and share the branch net. The width of the last layer
+              in the trunk net should be equal to the one in the branch net multiplied
+              by the number of outputs.
     """
 
     def __init__(

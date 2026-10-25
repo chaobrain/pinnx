@@ -144,6 +144,7 @@ Define a PINN with explicit variables and physical units.
     forward_examples.md
     foward_unitless_examples.md
     inverse_examples.md
+    function_examples.md
     More Examples <https://github.com/chaobrain/pinnx/tree/main/docs>
     about.rst
 
