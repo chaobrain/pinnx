@@ -5,28 +5,28 @@ PINNx: Physics-Informed Neural Networks for Scientific Machine Learning in JAX
    :target: https://github.com/chaobrain/pinnx/actions/workflows/build.yml
    :alt: Build Status
 
-.. image:: https://readthedocs.org/projects/pinnx/badge/?version=latest
-   :target: https://pinnx.readthedocs.io/en/latest/?badge=latest
+.. image:: https://app.readthedocs.org/projects/pinnx/badge/?version=latest
+   :target: https://pinnx.readthedocs.io/
    :alt: Documentation Status
 
 .. image:: https://badge.fury.io/py/pinnx.svg
-   :target: https://badge.fury.io/py/pinnx
+   :target: https://pypi.org/project/pinnx/
    :alt: PyPI Version
 
 .. image:: https://img.shields.io/github/license/chaobrain/pinnx
-   :target: https://github.com/chaobrain/pinnx/blob/master/LICENSE
+   :target: https://github.com/chaobrain/pinnx/blob/main/LICENSE
    :alt: License
 
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX.
 It is a rewrite of `DeepXDE <https://github.com/lululxvi/deepxde>`_ but is enhanced by our
-`brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
+`brain modeling ecosystem <https://brainx.chaobrain.com/>`_.
 
 For example, it leverages
 
-- `brainstate <https://brainstate.readthedocs.io/>`_ for just-in-time compilation,
+- `brainstate <https://brainx.chaobrain.com/brainstate/>`_ for just-in-time compilation,
 - `saiunit <https://saiunit.readthedocs.io/>`_ for dimensional analysis,
-- `braintools <https://braintools.readthedocs.io/>`_ for checkpointing, loss functions, and other utilities.
+- `braintools <https://brainx.chaobrain.com/braintools/>`_ for checkpointing, loss functions, and other utilities.
 
 
 ----
@@ -153,7 +153,7 @@ Define a PINN with explicit variables and physical units.
 See also the ecosystem
 ^^^^^^^^^^^^^^^^^^^^^^
 
-``pinnx`` is one part of our `brain modeling ecosystem <https://brainmodeling.readthedocs.io/>`_.
+``pinnx`` is one part of our `brain modeling ecosystem <https://brainx.chaobrain.com/>`_.
 
 .. toctree::
    :hidden:

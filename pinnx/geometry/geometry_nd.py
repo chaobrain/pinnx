@@ -290,7 +290,7 @@ class Hypersphere(Geometry):
         return self.radius * X + self.center
 
     def random_boundary_points(self, n, random="pseudo"):
-        # http://mathworld.wolfram.com/HyperspherePointPicking.html
+        # https://mathworld.wolfram.com/HyperspherePointPicking.html
         if random == "pseudo":
             X = brainstate.random.normal(size=(n, self.dim)).astype(brainstate.environ.dftype())
         else:

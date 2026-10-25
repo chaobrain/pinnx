@@ -92,7 +92,7 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
     environment:
       name: pypi
-      url: https://pypi.org/p/pinnx
+      url: https://pypi.org/project/pinnx/
     permissions:
       id-token: write
 
@@ -113,7 +113,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     environment:
       name: testpypi
-      url: https://test.pypi.org/p/pinnx
+      url: https://test.pypi.org/project/pinnx/
 
     steps:
       - name: Download build artifacts

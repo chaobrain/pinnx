@@ -1,5 +1,5 @@
 """
-Implementation of Brinkman-Forchheimer equation example in paper https://arxiv.org/pdf/2111.02801.pdf.
+Implementation of Brinkman-Forchheimer equation example in paper https://arxiv.org/pdf/2111.02801.
 """
 
 import brainstate

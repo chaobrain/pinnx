@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#     https://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -172,7 +172,7 @@ def _raw_hessian(
     xj: str | Sequence[str] | None = None,
 ) -> Callable:
     r"""
-    Physical unit-aware version of `jax.hessian <https://jax.readthedocs.io/en/latest/_autosummary/jax.hessian.html>`_,
+    Physical unit-aware version of `jax.hessian <https://docs.jax.dev/en/latest/_autosummary/jax.hessian.html>`_,
     computing Hessian of ``fun`` as a dense array.
 
     H[y][xi][xj] = d^2y / dxi dxj

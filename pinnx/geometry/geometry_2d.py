@@ -50,7 +50,7 @@ class Disk(Hypersphere):
         return _n
 
     def random_points(self, n, random="pseudo"):
-        # http://mathworld.wolfram.com/DiskPointPicking.html
+        # https://mathworld.wolfram.com/DiskPointPicking.html
         rng = sample(n, 2, random)
         r, theta = rng[:, 0], 2 * jnp.pi * rng[:, 1]
         x, y = jnp.cos(theta), jnp.sin(theta)
@@ -172,7 +172,7 @@ class Ellipse(Geometry):
         return f, total_arc
 
     def random_points(self, n, random="pseudo"):
-        # http://mathworld.wolfram.com/DiskPointPicking.html
+        # https://mathworld.wolfram.com/DiskPointPicking.html
         rng = sample(n, 2, random)
         r, theta = rng[:, 0], 2 * jnp.pi * rng[:, 1]
         x, y = self.semimajor * jnp.cos(theta), self.semiminor * jnp.sin(theta)
@@ -646,7 +646,7 @@ class Triangle(Geometry):
         # Method 1 (used here):
         # - https://math.stackexchange.com/questions/18686/uniform-random-point-in-triangle
         # Method 2:
-        # - http://mathworld.wolfram.com/TrianglePointPicking.html
+        # - https://mathworld.wolfram.com/TrianglePointPicking.html
         # - https://hbfs.wordpress.com/2010/10/05/random-points-in-a-triangle-generating-random-sequences-ii/
         # - https://stackoverflow.com/questions/19654251/random-point-inside-triangle-inside-java
         sqrt_r1 = jnp.sqrt(brainstate.random.rand(n, 1))
@@ -843,7 +843,6 @@ class Polygon(Geometry):
             """Winding number algorithm.
 
             https://en.wikipedia.org/wiki/Point_in_polygon
-            http://geomalgorithms.com/a03-_inclusion.html
 
             Args:
                 P: A point.

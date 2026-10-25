@@ -83,8 +83,8 @@ autosummary_generate = True
 master_doc = 'index'
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3.8", None),
-    "sphinx": ("https://www.sphinx-doc.org/en/master", None),
+    "python": ("https://docs.python.org/3/", None),
+    "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
 }
 nitpick_ignore = [
     ("py:class", "docutils.nodes.document"),
@@ -120,8 +120,8 @@ html_last_updated_fmt = ""
 html_static_path = ["_static"]
 nb_execution_mode = "off"
 thebe_config = {
-    "repository_url": "https://github.com/binder-examples/jupyter-stacks-datascience",
-    "repository_branch": "master",
+    "repository_url": "https://github.com/chaobrain/pinnx",
+    "repository_branch": "main",
 }
 
 html_theme_options = {

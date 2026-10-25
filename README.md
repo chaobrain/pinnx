@@ -7,18 +7,18 @@
 
 
 [![Build Status](https://github.com/chaobrain/pinnx/actions/workflows/build.yml/badge.svg)](https://github.com/chaobrain/pinnx/actions/workflows/build.yml)
-[![Documentation Status](https://readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/)
-[![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://badge.fury.io/py/pinnx)
+[![Documentation Status](https://app.readthedocs.org/projects/pinnx/badge/?version=latest)](https://pinnx.readthedocs.io/)
+[![PyPI Version](https://badge.fury.io/py/pinnx.svg)](https://pypi.org/project/pinnx/)
 [![License](https://img.shields.io/github/license/chaobrain/pinnx)](https://github.com/chaobrain/pinnx/blob/main/LICENSE)
 
 ``PINNx`` is a library for scientific machine learning and physics-informed learning in JAX. 
 It is a rewrite of [DeepXDE](https://github.com/lululxvi/deepxde) but is enhanced by our 
-[brain modeling ecosystem](https://brainmodeling.readthedocs.io/). 
+[brain modeling ecosystem](https://brainx.chaobrain.com/).
 For example, it leverages 
 
-- [brainstate](https://brainstate.readthedocs.io/) for just-in-time compilation,
+- [brainstate](https://brainx.chaobrain.com/brainstate/) for just-in-time compilation,
 - [saiunit](https://saiunit.readthedocs.io/) for dimensional analysis, 
-- [braintools](https://braintools.readthedocs.io/) for checkpointing, loss functions, and other utilities.
+- [braintools](https://brainx.chaobrain.com/braintools/) for checkpointing, loss functions, and other utilities.
 
 
 ## Quickstart
@@ -116,5 +116,5 @@ The official documentation is hosted on Read the Docs: [https://pinnx.readthedoc
 
 ## See also the ecosystem
 
-``pinnx`` is one part of our brain modeling ecosystem: https://brainmodeling.readthedocs.io/
+``pinnx`` is one part of our brain modeling ecosystem: https://brainx.chaobrain.com/
 
