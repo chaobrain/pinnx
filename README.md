@@ -114,6 +114,25 @@ pip install pinnx[tpu]  # for Google TPUs
 The official documentation is hosted on Read the Docs: [https://pinnx.readthedocs.io/](https://pinnx.readthedocs.io/)
 
 
+## Citation
+
+If you use PINNx in your research, please cite the following paper:
+
+```bibtex
+@article{wang2025integrating,
+  title={Integrating physical units into high-performance AI-driven scientific computing},
+  author={Wang, Chaoming and He, Sichao and Luo, Shouwei and Huan, Yuxiang and Wu, Si},
+  journal={Nature Communications},
+  volume={16},
+  number={1},
+  pages={3609},
+  year={2025},
+  publisher={Nature Publishing Group UK London},
+  url={https://doi.org/10.1038/s41467-025-58626-4}
+}
+```
+
+
 ## See also the ecosystem
 
 ``pinnx`` is one part of our brain modeling ecosystem: https://brainx.chaobrain.com/
