@@ -127,7 +127,7 @@ jobs:
         with:
           name: documentation
           path: docs/_build/html/
-          retention-days: 7
+          retention-days: 1
 
   check-style:
     name: Check Code Style (Ruff)
